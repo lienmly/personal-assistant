@@ -81,6 +81,11 @@ const BRANDS = [
         label: "Repurposed from Medium",
         state: "planned",
       },
+      // Where the TikTok gets re-uploaded. Same file, three more places —
+      // repurposing kind 1, which is meant to cost nothing (§6).
+      { platform: "instagram", handle: "codingmom", label: "Reels", state: "planned" },
+      { platform: "facebook", handle: "codingmom", label: "Reels", state: "planned" },
+      { platform: "youtube", handle: "codingmom", label: "Shorts", state: "planned" },
     ],
   },
   {
@@ -142,7 +147,15 @@ const SERIES = [
     // Off until the account actually exists — a planned channel shouldn't be
     // generating slots you can't fill.
     isActive: false,
-    channelKeys: [{ platform: "tiktok", handle: "codingmom" }],
+    // Four channels, one piece of work: shoot for TikTok, re-upload three
+    // times. Wired up now so that flipping `isActive` once the account exists
+    // is the only step left.
+    channelKeys: [
+      { platform: "tiktok", handle: "codingmom" },
+      { platform: "instagram", handle: "codingmom" },
+      { platform: "facebook", handle: "codingmom" },
+      { platform: "youtube", handle: "codingmom" },
+    ],
   },
   {
     name: "Weekly essay",
@@ -164,12 +177,14 @@ const SERIES = [
  * Bootstrap only — see `seedMarks`. Marks get completed and deleted, so unlike
  * everything above these are written once and never reconciled.
  */
-const UTAITAI_MARKS: {
+type SeedMark = {
   track: string;
   title: string;
   notes?: string;
   link?: string;
-}[] = [
+};
+
+const UTAITAI_MARKS: SeedMark[] = [
   // ── Ship ──────────────────────────────────────────────────────────────────
   {
     track: "Ship",
@@ -273,19 +288,137 @@ const UTAITAI_MARKS: {
 ];
 
 /**
+ * Sleepy Cat's road to Steam. Four tracks, because the two halves the game
+ * actually needs — gameplay polish and art — are different people's work on
+ * different days, and collapsing them into one "Ship" list hides that half of
+ * it isn't mine to do.
+ *
+ * Marketing runs on two brands at once, which is the two-axis model (§6) doing
+ * its job: @sleepycatgame talks to players, Coding Mom talks about building it.
+ */
+const SLEEPY_CAT_MARKS: SeedMark[] = [
+  // ── Build: polish gameplay + levels ───────────────────────────────────────
+  {
+    track: "Build",
+    title: "Inventory every level — which are finished, which are still rough",
+    notes:
+      "Do this first. 'Polish the levels' is unstartable as a task; 'fix these four' isn't.",
+  },
+  {
+    track: "Build",
+    title: "Fix the top 5 feel problems — controls, camera, collision",
+    notes:
+      "The things that make a cozy game feel cheap. Write the list while playing, fix it after.",
+  },
+  {
+    track: "Build",
+    title: "Difficulty curve pass over the level order",
+    notes: "Reorder before building anything new — it's free and usually enough.",
+  },
+  {
+    track: "Build",
+    title: "Pause, settings and save",
+    notes:
+      "A player on Steam will alt-tab, change the volume and quit mid-level. Without these that session ends badly.",
+  },
+  {
+    track: "Build",
+    title: "Controller support",
+    notes: "Steam players expect it, and Valve asks about it on the store page.",
+  },
+  {
+    track: "Build",
+    title: "Watch 3 people play it without saying anything",
+    notes:
+      "Silently. Every instinct to explain the controls is a note about the tutorial.",
+  },
+
+  // ── Art ───────────────────────────────────────────────────────────────────
+  {
+    track: "Art",
+    title: "Agree the full asset list with husband — one checklist, both of us",
+    notes:
+      "The handoff, not the drawing, is what stalls. One list means neither of us is guessing what's outstanding.",
+  },
+  {
+    track: "Art",
+    title: "Replace the placeholder sprites in the shipped levels",
+  },
+  {
+    track: "Art",
+    title: "UI and menu art pass",
+    notes: "Menus are what the screenshots show, and screenshots sell the page.",
+  },
+  { track: "Art", title: "Title screen and logo" },
+  {
+    track: "Art",
+    title: "Steam capsule art — main, small, header",
+    notes:
+      "Valve's sizes are exact and the capsule is most of your click-through. Not a last-week job.",
+    link: "https://partner.steamgames.com/doc/store/assets/standard",
+  },
+
+  // ── Ship: Steam ───────────────────────────────────────────────────────────
+  {
+    track: "Ship",
+    title: "Register Steamworks and pay the $100 app fee",
+    notes: "Blocks everything else on this track. There's a ~30-day wait after it too.",
+    link: "https://partner.steamgames.com/",
+  },
+  {
+    track: "Ship",
+    title: "Draft the store page — description, tags, screenshots, trailer",
+  },
+  {
+    track: "Ship",
+    title: "Build a depot and push a test build to Steam",
+    notes: "Do it early with a rough build. The first upload is never the smooth one.",
+  },
+  {
+    track: "Ship",
+    title: "Get the store page live for wishlists",
+    notes:
+      "Wishlists before launch are the whole game on Steam. Every week the page isn't up is a week of them not accruing.",
+  },
+  {
+    track: "Ship",
+    title: "Set a release date",
+    notes: "Valve wants ~2 weeks' notice, and the date is what makes the rest real.",
+  },
+
+  // ── Marketing ─────────────────────────────────────────────────────────────
+  {
+    track: "Marketing",
+    title: "Create @sleepycatgame on X and Threads",
+    notes:
+      "Both are sitting in Studio → Channels as `planned`. Flip them to `live` once they exist.",
+  },
+  {
+    track: "Marketing",
+    title: "Create the Coding Mom TikTok account",
+    notes:
+      "Unblocks the 'Daily short' series, which is switched off until the account is real.",
+  },
+  {
+    track: "Marketing",
+    title: "Cut a trailer — Steam page and socials off the same edit",
+  },
+];
+
+/**
  * Bootstrap, not reconciliation: marks are seeded only into a project that has
  * none. Upserting them would resurrect every mark you'd since completed and
  * deleted, which is the opposite of useful.
  */
-async function seedMarks() {
-  const project = await db.project.findUnique({ where: { slug: "utaitai" } });
+async function seedMarks(slug: string, marks: SeedMark[]) {
+  const project = await db.project.findUnique({ where: { slug } });
   if (!project) return 0;
 
   const existing = await db.mark.count({ where: { projectId: project.id } });
   if (existing > 0) return 0;
 
   await db.mark.createMany({
-    data: UTAITAI_MARKS.map((mark, index) => ({
+    data: marks.map((mark, index) => ({
       title: mark.title,
       notes: mark.notes ?? null,
       link: mark.link ?? null,
@@ -296,7 +429,7 @@ async function seedMarks() {
     })),
   });
 
-  return UTAITAI_MARKS.length;
+  return marks.length;
 }
 
 async function main() {
@@ -405,7 +538,9 @@ async function main() {
     }
   }
 
-  const marksCreated = await seedMarks();
+  const marksCreated =
+    (await seedMarks("utaitai", UTAITAI_MARKS)) +
+    (await seedMarks("sleepy-cat", SLEEPY_CAT_MARKS));
 
   const counts = {
     areas: await db.area.count(),
@@ -417,7 +552,7 @@ async function main() {
   };
   console.log("Seeded:", counts);
   if (marksCreated === 0) {
-    console.log("Marks: left alone — Utaitai already has some.");
+    console.log("Marks: left alone — both projects already have some.");
   }
 }
 

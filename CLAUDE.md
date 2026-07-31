@@ -175,6 +175,7 @@ market it — had nowhere to live, and it isn't content, so Studio couldn't hold
 - [x] Experiment capture — paste a link, get a Mark under Experiments
 - [x] Today, section 1 (Marks due) — due + overdue, capped at 7, tickable in place
 - [x] Today, section 4 (Momentum) — drifting first, with "Let it simmer" inline
+- [x] Sleepy Cat's road to Steam seeded — 19 marks over **Build / Art / Ship / Marketing**
 - [ ] Project CRUD (creating/editing projects, not just reading them)
 - [ ] Give marks due dates — nothing has one, so section 1 sits empty by default
 
@@ -349,11 +350,15 @@ Two fields on Mark are not in the original sketch, both added 2026-07-31:
 - **`link`** — the post worth copying, the console page, the thread with the user who
   asked. For the "try this format" flow the link *is* most of the task, which is why the
   Hunt Board leads with a paste-a-link capture box rather than a form.
-- **`track`** — a free-text workstream ("Ship", "Users", "Marketing", "Experiments",
-  "Content"). Free text, not an enum: streams differ per project and inventing one
-  shouldn't cost a migration. Utaitai runs three at once and without this the board is a
-  flat wall of twenty unrelated rows. Suggested names live in `lib/tracks.ts`, which is
-  kept free of any Prisma import so client components can read it.
+- **`track`** — a free-text workstream ("Build", "Art", "Ship", "Users", "Marketing",
+  "Experiments", "Content"). Free text, not an enum: streams differ per project and
+  inventing one shouldn't cost a migration. Utaitai runs three at once and without this
+  the board is a flat wall of twenty unrelated rows. Suggested names live in
+  `lib/tracks.ts`, which is kept free of any Prisma import so client components can read
+  it. **"Build" and "Art" were added 2026-07-31** when Sleepy Cat arrived: a game's two
+  big jobs are gameplay polish and art assets, they're *different people's* work, and
+  folding them into "Ship" hid that half of the project isn't mine to do. That's the
+  case for free text — a second project needed two new streams and it cost nothing.
 
 ### Dates are a trap here
 
@@ -513,6 +518,17 @@ Named animations: `animate-rise` (fade + 8px up — cards, columns, rows arrivin
   animation, unmount in `onAnimationEnd` — guarded with
   `event.target === event.currentTarget` so bubbling child animations don't fire it early.
   `DropPanel` is the reference implementation.
+- **A row a server action removes folds out.** Ticking a Mark done removes the row, but
+  what removes it is the revalidated data arriving — so without this it just blinks out
+  of existence. Wrap the row in a `grid` whose `grid-template-rows` transitions
+  `1fr → 0fr` (with the row itself in an `overflow-hidden` child) and **derive** the
+  collapsed state from the action's `isPending` rather than holding it in state: a failed
+  action then simply unfolds the row instead of leaving a blank gap. A ~140ms
+  `transition-delay` lets the tick's `animate-pop` be seen before the fold starts.
+  `MarkRow` on the Hunt Board is the reference implementation.
+  Keyframes cannot do this job: `animation-fill-mode: both` pins the final opacity and
+  beats any transition on the same element, so the fold and the `animate-rise` entrance
+  must live on **different** elements.
 - **Pending server actions recede** (`opacity-45` + `pointer-events-none`) rather than
   freezing, so a wait reads as progress.
 - **Press feedback is `active:scale-[0.97]`** on buttons and chips (`0.985` on large
@@ -547,9 +563,14 @@ Named animations: `animate-rise` (fade + 8px up — cards, columns, rows arrivin
 _Last updated: 2026-07-31 · Status: **Phases 2 and 3 both real and running locally.**
 Studio now batches: `/studio/batch` fills a whole week of slots from one grid, and the
 board shows a daily-queue strip instead of ~28 empty slot cards. The Hunt Board is live
-with Marks grouped by project and track, a paste-a-link experiment capture, and Utaitai's
-twenty ship/users/marketing marks seeded. Postgres is migrated, the seed is loaded, and
-all three surfaces have been checked in a signed-in browser. Outstanding: Today's four
+with Marks grouped by project and track, a paste-a-link experiment capture, and both
+projects' marks seeded — Utaitai's twenty ship/users/marketing marks, and **Sleepy Cat's
+nineteen** across Build / Art / Ship / Marketing, aimed at a Steam release. Coding Mom
+gained Instagram, Facebook and YouTube channels so its daily short fans out four ways,
+and its 2026-08-02 Medium slot now holds the postpartum-collaboration essay — a Drop
+carrying the Coding Mom brand and the Sleepy Cat project, which is the two-axis model
+(§6) earning its keep for the first time. Postgres is migrated, the seed is loaded, and
+all three surfaces have been checked in a signed-in browser.
 **Today is live except the calendar**: sections 1 (Marks due), 2 (Going out today) and 4
 (Momentum) all read real data and are actionable in place — tick a mark done, tick a
 channel posted, let a drifting project simmer. All four stat tiles are wired. Building

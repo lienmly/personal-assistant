@@ -9,7 +9,7 @@ import { TRACKS } from "@/lib/tracks";
 import { cn } from "@/lib/utils";
 
 const field =
-  "w-full rounded-chip bg-inset px-3 py-2 text-[13px] text-ink outline-none placeholder:text-faint focus:ring-2 focus:ring-accent/25";
+  "w-full rounded-chip bg-inset px-3 py-2 text-[13px] text-ink outline-none transition-[background-color,box-shadow] duration-(--duration-base) ease-soft placeholder:text-faint hover:bg-line/60 focus:bg-card focus:ring-2 focus:ring-accent/25";
 const labelCls =
   "mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.08em] text-faint";
 
@@ -223,7 +223,7 @@ export function MarkPanel({
                     target="_blank"
                     rel="noreferrer"
                     aria-label="Open link"
-                    className="shrink-0 text-faint hover:text-ink"
+                    className="shrink-0 text-faint transition-[color,transform] duration-(--duration-base) ease-soft hover:-translate-y-px hover:text-ink"
                   >
                     <ExternalLink className="size-4" strokeWidth={1.8} />
                   </a>
@@ -250,7 +250,7 @@ export function MarkPanel({
             </div>
 
             {error && (
-              <p className="rounded-chip bg-accent-soft px-3 py-2 text-[13px] text-accent">
+              <p className="animate-rise rounded-chip bg-accent-soft px-3 py-2 text-[13px] text-accent">
                 {error}
               </p>
             )}
@@ -266,9 +266,12 @@ export function MarkPanel({
                   dismiss();
                 })
               }
-              className="mt-6 flex items-center gap-2 text-[13px] text-muted hover:text-accent"
+              className="group mt-6 flex items-center gap-2 text-[13px] text-muted transition-colors duration-(--duration-quick) hover:text-accent"
             >
-              <Trash2 className="size-3.5" strokeWidth={1.8} />
+              <Trash2
+                className="size-3.5 transition-transform duration-(--duration-base) ease-soft group-hover:-rotate-12"
+                strokeWidth={1.8}
+              />
               Delete this mark
             </button>
           )}
