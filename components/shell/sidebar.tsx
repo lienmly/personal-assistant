@@ -1,0 +1,175 @@
+"use client";
+
+import { useState } from "react";
+import { ChevronDown, Plus, Settings2, X } from "lucide-react";
+
+import { AREAS, PLACEHOLDER_PROJECTS } from "@/lib/nav";
+import { cn } from "@/lib/utils";
+
+/**
+ * The sidebar is the *area filter*, not a second set of destinations. Areas
+ * cut across every surface, so this panel stays put while the rail switches
+ * what you're looking at.
+ *
+ * Selecting an area is cosmetic until Phase 2 — there's no data to filter yet.
+ */
+export function Sidebar({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  const [selectedArea, setSelectedArea] = useState<string | null>(null);
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+
+  const toggle = (id: string) =>
+    setCollapsed((prev) => ({ ...prev, [id]: !prev[id] }));
+
+  return (
+    <>
+      {open && (
+        <button
+          type="button"
+          aria-label="Close menu"
+          onClick={onClose}
+          className="fixed inset-0 z-30 bg-obsidian/25 md:hidden"
+        />
+      )}
+
+      <aside
+        className={cn(
+          "fixed inset-y-0 left-0 z-40 flex w-[264px] shrink-0 flex-col bg-shell px-4 py-5 transition-transform duration-200 md:static md:z-auto md:w-[236px] md:translate-x-0 md:px-2 md:pl-0",
+          open ? "translate-x-0 shadow-float" : "-translate-x-full",
+        )}
+      >
+        <div className="mb-6 flex items-center justify-between px-3">
+          <button
+            type="button"
+            className="flex items-center gap-1.5 text-[15px] font-semibold tracking-tight text-ink"
+          >
+            Clan Centurio
+            <ChevronDown className="size-4 text-faint" strokeWidth={2} />
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close menu"
+            className="grid size-8 place-items-center rounded-full text-muted hover:bg-card md:hidden"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setSelectedArea(null)}
+          className={cn(
+            "mb-6 flex w-full items-center gap-2.5 rounded-chip px-3 py-2 text-left text-sm transition-colors",
+            selectedArea === null
+              ? "font-medium text-ink"
+              : "text-muted hover:text-ink",
+          )}
+        >
+          <span className="size-2 rounded-full bg-ink/70" />
+          All areas
+        </button>
+
+        <div className="mb-2 flex items-center justify-between px-3">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.09em] text-faint">
+            Areas
+          </span>
+          <button
+            type="button"
+            disabled
+            title="Adding areas arrives in Phase 2"
+            aria-label="Add area"
+            className="grid size-5 place-items-center rounded-full text-faint"
+          >
+            <Plus className="size-3.5" strokeWidth={2.4} />
+          </button>
+        </div>
+
+        <nav aria-label="Areas" className="flex-1 overflow-y-auto">
+          {AREAS.map((area) => {
+            const projects = PLACEHOLDER_PROJECTS[area.id] ?? [];
+            const isCollapsed = collapsed[area.id];
+            const isSelected = selectedArea === area.id;
+
+            return (
+              <div key={area.id} className="mb-0.5">
+                <div className="group flex items-center">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedArea(isSelected ? null : area.id)}
+                    className={cn(
+                      "flex flex-1 items-center gap-2.5 rounded-chip px-3 py-2 text-left text-sm transition-colors",
+                      isSelected
+                        ? "font-medium text-accent"
+                        : "text-ink/80 hover:text-ink",
+                    )}
+                  >
+                    <span
+                      className="size-2 shrink-0 rounded-full"
+                      style={{ background: area.dot }}
+                    />
+                    {area.name}
+                  </button>
+                  {projects.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => toggle(area.id)}
+                      aria-label={
+                        isCollapsed
+                          ? `Expand ${area.name}`
+                          : `Collapse ${area.name}`
+                      }
+                      className="grid size-6 place-items-center rounded-full text-faint hover:text-muted"
+                    >
+                      <ChevronDown
+                        className={cn(
+                          "size-3.5 transition-transform",
+                          isCollapsed && "-rotate-90",
+                        )}
+                        strokeWidth={2.4}
+                      />
+                    </button>
+                  )}
+                </div>
+
+                {!isCollapsed && (
+                  <div className="tree-branch ml-[18px] pl-3">
+                    {projects.length > 0 ? (
+                      projects.map((project) => (
+                        <div
+                          key={project}
+                          className="cursor-default rounded-chip px-3 py-1.5 text-[13px] text-muted hover:text-ink"
+                        >
+                          {project}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="px-3 py-1.5 text-[13px] text-faint">
+                        No projects yet
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </nav>
+
+        <button
+          type="button"
+          disabled
+          title="Area settings arrive in Phase 2"
+          className="mt-4 flex items-center gap-2 px-3 py-2 text-[13px] text-faint"
+        >
+          <Settings2 className="size-4" strokeWidth={1.8} />
+          Manage areas
+        </button>
+      </aside>
+    </>
+  );
+}

@@ -91,14 +91,19 @@ dashboard/UI ecosystem, easy Google auth, and a clean path to embedding an AI as
 
 ### Folder layout
 ```
-/app            → routes (dashboard, calendar, areas, auth, api)
-/components     → shared UI (shadcn components live here)
-/lib            → db client, auth config, utils
-/lib/montblanc  → AI assistant logic (prompts, tools)
-/prisma         → schema.prisma + migrations
-/public         → static assets, icons, branding
+/app/(app)/…       → the five authenticated surfaces + their shared layout
+/app/login         → public sign-in page
+/app/api/auth/…    → Auth.js route handler
+/components/shell  → icon rail, sidebar, topbar, mobile tab bar
+/components/ui     → card, empty state, surface header
+/components/brand  → the moogle mark
+/lib               → auth config, nav config, server actions, utils
+/lib/montblanc     → AI assistant logic (prompts, tools) — Phase 5
+/prisma            → schema.prisma + migrations — Phase 2
+/proxy.ts          → route protection (Next 16's renamed Middleware)
+/public            → static assets, icons, branding
 ```
-_(Scaffolded so far: `/app`, `/public`, config files. Other folders added as their phase arrives.)_
+_(Everything above exists except `/lib/montblanc` and `/prisma`, which arrive with their phase.)_
 
 ---
 
@@ -109,19 +114,21 @@ Ordered so each phase builds on the last. We ship and use each layer before movi
 ### Phase 0 — Foundation
 - [x] Initialize Git repo
 - [x] Scaffold Next.js + TypeScript + Tailwind
-- [ ] Add shadcn/ui
 - [x] Push to GitHub — `https://github.com/lienmly/personal-assistant`
 - [x] Deploy to Railway — branded landing shell is live (pipeline proven end-to-end)
 - [ ] Provision Postgres on the Railway project
 - [ ] Prisma connected, first migration
 
-### Phase 1 — Auth & Shell  ← **next**
-- [ ] Google login via Auth.js
-- [ ] Allowlist so only my account(s) can enter
-- [ ] Authenticated app shell: the five surfaces from §6 (Today, Hunt Board, Calendar,
+### Phase 1 — Auth & Shell
+- [x] Google login via Auth.js v5 (`lib/auth.ts`, JWT sessions — no DB needed yet)
+- [x] Allowlist so only my account(s) can enter (`AUTH_ALLOWLIST`, fails closed)
+- [x] Authenticated app shell: the five surfaces from §6 (Today, Hunt Board, Calendar,
       Studio, Projects) wired up with empty states
-- [ ] Area filter chip row (hardcoded areas is fine at this stage)
-- [ ] Responsive layout baseline — icon rail on desktop, bottom tab bar on phone
+- [x] Area sidebar (hardcoded areas; the tree replaced the planned chip row — the
+      reference design's nested tree does the job better)
+- [x] Responsive layout baseline — icon rail on desktop, bottom tab bar on phone
+      _(phone layout not yet visually confirmed on a real device)_
+- [ ] Swap `PLACEHOLDER_PROJECTS` in `lib/nav.ts` for real data (Phase 2)
 
 ### Phase 2 — Areas, Projects & Marks
 _Reordered ahead of Calendar: Today and Momentum are meaningless without Projects, and
@@ -255,11 +262,17 @@ channel row.
 - Postgres plugin **not yet added** — next Phase 0 step, needed before Prisma.
 - Deploy from GitHub (auto-deploy on push to `main`, or manual — decide later).
 - **Environment variables** (keep in Railway, never commit):
-  - `DATABASE_URL`
-  - `NEXTAUTH_SECRET`, `NEXTAUTH_URL`
-  - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
-  - `ANTHROPIC_API_KEY`
+  - `AUTH_SECRET` — generate with `npx auth secret`
+  - `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`
+  - `AUTH_ALLOWLIST` — comma-separated e-mails; **empty means nobody gets in**
+  - `AUTH_URL` — production only, the public Railway URL
+  - `DATABASE_URL` — on Railway use the reference `${{Postgres.DATABASE_URL}}`;
+    locally use Railway's `DATABASE_PUBLIC_URL` (`*.proxy.rlwy.net`)
+  - `ANTHROPIC_API_KEY` — Phase 5
 - `.env.local` for local dev, `.env.example` committed as a template.
+
+> Auth.js v5 reads `AUTH_*` names natively, so the older `NEXTAUTH_*` / `GOOGLE_*`
+> names from the first draft are not used.
 
 ---
 
@@ -271,8 +284,15 @@ channel row.
       is no separate Calendar entity. Events carry an `areaId` and inherit its colour.
 - [x] **Task flavor** — resolved: themed. Tasks are **Marks**, content units are **Drops**.
       Keep UI labels readable; flavor lives in headings, not in form fields.
-- [ ] **Visual design** — still browsing Dribbble. The IA is settled, so a ref now only needs
-      to answer look-and-feel: dark mode? card-heavy vs minimal? density?
+- [x] **Visual design** — resolved 2026-07-30 from a Dribbble reference (a warm, light CRM
+      dashboard). Translated into `app/globals.css`: warm greige canvas, floating white
+      cards on a rounded panel, very large radii, near-invisible shadows, separation by
+      background contrast rather than borders, and a single crimson accent (`#de1f4c`)
+      that doubles as the moogle's pom-pom. **Light mode only** — the palette is built
+      around warm neutrals and a dark variant would need its own design pass.
+- [ ] shadcn/ui — deferred. Phase 1 needed no complex primitives, and the design is custom
+      enough that shadcn defaults would be fought rather than used. Revisit at Phase 2 when
+      dialogs, selects and popovers appear.
 - [ ] Prisma vs Drizzle (default: Prisma) — decide before Phase 2
 - [ ] Calendar library (Schedule-X vs FullCalendar) — decide at Phase 4
 - [ ] Notifications channel (push vs email) — Phase 7
@@ -305,6 +325,7 @@ channel row.
 
 ---
 
-_Last updated: 2026-07-30 · Status: **Phase 0 in progress** — scaffold done, pushed to
-GitHub, deployed on Railway. Remaining: Postgres + Prisma, shadcn/ui.
-Information architecture decided (§6); Phase 1 (auth + shell) is next up._
+_Last updated: 2026-07-30 · Status: **Phase 1 built.** Information architecture and visual
+design both decided (§6, §8). Auth + the five-surface shell are in and building clean.
+Outstanding before Phase 2: Google OAuth credentials, Postgres on Railway, and a look at
+the phone layout on a real device._
