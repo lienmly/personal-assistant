@@ -19,6 +19,28 @@ function isoDay(date: Date): number {
   return date.getUTCDay() === 0 ? 7 : date.getUTCDay();
 }
 
+/**
+ * Turns a slot day + `Series.timeOfDay` into the instant the drop publishes.
+ *
+ * `slotDate` is UTC midnight standing in for a *local* calendar day, and
+ * `timeOfDay` is documented as a *local* wall-clock time — so the two have to
+ * be recombined in local time. Doing this with `setUTCHours` (as this did
+ * originally) silently shifts every publish time by the machine's offset: a
+ * series set to 18:00 showed up on Today as 11:00.
+ */
+export function slotPublishAt(
+  slotDate: Date,
+  hours: number,
+  minutes: number,
+): Date {
+  const [year, month, day] = slotDate
+    .toISOString()
+    .slice(0, 10)
+    .split("-")
+    .map(Number);
+  return new Date(year, month - 1, day, hours || 0, minutes || 0, 0, 0);
+}
+
 function matchesCadence(
   date: Date,
   cadence: string,
@@ -85,8 +107,7 @@ export async function ensureSeriesSlots(): Promise<number> {
     for (const day of wanted) {
       if (have.has(day.toISOString().slice(0, 10))) continue;
 
-      const publishAt = new Date(day);
-      publishAt.setUTCHours(hours || 0, minutes || 0, 0, 0);
+      const publishAt = slotPublishAt(day, hours, minutes);
 
       await db.drop.create({
         data: {
@@ -191,6 +212,43 @@ export async function getBatchSlots() {
       },
     },
     orderBy: [{ slotDate: "asc" }, { publishAt: "asc" }],
+  });
+}
+
+/**
+ * Section 2 of Today: everything with a publish time inside the local day.
+ *
+ * `publishAt` is a real timestamp, not a `@db.Date`, so this is a local
+ * midnight-to-midnight window rather than the UTC-midnight convention the
+ * slotDate columns use. Getting those two mixed up is the bug this comment
+ * exists to prevent.
+ *
+ * Already-published drops stay in the list on purpose — seeing "3 of 4 done"
+ * is the point of the section, and hiding the finished ones would make the
+ * list shrink as you work instead of filling in.
+ */
+export async function getGoingOutToday() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+
+  return db.drop.findMany({
+    where: { publishAt: { gte: start, lt: end } },
+    include: {
+      brand: { select: { id: true, name: true, color: true } },
+      project: { select: { name: true, slug: true } },
+      series: { select: { name: true } },
+      channels: {
+        include: {
+          channel: {
+            select: { id: true, platform: true, handle: true, label: true },
+          },
+        },
+        orderBy: { channel: { sortOrder: "asc" } },
+      },
+    },
+    orderBy: [{ publishAt: "asc" }],
   });
 }
 

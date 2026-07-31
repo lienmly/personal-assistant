@@ -160,7 +160,10 @@ so it earns the first real data layer. Marks can wait; the posting can't._
       Added 2026-07-31: the cadence is produced weekly in one sitting, so ~28 empty
       slot cards were both unfillable one-at-a-time and drowning the real drops.
 - [x] `Drop.refUrl` — the viral post a drop reproduces, distinct from where it lands
-- [ ] Today, band 2 (Going out today)
+- [x] Today, section 2 (Going out today) — each channel tickable straight from Today
+- [x] `Series.timeOfDay` is applied in **local** time. It was being applied with
+      `setUTCHours`, so a series set to 18:00 published at 11:00; fixed in
+      `slotPublishAt`, and the already-generated slots were backfilled.
 - [ ] Per-project Drop list on the project card
 
 ### Phase 3 — Marks & the Hunt Board
@@ -170,8 +173,10 @@ market it — had nowhere to live, and it isn't content, so Studio couldn't hold
 - [x] Mark CRUD; completing a Mark bumps its Project's `lastTouchedAt`
 - [x] Hunt Board: open Marks grouped by Project, then by **track**
 - [x] Experiment capture — paste a link, get a Mark under Experiments
+- [x] Today, section 1 (Marks due) — due + overdue, capped at 7, tickable in place
+- [x] Today, section 4 (Momentum) — drifting first, with "Let it simmer" inline
 - [ ] Project CRUD (creating/editing projects, not just reading them)
-- [ ] Today, bands 1 & 4 (Marks due, Momentum) — `getDueMarks` is written and unused
+- [ ] Give marks due dates — nothing has one, so section 1 sits empty by default
 
 ### Phase 4 — Calendar
 - [ ] Calendar data model (events, recurring events)
@@ -179,7 +184,7 @@ market it — had nowhere to live, and it isn't content, so Studio couldn't hold
 - [ ] Create / edit / delete events
 - [ ] Layer in Mark due dates and Drop publish dates alongside events
 - [ ] Baby daughter's activity calendar (feeds, naps, milestones, appointments)
-- [ ] Today, band 3 (Agenda)
+- [ ] Today, section 3 (Agenda)
 
 ### Phase 5 — Montblanc (AI assistant)
 - [ ] Chat drawer with streaming (Claude via AI SDK), available on every surface
@@ -285,17 +290,28 @@ disturbing anything. That's the test the IA is built to pass.
 
 ### The Today screen
 
-Four bands, in priority order:
+Four stacked sections, in priority order. ("Section" just means a card on the
+screen — they are numbered so the roadmap can refer to them.)
 
-1. **Marks due** — due today + overdue. Cap the visible list (~7) so it stays scannable.
-2. **Going out today** — Drops publishing today, with channel icons. Visually distinct from Marks.
+1. **Marks due** — due today + overdue. Cap the visible list (~7) so it stays scannable,
+   and link to the rest rather than hiding that they exist. Tickable in place. ✅
+2. **Going out today** — Drops publishing today, with channel icons. Visually distinct from
+   Marks. Each channel is its own tick, so posting can be recorded without leaving Today. ✅
 3. **Agenda** — calendar events, including baby.
 4. **Momentum** — per-project "last touched", newest first, with drift warnings.
 
-Band 4 is the answer to *"which projects am I actually following?"* Every Project carries a
+Sections 1 and 2 are built; 3 waits on the Calendar phase and 4 is next up.
+
+Section 4 is the answer to *"which projects am I actually following?"* Every Project carries a
 `status` and a `lastTouchedAt` that bumps whenever one of its Marks completes or one of its
 Drops publishes. Projects drifting past their cadence surface themselves, with an explicit
 "demote to Simmering" action — so nothing dies quietly and nothing generates guilt.
+
+**Only `active` projects can drift.** Demoting to simmering has to actually silence the
+warning, or "let it simmer" relieves nothing and the nagging becomes unquittable — which is
+the exact failure mode this section exists to avoid. Today sorts drifting projects first
+rather than newest-first (which is right for the Projects roster): a quiet project that
+sorts to the bottom is a quiet project you never read.
 
 A **project card** compresses to: next Mark · next Drop · open count · days since touched ·
 channel row.
@@ -341,13 +357,25 @@ Two fields on Mark are not in the original sketch, both added 2026-07-31:
 
 ### Dates are a trap here
 
-`slotDate` and `dueDate` are `@db.Date`, which Prisma returns as **UTC midnight**. Two
-rules, both learned by getting them wrong:
+There are **two kinds of date column** and they take opposite handling. Every rule below
+was learned by getting it wrong.
+
+**`@db.Date` columns** (`slotDate`, `dueDate`, `startsOn`) — Prisma returns these as
+**UTC midnight** standing in for a local calendar day:
 
 1. Format them with `timeZone: "UTC"`, or west of Greenwich every date renders a day early.
 2. Compare them against `todayKey()` from `lib/utils.ts`, never
    `new Date().toISOString().slice(0, 10)` — that's the UTC day, and it puts the "today"
    marker on the wrong row for part of every day.
+
+**Real timestamps** (`publishAt`, `publishedAt`, `lastTouchedAt`) — ordinary instants,
+formatted and compared in **local** time. `getGoingOutToday` builds a local
+midnight-to-midnight window; do not reach for `dateKey` there.
+
+**Where the two meet:** `slotPublishAt` combines a `slotDate` with `Series.timeOfDay` to
+produce a `publishAt`. Both inputs mean *local*, so the result must be built with the local
+`new Date(y, m, d, h, min)` constructor. Using `setUTCHours` — which is what it did
+originally — shifts every publish time by the machine's offset.
 
 ---
 
@@ -504,6 +532,8 @@ Named animations: `animate-rise` (fade + 8px up — cards, columns, rows arrivin
 - **npm cache is redirected to `D:\npm-cache`** (the `C:` system drive has been prone to
   running full). If npm ever errors with `ENOSPC` or Node throws "heap out of memory",
   check free space on `C:` first — a full system drive breaks the Windows pagefile.
+  _Measured 2026-07-31: `C:` was at **100% (69 MB free)**. Chrome extensions were already
+  throwing `FILE_ERROR_NO_SPACE`. This is not hypothetical — clear it._
 - Node v20.15.1 at time of setup. This is now load-bearing: **Prisma 7 refuses to install
   below 20.19**, which is why Prisma is pinned to 6.x. `winget install OpenJS.NodeJS.LTS`
   fixes it, and then both Prisma packages can go to latest.
@@ -520,5 +550,10 @@ board shows a daily-queue strip instead of ~28 empty slot cards. The Hunt Board 
 with Marks grouped by project and track, a paste-a-link experiment capture, and Utaitai's
 twenty ship/users/marketing marks seeded. Postgres is migrated, the seed is loaded, and
 all three surfaces have been checked in a signed-in browser. Outstanding: Today's four
-bands are still empty states (band 1 only needs wiring — `getDueMarks` exists), Project
-CRUD, and the phone layout still needs a look on a real device._
+**Today is live except the calendar**: sections 1 (Marks due), 2 (Going out today) and 4
+(Momentum) all read real data and are actionable in place — tick a mark done, tick a
+channel posted, let a drifting project simmer. All four stat tiles are wired. Building
+section 2 exposed and corrected a `timeOfDay` bug that had every series publishing at the
+wrong hour. Outstanding: section 3 (Agenda, waits on Phase 4), Project CRUD, **no mark has
+a due date yet so section 1 renders empty**, and the phone layout still needs a look on a
+real device._

@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SurfaceHeader } from "@/components/ui/surface-header";
 import { db } from "@/lib/db";
+import { daysSince } from "@/lib/projects";
 
 export const metadata = { title: "Projects · Clan Centurio" };
 export const dynamic = "force-dynamic";
@@ -19,10 +20,6 @@ const dayFormat = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",
   month: "short",
 });
-
-function daysSince(date: Date): number {
-  return Math.floor((Date.now() - date.getTime()) / 86_400_000);
-}
 
 export default async function ProjectsPage() {
   const [areas, projects] = await Promise.all([

@@ -41,7 +41,7 @@ function str(form: FormData, key: string): string | null {
   return trimmed === "" ? null : trimmed;
 }
 
-/** Publishing is the event that proves a project is alive — it's what band 4
+/** Publishing is the event that proves a project is alive — it's what section 4
  *  of Today reads. Bump it from one place so no caller can forget. */
 async function touchProject(
   tx: Prisma.TransactionClient,

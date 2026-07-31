@@ -79,7 +79,7 @@ export async function saveMark(form: FormData) {
 
 /**
  * The whole point of the board. Completing a mark bumps its project's
- * `lastTouchedAt` — the same signal publishing a Drop sends — so band 4 of
+ * `lastTouchedAt` — the same signal publishing a Drop sends — so section 4 of
  * Today measures real movement rather than just posting volume.
  */
 export async function setMarkStatus(markId: string, status: string) {

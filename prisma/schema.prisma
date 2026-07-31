@@ -121,7 +121,7 @@ model Project {
   /// Expected days between touches; drives the drift warning on Today.
   cadenceDays   Int?
   /// Bumped whenever one of this project's Drops publishes (or Marks complete,
-  /// once Marks exist). Band 4 of Today sorts on this.
+  /// once Marks exist). Section 4 of Today sorts on this.
   lastTouchedAt DateTime      @default(now())
   sortOrder     Int           @default(0)
   createdAt     DateTime      @default(now())
