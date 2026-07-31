@@ -47,11 +47,18 @@ const BRANDS = [
     color: "#de1f4c",
     sortOrder: 0,
     channels: [
-      { platform: "tiktok", handle: "utaitai", label: "Main", state: "live" },
+      // Handles are placeholders until the real ones land — deliberately
+      // obvious so they can't be mistaken for correct.
       {
         platform: "tiktok",
-        handle: "utaitai.jp",
-        label: "Second account",
+        handle: "utaitai-japanese",
+        label: "Japanese songs",
+        state: "live",
+      },
+      {
+        platform: "tiktok",
+        handle: "utaitai-chinese",
+        label: "Chinese songs",
         state: "live",
       },
       { platform: "instagram", handle: "utaitai", label: "Reels", state: "planned" },
@@ -97,8 +104,12 @@ const BRANDS = [
  * Facebook), so matching by handle would fan every daily short out to all five.
  */
 const SERIES = [
+  // Two series, not one with two channels: the accounts run different songs,
+  // so each day is two separate pieces of work. One series fanning out to both
+  // would model it as "the same video, posted twice" — which is the wrong
+  // shape, and would give one card a day instead of two.
   {
-    name: "Daily short",
+    name: "Daily short — Japanese",
     brandSlug: "utaitai",
     projectSlug: "utaitai",
     format: "short_video",
@@ -106,10 +117,18 @@ const SERIES = [
     daysOfWeek: [],
     timeOfDay: "18:00",
     isActive: true,
-    channelKeys: [
-      { platform: "tiktok", handle: "utaitai" },
-      { platform: "tiktok", handle: "utaitai.jp" },
-    ],
+    channelKeys: [{ platform: "tiktok", handle: "utaitai-japanese" }],
+  },
+  {
+    name: "Daily short — Chinese",
+    brandSlug: "utaitai",
+    projectSlug: "utaitai",
+    format: "short_video",
+    cadence: "daily",
+    daysOfWeek: [],
+    timeOfDay: "19:00",
+    isActive: true,
+    channelKeys: [{ platform: "tiktok", handle: "utaitai-chinese" }],
   },
   {
     name: "Daily short",
