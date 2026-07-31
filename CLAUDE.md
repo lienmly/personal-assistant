@@ -39,7 +39,8 @@ vision sharpens and as features get built.
 | The dashboard | **Clan Centurio** | The product / app name |
 | The AI assistant | **Montblanc** | Chat + assistant persona; friendly, helpful moogle energy ("kupo!") |
 | Users are | Clan members | Me now; possibly my daughter later |
-| Tasks / to-dos | could be themed as **Marks / Hunts** | Optional flavor — decide later |
+| Tasks / to-dos | **Marks** | Decided. The Hunt Board is where they live. |
+| Content / posts | **Drops** | A unit of content going out to one or more channels. |
 
 Keep the FFXII/Ivalice flavor available as a theming option, but never at the expense of
 usability.
@@ -109,63 +110,149 @@ Ordered so each phase builds on the last. We ship and use each layer before movi
 - [x] Initialize Git repo
 - [x] Scaffold Next.js + TypeScript + Tailwind
 - [ ] Add shadcn/ui
-- [ ] Push to GitHub
-- [ ] Provision Railway project + Postgres
+- [x] Push to GitHub — `https://github.com/lienmly/personal-assistant`
+- [x] Deploy to Railway — branded landing shell is live (pipeline proven end-to-end)
+- [ ] Provision Postgres on the Railway project
 - [ ] Prisma connected, first migration
-- [ ] Deploy a "hello world" dashboard shell to Railway (prove the pipeline end-to-end)
 
-### Phase 1 — Auth & Shell
+### Phase 1 — Auth & Shell  ← **next**
 - [ ] Google login via Auth.js
 - [ ] Allowlist so only my account(s) can enter
-- [ ] Authenticated app shell: nav/sidebar, header, empty dashboard home
-- [ ] Responsive layout baseline (works on phone)
+- [ ] Authenticated app shell: the five surfaces from §6 (Today, Hunt Board, Calendar,
+      Studio, Projects) wired up with empty states
+- [ ] Area filter chip row (hardcoded areas is fine at this stage)
+- [ ] Responsive layout baseline — icon rail on desktop, bottom tab bar on phone
 
-### Phase 2 — Calendar (core of "organize my life")
+### Phase 2 — Areas, Projects & Marks
+_Reordered ahead of Calendar: Today and Momentum are meaningless without Projects, and
+Projects are cheaper to build than a calendar._
+- [ ] Area + Project + Mark schema and migration
+- [ ] Project CRUD, with `status` and `lastTouchedAt`
+- [ ] Mark CRUD; completing a Mark bumps its Project's `lastTouchedAt`
+- [ ] Hunt Board: open Marks grouped by Project
+- [ ] Projects surface: roster + project cards
+- [ ] Today, bands 1 & 4 (Marks due, Momentum)
+
+### Phase 3 — Studio (content distribution)
+- [ ] Drop + Channel + DropChannel schema
+- [ ] Studio kanban by stage; publishing a Drop bumps `lastTouchedAt`
+- [ ] Per-project Drop list on the project card
+- [ ] Today, band 2 (Going out today)
+
+### Phase 4 — Calendar
 - [ ] Calendar data model (events, recurring events)
 - [ ] Month / week / day views
 - [ ] Create / edit / delete events
-- [ ] **Separate calendars / categories** (e.g. Work, Hobbies, Baby)
+- [ ] Layer in Mark due dates and Drop publish dates alongside events
 - [ ] Baby daughter's activity calendar (feeds, naps, milestones, appointments)
+- [ ] Today, band 3 (Agenda)
 
-### Phase 3 — Life Areas & Tasks
-- [ ] Generic "Area" concept so new areas are cheap to add
-- [ ] **Main areas:** App/Game Dev, Social Media Branding, (more as they come)
-- [ ] **Hobby areas:** Language Learning, Musical Instrument Learning, (more)
-- [ ] Tasks / to-dos ("Marks") within areas, with due dates that surface on the calendar
-- [ ] Dashboard home widgets: today's agenda, upcoming, per-area snapshots
-
-### Phase 4 — Montblanc (AI assistant)
-- [ ] Chat interface with streaming (Claude via AI SDK)
+### Phase 5 — Montblanc (AI assistant)
+- [ ] Chat drawer with streaming (Claude via AI SDK), available on every surface
 - [ ] Montblanc persona/prompt
-- [ ] Tool-calling: let Montblanc read my calendar & tasks
-- [ ] Then: let Montblanc create/modify events & tasks on request
-- [ ] Proactive help (daily briefing, reminders) — later
+- [ ] Surface-aware context: Montblanc knows what you're currently looking at
+- [ ] Tool-calling: let Montblanc read my Projects, Marks, Drops & calendar
+- [ ] Then: let Montblanc create/modify them on request
+- [ ] Proactive help (daily briefing, drift nudges) — later
 
-### Phase 5+ — Future / "as I think of it"
+### Phase 6 — Ledger (money)
+- [ ] Bank account connections
+- [ ] Property management statement ingestion + audit
+- [ ] Slots in as a sixth surface — no IA change required
+
+### Phase 7+ — Future / "as I think of it"
 - [ ] Multi-user: log in as my daughter to see her own activities
-- [ ] Richer per-area tooling (e.g. language-learning streaks, practice logs)
+- [ ] Richer per-project tooling (e.g. language-learning streaks, practice logs)
 - [ ] Notifications (push / email)
 - [ ] Habit/streak tracking, notes/journal, file storage
 - [ ] _Add more here as ideas arrive_
 
 ---
 
-## 6. Data Model (early sketch — will evolve)
+## 6. Information Architecture & Data Model
 
-Not final; just to anchor Phase 2–3 thinking.
+**Decided 2026-07-30.** This is the spine of the app — everything else assumes it.
+
+### The core insight
+
+Social media distribution is **an axis that cuts through every project**, not a bucket
+sitting alongside them. The earlier draft listed "Social Media Branding" as an Area next to
+"App/Game Dev", which would mean context-switching out of a project to find its own posts.
+With many concurrent projects that breaks down fast. So: **distribution is a dimension, not
+a destination.**
+
+### Four nouns
+
+| Noun | What it is | Example | Churn |
+|---|---|---|---|
+| **Area** | Life domain. Coarse. Supplies colour + calendar separation. | Work, Baby, Hobbies, Home & Money | ~5 ever |
+| **Project** | The thing being pushed forward. Belongs to one Area. | "Game X", "Japanese", "Rental 4B" | Constant |
+| **Mark** | A task. Belongs to a Project, or floats in an Area for one-offs. | "Fix collision bug" | Constant |
+| **Drop** | A unit of content going out. Belongs to a Project, targets 1..n Channels. | "Devlog #7 → YT + TikTok" | Constant |
+
+**Drop is deliberately not a Mark.** A Mark is binary — open or done. A Drop moves through
+repeating pipeline stages, fans out to several channels from one source asset, and has a
+*publish datetime* rather than a *due date*. Merging them yields a task list where most rows
+are "post the thing" and the real work is buried. Two entities, one shared daily view.
+
+### Navigation: by verb and time; filter by area
+
+Never one nav item per area — that list grows forever and forces you to recall which bucket
+a thing lives in. Instead a **fixed set of surfaces** with Area as a persistent filter chip
+row. Left icon rail on desktop, bottom tab bar on mobile — same IA, no redesign.
+
+| Surface | Purpose |
+|---|---|
+| **Today** | The one screen opened 20×/day. "What do I do right now." |
+| **Hunt Board** | All open Marks grouped by Project. Where you *plan*, not execute. |
+| **Calendar** | Time. Events + baby + Drop publish dates + Mark due dates, layered. |
+| **Studio** | Cross-project content pipeline. Kanban by stage, or calendar by publish date. |
+| **Projects** | The roster. Health and momentum at a glance. |
+| **Montblanc** | A drawer on every surface, so it always knows what you're looking at. |
+
+Future **Ledger** (bank + property audit, §5 Phase 6) slots in as one more surface without
+disturbing anything. That's the test the IA is built to pass.
+
+### The Today screen
+
+Four bands, in priority order:
+
+1. **Marks due** — due today + overdue. Cap the visible list (~7) so it stays scannable.
+2. **Going out today** — Drops publishing today, with channel icons. Visually distinct from Marks.
+3. **Agenda** — calendar events, including baby.
+4. **Momentum** — per-project "last touched", newest first, with drift warnings.
+
+Band 4 is the answer to *"which projects am I actually following?"* Every Project carries a
+`status` and a `lastTouchedAt` that bumps whenever one of its Marks completes or one of its
+Drops publishes. Projects drifting past their cadence surface themselves, with an explicit
+"demote to Simmering" action — so nothing dies quietly and nothing generates guilt.
+
+A **project card** compresses to: next Mark · next Drop · open count · days since touched ·
+channel row.
+
+### Entities
 
 - **User** — id, email, name, role (`owner` | `child` later)
-- **Area** — id, name, type (`main` | `hobby`), color, icon, ownerId
-- **Event** — id, title, start, end, allDay, recurrence, areaId/calendarId, ownerId
-- **Calendar** — id, name, color, ownerId (Work / Hobbies / Baby)
-- **Task ("Mark")** — id, title, notes, dueDate, status, areaId, ownerId
-- **ChatMessage / Conversation** — for Montblanc history (Phase 4)
+- **Area** — id, name, color, icon, sortOrder, ownerId
+  _(Area doubles as the calendar grouping — see §8, resolved.)_
+- **Project** — id, name, description, areaId, status (`active` | `simmering` | `paused` |
+  `archived`), lastTouchedAt, cadenceDays (nullable, drives drift warnings), ownerId
+- **Mark** — id, title, notes, dueDate, status (`open` | `doing` | `done`), projectId
+  (nullable), areaId, ownerId
+- **Drop** — id, title, notes, projectId, stage (`idea` | `script` | `edit` | `scheduled` |
+  `published`), publishAt, ownerId
+- **Channel** — id, name, platform (`youtube` | `tiktok` | `instagram` | `x` | …), handle, ownerId
+- **DropChannel** — join: dropId, channelId, per-channel status + published URL
+- **Event** — id, title, start, end, allDay, recurrence, areaId, projectId (nullable), ownerId
+- **ChatMessage / Conversation** — Montblanc history (Phase 5)
 
 ---
 
 ## 7. Deployment (Railway)
 
-- One Railway project containing: **web service (Next.js)** + **Postgres plugin**.
+- **Repo:** `https://github.com/lienmly/personal-assistant` (branch `main`).
+- **Live:** the Next.js web service is deployed on Railway and serving the landing shell.
+- Postgres plugin **not yet added** — next Phase 0 step, needed before Prisma.
 - Deploy from GitHub (auto-deploy on push to `main`, or manual — decide later).
 - **Environment variables** (keep in Railway, never commit):
   - `DATABASE_URL`
@@ -178,13 +265,17 @@ Not final; just to anchor Phase 2–3 thinking.
 
 ## 8. Open Decisions (to resolve as we go)
 
-- [ ] **Design/layout** — still browsing Dribbble. Pick a direction before Phase 1 UI polish.
-      (Dark mode? Sidebar vs top-nav? Card-heavy vs minimal?)
-- [ ] Prisma vs Drizzle (default: Prisma)
-- [ ] Calendar library (Schedule-X vs FullCalendar) — decide at Phase 2
-- [ ] How to model "Areas" vs "Calendars" — overlap; unify or keep separate?
-- [ ] Task flavor: plain "Tasks" or themed "Marks/Hunts"?
-- [ ] Notifications channel (push vs email) — Phase 5
+- [x] **Information architecture** — resolved 2026-07-30. Area › Project › Mark, with Drop
+      as its own entity, and five fixed nav surfaces. See §6.
+- [x] **Areas vs Calendars** — resolved: **unified.** Area *is* the calendar grouping; there
+      is no separate Calendar entity. Events carry an `areaId` and inherit its colour.
+- [x] **Task flavor** — resolved: themed. Tasks are **Marks**, content units are **Drops**.
+      Keep UI labels readable; flavor lives in headings, not in form fields.
+- [ ] **Visual design** — still browsing Dribbble. The IA is settled, so a ref now only needs
+      to answer look-and-feel: dark mode? card-heavy vs minimal? density?
+- [ ] Prisma vs Drizzle (default: Prisma) — decide before Phase 2
+- [ ] Calendar library (Schedule-X vs FullCalendar) — decide at Phase 4
+- [ ] Notifications channel (push vs email) — Phase 7
 
 ---
 
@@ -214,4 +305,6 @@ Not final; just to anchor Phase 2–3 thinking.
 
 ---
 
-_Last updated: 2026-07-26 · Status: **Phase 0 in progress** (scaffold done)_
+_Last updated: 2026-07-30 · Status: **Phase 0 in progress** — scaffold done, pushed to
+GitHub, deployed on Railway. Remaining: Postgres + Prisma, shadcn/ui.
+Information architecture decided (§6); Phase 1 (auth + shell) is next up._
