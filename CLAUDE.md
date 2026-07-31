@@ -106,6 +106,7 @@ dashboard/UI ecosystem, easy Google auth, and a clean path to embedding an AI as
 /prisma            → schema.prisma, migrations, seed.ts
 /proxy.ts          → route protection (Next 16's renamed Middleware)
 /public            → static assets, icons, branding
+/assets            → styling reference screenshots — consult before building UI (§9)
 ```
 _(Everything above exists except `/lib/montblanc`, which arrives with Phase 5.)_
 
@@ -120,9 +121,10 @@ Ordered so each phase builds on the last. We ship and use each layer before movi
 - [x] Scaffold Next.js + TypeScript + Tailwind
 - [x] Push to GitHub — `https://github.com/lienmly/personal-assistant`
 - [x] Deploy to Railway — branded landing shell is live (pipeline proven end-to-end)
-- [ ] Provision Postgres on the Railway project
+- [x] Provision Postgres on the Railway project
 - [x] Prisma installed and wired (`prisma/schema.prisma`, `lib/db.ts`, `prisma/seed.ts`)
-- [ ] First migration run — blocked on Postgres above
+- [x] First migration run — `20260731033858_social_layer` applied, seed loaded
+      (4 areas, 2 projects, 3 brands, 10 channels, 4 series)
 
 ### Phase 1 — Auth & Shell
 - [x] Google login via Auth.js v5 (`lib/auth.ts`, JWT sessions — no DB needed yet)
@@ -318,7 +320,9 @@ writing a Medium essay share one column instead of needing a board each.
 
 - **Repo:** `https://github.com/lienmly/personal-assistant` (branch `main`).
 - **Live:** the Next.js web service is deployed on Railway and serving the landing shell.
-- Postgres plugin **not yet added** — next Phase 0 step, needed before Prisma.
+- Postgres plugin **added and migrated.** Local dev connects over the public proxy
+  (`DATABASE_PUBLIC_URL`, host `*.proxy.rlwy.net`); the deployed service uses the
+  internal `${{Postgres.DATABASE_URL}}` reference.
 - Deploy from GitHub (auto-deploy on push to `main`, or manual — decide later).
 - **Environment variables** (keep in Railway, never commit):
   - `AUTH_SECRET` — generate with `npx auth secret`
@@ -349,6 +353,8 @@ writing a Medium essay share one column instead of needing a board each.
       background contrast rather than borders, and a single crimson accent (`#de1f4c`)
       that doubles as the moogle's pom-pom. **Light mode only** — the palette is built
       around warm neutrals and a dark variant would need its own design pass.
+      The reference screenshots live in **`/assets`** — see §9, they are required reading
+      before building any new surface.
 - [ ] shadcn/ui — deferred. Phase 1 needed no complex primitives, and the design is custom
       enough that shadcn defaults would be fought rather than used. Revisit at Phase 2 when
       dialogs, selects and popovers appear.
@@ -371,6 +377,30 @@ writing a Medium essay share one column instead of needing a board each.
   perfect architecture I can't see yet.
 - **Design comes from Dribbble refs.** When a design is chosen, drop the reference link(s)
   in Section 8 and translate into Tailwind/shadcn.
+- **Look at `/assets` before building any new UI. Every time.** The folder holds the
+  styling reference screenshots this dashboard is modelled on:
+  - `assets/original-a7dc2253fa12ae740ce2079d84654d52.webp` — the flat reference
+  - `assets/original-d881fd064d90adfc18f6cb20fd3ee16e.webp` — the same design on a monitor
+
+  These are **not** a one-time inspiration that was "already translated" in Phase 1. They
+  are the standing source of truth for how a surface should look, and they must be opened
+  and actually viewed whenever a new feature, board, panel or card is added — not recalled
+  from memory or inferred from existing code. Drift creeps in one component at a time.
+
+  What to check a new surface against:
+  - Warm greige canvas; content sits on a large rounded white panel that floats on it.
+  - **Separation by background contrast, not borders.** Cards are white/near-white tiles on
+    a tinted ground. Reach for a border only when contrast genuinely can't carry it.
+  - Very large corner radii on panels and cards; pill shapes for chips, filters and toggles.
+  - Shadows are near-invisible — depth comes from the layering, not from drop shadows.
+  - Crimson `#de1f4c` is the *single* accent: one emphasis per region (active nav item, the
+    primary action, one highlighted metric). A screen with crimson everywhere is wrong.
+  - Black is used sparingly as a second emphasis — the selected pill, one hero tile.
+  - Dense, calm typography: small muted labels above large confident numbers/titles.
+  - Iconography and avatars are small, round, and inline with text — never decorative.
+
+  If a new surface needs a pattern the reference doesn't show, extend it in the reference's
+  spirit and note the new pattern in §8 so the next feature inherits it.
 
 ---
 
@@ -390,9 +420,10 @@ writing a Medium essay share one column instead of needing a board each.
 
 ---
 
-_Last updated: 2026-07-30 · Status: **Phase 2 (Studio) built, awaiting a database.** The
+_Last updated: 2026-07-30 · Status: **Phase 2 (Studio) built and running locally.** The
 social layer is written end to end — schema, seed, board, channel admin, series generation
-— and the project type-checks, lints and builds clean. It cannot run until Postgres is
-provisioned on Railway and `DATABASE_URL` is set; that is the single outstanding blocker.
-Also outstanding: Google OAuth credentials, and a look at the phone layout on a real
-device._
+— and the project type-checks, lints and builds clean. Railway Postgres is provisioned and
+migrated, the seed is loaded, Google OAuth credentials are in `.env.local`, and
+`npm run dev` serves the auth-gated app on `localhost:3000`. Outstanding: sign-in has not
+been exercised end to end against Google yet, and the phone layout still needs a look on a
+real device._
