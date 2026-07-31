@@ -108,10 +108,11 @@ one column, so you get one board instead of a board per format.
 - **"New drop"** (top right) — for anything outside a series.
 - **Drop cards** — brand dot + name, title, format · project · publish date, and a row of
   channel badges. A `↳` means the drop was derived from another one.
-- **Empty slots** — a dashed card titled *"<series name> — empty slot"*. That's a series
-  card waiting to be filled in.
 - **The `→ <next stage>` button** at the bottom of a card — appears on hover (always
   visible on phone). One click advances the stage without opening anything.
+
+The columns hold **one-off drops only**. Series slots live in the queue strip above — see
+below.
 
 ### The drop panel
 
@@ -131,6 +132,49 @@ The card shows `2/3` when you're partway through.
 
 ---
 
+## The daily queue, and filling a week at a time
+
+Posting daily on two accounts is about 730 drops a year. Two things make that survivable.
+
+### The queue strip
+
+Above the columns sits **Daily queue** — one lane per series, one small square per day:
+
+| Square | Means |
+|---|---|
+| dashed, grey | empty slot, still ahead of you |
+| dashed, crimson | the day went past and it was never filled |
+| solid grey | filled, still in `idea`/`script`/`produce` |
+| solid black | `scheduled` |
+| solid green | `published` |
+| ringed | today |
+
+Click any square to open that slot's drop panel, exactly as if it were a card. The header
+counts `filled / total` and flags anything that slipped past.
+
+Series slots are deliberately **not** shown as cards in the columns — twenty-eight
+identical empty cards would bury the handful of drops you actually thought up.
+
+### Fill the week
+
+**Studio → Fill the week** (or the button on the queue strip) opens every upcoming slot as
+one grid, grouped by day. Each row is one slot:
+
+- a channel badge, so you can see at a glance which account it's for
+- **Song / hook for this one** — the title
+- **Viral post it's based on** — the TikTok you found the song on, kept for later
+
+Type the whole batch, then:
+
+- **Save** — writes the titles and links, leaves every stage alone.
+- **Save + mark produced** — the same, and moves every row that has a title to `Produce`.
+  Empty rows are left alone, and anything already `scheduled` is never dragged backwards.
+
+This is the flow if you batch: find the songs, screen-record the clips, then fill the grid
+once instead of opening fourteen panels.
+
+---
+
 ## The two kinds of repurposing
 
 Calling both of these "repurposing" is what makes content feel unmanageable. They're
@@ -145,19 +189,29 @@ own publish date, because it has to be rewritten, not re-uploaded. The child car
 
 ---
 
-## A day in the Studio
+## A week in the Studio
 
-1. **Open Studio.** Today's series slots are already sitting in `Idea` — one for the
-   Japanese TikTok at 18:00, one for Chinese at 19:00. The crimson pill says
+**Batch day.**
+
+1. Find the songs — seven for `@utaitai_jp`, seven for `@utaitai_cn`.
+2. Screen-record the clips from the Utaitai app.
+3. **Studio → Fill the week.** Type each song into its row, and paste the TikTok you found
+   it on into the reference field beside it.
+4. Hit **Save + mark produced**. All fourteen land in `Produce` at once.
+
+**Each day after.**
+
+1. **Open Studio.** The queue strip rings today and the crimson pill says
    "2 going out today".
-2. **Click the Japanese slot.** Type the song and the hook into the body. Save.
-3. **Move it to `Script`** — either the button on the card, or the stage field in the panel.
-4. **Film and cut it** → `Produce` → `Scheduled`.
-5. **Post it on TikTok for real**, then open the panel, tick the channel under "Posted
-   where", and paste the URL.
-6. The drop lands in `Published`. That publish **bumps the Utaitai project's
-   `lastTouchedAt`**, which is what feeds momentum and drift warnings on the Projects
-   surface. Posting is how a project proves it's alive.
+2. **Click today's square** for the Japanese account. The panel opens on that drop.
+3. **Post it on TikTok for real**, then tick the channel under "Posted where" and paste
+   the URL.
+4. The square turns green. That publish **bumps the Utaitai project's `lastTouchedAt`**,
+   which is what feeds momentum and drift warnings on the Projects surface. Posting is how
+   a project proves it's alive.
+
+If you'd rather work one drop at a time, nothing stops you — click an empty square, fill
+the panel, and walk it through the stages by hand.
 
 ---
 

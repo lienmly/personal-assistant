@@ -162,6 +162,38 @@ export async function getStudioBoard(brandSlug?: string) {
   return { drops, brands, projects };
 }
 
+/**
+ * The upcoming series slots, for the batch composer.
+ *
+ * Reaches two days into the past on purpose: a slot whose day has gone by and
+ * was never filled is the single most useful thing this screen can show you,
+ * and it would be invisible in a strictly forward-looking window.
+ */
+export async function getBatchSlots() {
+  const from = addDays(dateKey(new Date()), -2);
+
+  return db.drop.findMany({
+    where: {
+      seriesId: { not: null },
+      slotDate: { gte: from },
+      stage: { not: "published" },
+    },
+    include: {
+      brand: { select: { id: true, name: true, slug: true, color: true } },
+      series: { select: { id: true, name: true } },
+      channels: {
+        include: {
+          channel: {
+            select: { id: true, platform: true, handle: true, label: true },
+          },
+        },
+        orderBy: { channel: { sortOrder: "asc" } },
+      },
+    },
+    orderBy: [{ slotDate: "asc" }, { publishAt: "asc" }],
+  });
+}
+
 export async function getChannelRoster() {
   return db.brand.findMany({
     orderBy: { sortOrder: "asc" },

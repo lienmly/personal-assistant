@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { Settings2 } from "lucide-react";
+import { LayoutList, Settings2 } from "lucide-react";
 
 import { StudioBoard } from "@/components/studio/studio-board";
 import type { BrandView, DropView } from "@/components/studio/types";
 import { SurfaceHeader } from "@/components/ui/surface-header";
 import { ensureSeriesSlots, getStudioBoard } from "@/lib/studio";
+import { todayKey } from "@/lib/utils";
 
 export const metadata = { title: "Studio · Clan Centurio" };
 
@@ -22,18 +23,24 @@ export default async function StudioPage() {
   await ensureSeriesSlots();
 
   const { drops, brands, projects } = await getStudioBoard();
-  const todayKey = new Date().toDateString();
+  const now = new Date();
+  const todayLabel = now.toDateString();
+  // ISO form, for the queue strip — comparing "YYYY-MM-DD" strings is the only
+  // past/future test that survives being shipped to the client.
+  const todayIso = todayKey(now);
 
   const dropViews: DropView[] = drops.map((drop) => ({
     id: drop.id,
     title: drop.title,
     notes: drop.notes,
     body: drop.body,
+    refUrl: drop.refUrl,
     format: drop.format,
     stage: drop.stage,
     publishAt: drop.publishAt?.toISOString() ?? null,
+    slotDate: drop.slotDate?.toISOString().slice(0, 10) ?? null,
     publishLabel: drop.publishAt ? dayFormat.format(drop.publishAt) : null,
-    isToday: drop.publishAt?.toDateString() === todayKey,
+    isToday: drop.publishAt?.toDateString() === todayLabel,
     brand: drop.brand,
     project: drop.project,
     series: drop.series,
@@ -74,9 +81,17 @@ export default async function StudioPage() {
         drops={dropViews}
         brands={brandViews}
         projects={projects}
+        todayKey={todayIso}
       />
 
       <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <Link
+          href="/studio/batch"
+          className="flex items-center gap-2 rounded-chip bg-card px-3.5 py-2 text-[13px] text-muted shadow-card hover:text-ink"
+        >
+          <LayoutList className="size-3.5" strokeWidth={1.8} />
+          Fill the week
+        </Link>
         <Link
           href="/studio/channels"
           className="flex items-center gap-2 rounded-chip bg-card px-3.5 py-2 text-[13px] text-muted shadow-card hover:text-ink"

@@ -47,20 +47,19 @@ const BRANDS = [
     color: "#de1f4c",
     sortOrder: 0,
     channels: [
-      // Handles are placeholders until the real ones land — deliberately
-      // obvious so they can't be mistaken for correct.
       {
         platform: "tiktok",
-        handle: "utaitai-japanese",
+        handle: "utaitai_jp",
         label: "Japanese songs",
         state: "live",
       },
       {
         platform: "tiktok",
-        handle: "utaitai-chinese",
+        handle: "utaitai_cn",
         label: "Chinese songs",
         state: "live",
       },
+      // The rest are still guesses — edit them in Studio → Channels, not here.
       { platform: "instagram", handle: "utaitai", label: "Reels", state: "planned" },
       { platform: "youtube", handle: "utaitai", label: "Shorts", state: "planned" },
       { platform: "facebook", handle: "utaitai", label: "Reels", state: "planned" },
@@ -117,7 +116,7 @@ const SERIES = [
     daysOfWeek: [],
     timeOfDay: "18:00",
     isActive: true,
-    channelKeys: [{ platform: "tiktok", handle: "utaitai-japanese" }],
+    channelKeys: [{ platform: "tiktok", handle: "utaitai_jp" }],
   },
   {
     name: "Daily short — Chinese",
@@ -128,7 +127,7 @@ const SERIES = [
     daysOfWeek: [],
     timeOfDay: "19:00",
     isActive: true,
-    channelKeys: [{ platform: "tiktok", handle: "utaitai-chinese" }],
+    channelKeys: [{ platform: "tiktok", handle: "utaitai_cn" }],
   },
   {
     name: "Daily short",
@@ -157,6 +156,148 @@ const SERIES = [
     channelKeys: [{ platform: "medium", handle: "codingmom" }],
   },
 ] as const;
+
+/**
+ * Utaitai's non-content work, which is most of what "the project" actually is.
+ * Grouped by track so the Hunt Board doesn't render one flat wall of twenty.
+ *
+ * Bootstrap only — see `seedMarks`. Marks get completed and deleted, so unlike
+ * everything above these are written once and never reconciled.
+ */
+const UTAITAI_MARKS: {
+  track: string;
+  title: string;
+  notes?: string;
+  link?: string;
+}[] = [
+  // ── Ship ──────────────────────────────────────────────────────────────────
+  {
+    track: "Ship",
+    title: "Get the iOS build onto TestFlight",
+    notes: "Signing, capabilities, a build that installs on a real phone.",
+  },
+  {
+    track: "Ship",
+    title: "Get the Android build onto the internal testing track",
+    notes: "Signing key in a safe place — losing it means a new listing.",
+  },
+  {
+    track: "Ship",
+    title: "App Store Connect: listing, screenshots, privacy labels",
+  },
+  {
+    track: "Ship",
+    title: "Play Console: listing, screenshots, data safety form",
+  },
+  { track: "Ship", title: "Submit the iOS build for review" },
+  { track: "Ship", title: "Submit the Android build for review" },
+
+  // ── Marketing: store presence ─────────────────────────────────────────────
+  {
+    track: "Marketing",
+    title: "ASO pass — title, subtitle and keywords for both stores",
+    notes:
+      "The one marketing job that keeps paying after you stop doing it. Aim at what learners search: song names, 'learn Japanese with music'.",
+  },
+  {
+    track: "Marketing",
+    title: "Screenshots + a preview video for both stores",
+    notes: "The daily TikToks are already this footage — cut them down.",
+  },
+  {
+    track: "Marketing",
+    title: "Landing page with both store links",
+    notes: "Needed before Product Hunt and before any creator can link you.",
+  },
+  {
+    track: "Marketing",
+    title: "Pitch Apple and Google for editorial featuring",
+    notes: "Both have submission forms. Free, and the upside is enormous.",
+  },
+
+  // ── Marketing: creators & launch ──────────────────────────────────────────
+  {
+    track: "Marketing",
+    title: "Line up 3 language-learning creators for a collab",
+    notes:
+      "Look for JP/CN learning accounts already doing song breakdowns — the overlap with the app is exact.",
+  },
+  {
+    track: "Marketing",
+    title: "Product Hunt launch",
+    notes: "Blocked on the landing page and the store listings being live.",
+  },
+  {
+    track: "Marketing",
+    title: "Build-in-public thread from Coding Mom about shipping Utaitai",
+    notes:
+      "Different brand, same work — this is exactly the drop that carries a brand and no project.",
+  },
+
+  // ── Users ─────────────────────────────────────────────────────────────────
+  {
+    track: "Users",
+    title: "In-app feedback button that emails me",
+    notes:
+      "The cheapest possible way to hear from users. One button, one mailto or form endpoint.",
+  },
+  {
+    track: "Users",
+    title: "Reply to every comment on both TikToks for a week",
+    notes:
+      "The audience is already there and already talking. This is the highest-signal user research available today, at zero cost.",
+  },
+  {
+    track: "Users",
+    title: "Book 5 user interviews with people who commented",
+    notes: "20 minutes each. Ask what they were doing before they found you.",
+  },
+  {
+    track: "Users",
+    title: "Open a Discord (or Line group) for early users",
+    notes: "Somewhere they can talk to you and to each other.",
+  },
+  {
+    track: "Users",
+    title: "Prompt for an App Store review after N songs learned",
+    notes: "Ratings gate everything else in the stores. Ask at the good moment.",
+  },
+
+  // ── Content ───────────────────────────────────────────────────────────────
+  {
+    track: "Content",
+    title: "Batch day — 7 songs each for JP + CN, recorded from the app",
+    notes:
+      "The weekly ritual. Find the songs, screen-record the clips, then fill the week in Studio → Fill the week.",
+  },
+];
+
+/**
+ * Bootstrap, not reconciliation: marks are seeded only into a project that has
+ * none. Upserting them would resurrect every mark you'd since completed and
+ * deleted, which is the opposite of useful.
+ */
+async function seedMarks() {
+  const project = await db.project.findUnique({ where: { slug: "utaitai" } });
+  if (!project) return 0;
+
+  const existing = await db.mark.count({ where: { projectId: project.id } });
+  if (existing > 0) return 0;
+
+  await db.mark.createMany({
+    data: UTAITAI_MARKS.map((mark, index) => ({
+      title: mark.title,
+      notes: mark.notes ?? null,
+      link: mark.link ?? null,
+      track: mark.track,
+      projectId: project.id,
+      areaId: project.areaId,
+      sortOrder: index,
+    })),
+  });
+
+  return UTAITAI_MARKS.length;
+}
 
 async function main() {
   const today = new Date();
@@ -264,14 +405,20 @@ async function main() {
     }
   }
 
+  const marksCreated = await seedMarks();
+
   const counts = {
     areas: await db.area.count(),
     projects: await db.project.count(),
     brands: await db.brand.count(),
     channels: await db.channel.count(),
     series: await db.series.count(),
+    marks: await db.mark.count(),
   };
   console.log("Seeded:", counts);
+  if (marksCreated === 0) {
+    console.log("Marks: left alone — Utaitai already has some.");
+  }
 }
 
 main()

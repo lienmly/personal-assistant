@@ -82,3 +82,6 @@ export const STAGES = [
 ] as const;
 
 export type StageId = (typeof STAGES)[number]["id"];
+
+/** Pipeline order, for "is this stage further along than that one". */
+export const STAGE_ORDER: StageId[] = STAGES.map((stage) => stage.id);

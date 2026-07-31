@@ -13,6 +13,7 @@ import type {
 
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { STAGE_ORDER, type StageId } from "@/lib/platforms";
 
 /**
  * Every action goes through this. The layout already gates the pages, but
@@ -27,6 +28,7 @@ async function requireSession() {
 
 function refresh() {
   revalidatePath("/studio");
+  revalidatePath("/studio/batch");
   revalidatePath("/studio/channels");
   revalidatePath("/today");
   revalidatePath("/projects");
@@ -73,6 +75,7 @@ export async function saveDrop(form: FormData) {
     title,
     notes: str(form, "notes"),
     body: str(form, "body"),
+    refUrl: str(form, "refUrl"),
     brandId,
     projectId: str(form, "projectId"),
     format: (str(form, "format") ?? "short_video") as DropFormat,
@@ -109,6 +112,80 @@ export async function saveDrop(form: FormData) {
 
   refresh();
   return drop.id;
+}
+
+/**
+ * The batch save. A week of dailies on two accounts is fourteen posts, and
+ * they're produced in one sitting — so the composer submits all fourteen at
+ * once rather than making you open fourteen panels.
+ *
+ * Fields arrive as `title:<dropId>` / `ref:<dropId>`. `advanceTo` comes from
+ * whichever button was pressed and only ever moves a row *forward*: a slot you
+ * already scheduled must not be dragged back to `produce` because it happened
+ * to be on screen.
+ */
+export async function saveBatch(form: FormData) {
+  await requireSession();
+
+  const advanceTo = str(form, "advanceTo") as DropStage | null;
+  const edits = new Map<string, { title?: string; refUrl?: string | null }>();
+
+  for (const [key, value] of form.entries()) {
+    if (typeof value !== "string") continue;
+    const split = key.indexOf(":");
+    if (split === -1) continue;
+
+    const field = key.slice(0, split);
+    const id = key.slice(split + 1);
+    if (field !== "title" && field !== "ref") continue;
+
+    const entry = edits.get(id) ?? {};
+    const trimmed = value.trim();
+    if (field === "title") entry.title = trimmed;
+    else entry.refUrl = trimmed === "" ? null : trimmed;
+    edits.set(id, entry);
+  }
+
+  if (edits.size === 0) return 0;
+
+  const current = await db.drop.findMany({
+    where: { id: { in: [...edits.keys()] } },
+    select: { id: true, title: true, refUrl: true, stage: true },
+  });
+
+  const rank = (stage: DropStage) => STAGE_ORDER.indexOf(stage as StageId);
+
+  const writes = current.flatMap((drop) => {
+    const edit = edits.get(drop.id);
+    if (!edit) return [];
+
+    const title = edit.title ?? drop.title;
+    const refUrl = edit.refUrl !== undefined ? edit.refUrl : drop.refUrl;
+
+    // A row is only worth advancing once it actually says something — an empty
+    // slot marked "produced" is a lie the board would then hide from you.
+    const filled = title.trim() !== "";
+    const stage =
+      advanceTo && filled && rank(advanceTo) > rank(drop.stage)
+        ? advanceTo
+        : drop.stage;
+
+    if (title === drop.title && refUrl === drop.refUrl && stage === drop.stage) {
+      return [];
+    }
+
+    return [
+      db.drop.update({
+        where: { id: drop.id },
+        data: { title, refUrl, stage },
+      }),
+    ];
+  });
+
+  if (writes.length > 0) await db.$transaction(writes);
+
+  refresh();
+  return writes.length;
 }
 
 export async function moveDrop(dropId: string, stage: string) {

@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { ChevronRight, Plus } from "lucide-react";
 
 import { ChannelBadge } from "@/components/studio/channel-badge";
+import { DailyQueue } from "@/components/studio/daily-queue";
 import { DropPanel } from "@/components/studio/drop-panel";
 import type {
   BrandView,
@@ -18,10 +19,12 @@ export function StudioBoard({
   drops,
   brands,
   projects,
+  todayKey,
 }: {
   drops: DropView[];
   brands: BrandView[];
   projects: ProjectView[];
+  todayKey: string;
 }) {
   const [brandFilter, setBrandFilter] = useState<string | null>(null);
   const [panel, setPanel] = useState<
@@ -33,6 +36,12 @@ export function StudioBoard({
       brandFilter ? drops.filter((d) => d.brand.id === brandFilter) : drops,
     [drops, brandFilter],
   );
+
+  // Series slots are the daily cadence; they live in the queue strip above.
+  // Leaving them in the columns would mean ~28 identical empty cards drowning
+  // the handful of drops that were actually thought up.
+  const queued = visible.filter((drop) => drop.slotDate !== null);
+  const board = visible.filter((drop) => drop.slotDate === null);
 
   const goingOutToday = visible.filter(
     (d) => d.isToday && d.stage !== "published",
@@ -76,10 +85,16 @@ export function StudioBoard({
         </p>
       )}
 
+      <DailyQueue
+        drops={queued}
+        todayKey={todayKey}
+        onOpen={(drop) => setPanel({ mode: "edit", drop })}
+      />
+
       <div className="-mx-4 overflow-x-auto px-4 pb-3 md:mx-0 md:px-0">
         <div className="flex min-w-max gap-4">
           {STAGES.map((stage, stageIndex) => {
-            const column = visible.filter((drop) => drop.stage === stage.id);
+            const column = board.filter((drop) => drop.stage === stage.id);
             return (
               <div
                 key={stage.id}

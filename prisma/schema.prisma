@@ -1,9 +1,10 @@
 // Clan Centurio — data model.
 //
-// This first migration covers the *social layer* only (CLAUDE.md §6): Areas and
-// Projects (because a Drop needs somewhere to hang), plus the distribution
-// nouns — Brand, Channel, Series, Drop, DropChannel. Mark and Event arrive with
-// their own phases; leaving them out keeps this migration honest.
+// The social layer (CLAUDE.md §6) came first: Areas and Projects (because a Drop
+// needs somewhere to hang), plus the distribution nouns — Brand, Channel,
+// Series, Drop, DropChannel. Mark followed, pulled forward from Phase 3 the
+// moment Utaitai's non-content work (ship the apps, talk to users, marketing)
+// had nowhere to live. Event is still its own phase.
 //
 // Ownership is deliberately absent. The app is single-tenant behind an e-mail
 // allowlist, and there is no User table because Auth.js runs on JWT sessions
@@ -83,6 +84,14 @@ enum Cadence {
   custom
 }
 
+/// Binary in spirit — a Mark is open or it isn't. `doing` exists only so the
+/// one or two things actually in flight can be told apart from the backlog.
+enum MarkStatus {
+  open
+  doing
+  done
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Areas & Projects
 // ─────────────────────────────────────────────────────────────────────────────
@@ -97,6 +106,7 @@ model Area {
   createdAt DateTime @default(now())
 
   projects Project[]
+  marks    Mark[]
 
   @@index([sortOrder])
 }
@@ -122,6 +132,7 @@ model Project {
 
   drops  Drop[]
   series Series[]
+  marks  Mark[]
 
   @@index([areaId, sortOrder])
   @@index([status, lastTouchedAt])
@@ -248,6 +259,11 @@ model Drop {
   /// idempotent and can run on every page load.
   slotDate DateTime? @db.Date
 
+  /// The thing this is *based on* — for Utaitai's dailies, the viral TikTok
+  /// whose song is being screen-recorded. Distinct from DropChannel.publishedUrl,
+  /// which is where this drop itself ended up.
+  refUrl String?
+
   /// Repurposing, kind 2: same idea, different form (a Medium post becoming a
   /// Threads thread). Kind 1 — same asset, more places — is just extra rows in
   /// `channels` below, and costs nothing.
@@ -285,4 +301,51 @@ model DropChannel {
 
   @@unique([dropId, channelId])
   @@index([channelId, state])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Marks
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// A task. Hangs off a Project, or floats in an Area for one-offs.
+///
+/// Deliberately not a Drop: a Mark is binary, has a *due* date rather than a
+/// publish datetime, and never fans out to channels. Merging them would bury
+/// "ship the iOS app" under a hundred rows reading "post the thing".
+model Mark {
+  id    String  @id @default(cuid())
+  title String
+  notes String?
+
+  /// Where this came from, or where it gets done: the viral TikTok worth
+  /// trying, the App Store Connect page, the thread with the user who asked.
+  /// Load-bearing for the "experiment with this format" flow — the link *is*
+  /// most of the task's content.
+  link String?
+
+  /// Workstream within a project — "Ship", "Users", "Marketing", "Experiments".
+  /// Free text, not an enum: the streams differ per project and inventing one
+  /// costs nothing. Utaitai runs three at once, and without this the Hunt Board
+  /// is a flat wall of a dozen unrelated rows.
+  track String?
+
+  status      MarkStatus @default(open)
+  dueDate     DateTime?  @db.Date
+  sortOrder   Int        @default(0)
+  completedAt DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  /// Required even when a project is set — a floating one-off needs somewhere
+  /// to hang, and the Area is what supplies the colour and the calendar
+  /// grouping. Kept in step with the project's area by `saveMark`.
+  areaId String
+  area   Area   @relation(fields: [areaId], references: [id], onDelete: Cascade)
+
+  @@index([status, dueDate])
+  @@index([projectId, status, sortOrder])
+  @@index([areaId, status])
 }

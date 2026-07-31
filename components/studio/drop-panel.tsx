@@ -290,6 +290,37 @@ export function DropPanel({
             </div>
 
             <div>
+              <label className={labelCls} htmlFor="drop-ref">
+                Based on
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  id="drop-ref"
+                  name="refUrl"
+                  type="url"
+                  inputMode="url"
+                  defaultValue={drop?.refUrl ?? ""}
+                  placeholder="https://tiktok.com/@…/video/…"
+                  className={field}
+                />
+                {drop?.refUrl && (
+                  <a
+                    href={drop.refUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label="Open the source post"
+                    className="shrink-0 text-faint hover:text-ink"
+                  >
+                    <ExternalLink className="size-4" strokeWidth={1.8} />
+                  </a>
+                )}
+              </div>
+              <p className="mt-1.5 text-[12px] leading-relaxed text-faint">
+                The viral post this one reproduces — not where it ends up.
+              </p>
+            </div>
+
+            <div>
               <label className={labelCls} htmlFor="drop-notes">
                 Notes
               </label>

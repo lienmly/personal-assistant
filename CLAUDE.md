@@ -98,10 +98,14 @@ dashboard/UI ecosystem, easy Google auth, and a clean path to embedding an AI as
 /components/ui     → card, empty state, surface header
 /components/brand  → the moogle mark
 /lib               → auth config, nav config, server actions, utils
-/components/studio → the drop board, drop panel, channel manager
+/components/studio → the drop board, daily queue, batch composer, drop panel, channel manager
+/components/board  → the hunt board, mark panel, experiment capture
 /lib/db.ts         → Prisma client singleton
-/lib/studio.ts     → board queries + series slot generation
-/lib/studio-actions.ts → server actions for drops, channels, series
+/lib/studio.ts     → board queries + series slot generation + batch slots
+/lib/studio-actions.ts → server actions for drops, channels, series, batch save
+/lib/marks.ts      → hunt board + due-mark queries
+/lib/mark-actions.ts → server actions for marks
+/lib/tracks.ts     → workstream names (client-safe: no Prisma import)
 /lib/montblanc     → AI assistant logic (prompts, tools) — Phase 5
 /prisma            → schema.prisma, migrations, seed.ts
 /proxy.ts          → route protection (Next 16's renamed Middleware)
@@ -124,7 +128,8 @@ Ordered so each phase builds on the last. We ship and use each layer before movi
 - [x] Deploy to Railway — branded landing shell is live (pipeline proven end-to-end)
 - [x] Provision Postgres on the Railway project
 - [x] Prisma installed and wired (`prisma/schema.prisma`, `lib/db.ts`, `prisma/seed.ts`)
-- [x] First migration run — `20260731033858_social_layer` applied, seed loaded
+- [x] First migration run — `20260731033858_social_layer`, then
+      `20260731190821_marks_and_drop_ref`; seed loaded
       (4 areas, 2 projects, 3 brands, 10 channels, 4 series)
 
 ### Phase 1 — Auth & Shell
@@ -150,15 +155,23 @@ so it earns the first real data layer. Marks can wait; the posting can't._
 - [x] Brands & channels admin at `/studio/channels`
 - [x] Publishing a Drop bumps its Project's `lastTouchedAt`
 - [x] Projects surface reads real projects, with drift warnings
+- [x] **Batching** — `/studio/batch` fills every upcoming slot from one grid, and the
+      series slots collapse out of the board columns into a **daily queue** strip.
+      Added 2026-07-31: the cadence is produced weekly in one sitting, so ~28 empty
+      slot cards were both unfillable one-at-a-time and drowning the real drops.
+- [x] `Drop.refUrl` — the viral post a drop reproduces, distinct from where it lands
 - [ ] Today, band 2 (Going out today)
 - [ ] Per-project Drop list on the project card
 
 ### Phase 3 — Marks & the Hunt Board
-- [ ] Mark schema and migration
-- [ ] Mark CRUD; completing a Mark bumps its Project's `lastTouchedAt`
-- [ ] Hunt Board: open Marks grouped by Project
+_Pulled forward on 2026-07-31. Utaitai's real work — ship two apps, talk to users,
+market it — had nowhere to live, and it isn't content, so Studio couldn't hold it._
+- [x] Mark schema and migration
+- [x] Mark CRUD; completing a Mark bumps its Project's `lastTouchedAt`
+- [x] Hunt Board: open Marks grouped by Project, then by **track**
+- [x] Experiment capture — paste a link, get a Mark under Experiments
 - [ ] Project CRUD (creating/editing projects, not just reading them)
-- [ ] Today, bands 1 & 4 (Marks due, Momentum)
+- [ ] Today, bands 1 & 4 (Marks due, Momentum) — `getDueMarks` is written and unused
 
 ### Phase 4 — Calendar
 - [ ] Calendar data model (events, recurring events)
@@ -301,11 +314,11 @@ Built ones are in `prisma/schema.prisma`, which is the source of truth; this is 
   startsOn/endsOn, horizonDays, isActive; channels via **SeriesChannel** ✅
 - **Drop** — title, notes, body, brandId, projectId (nullable), format (`short_video` |
   `article` | `text_post` | `image`), stage (`idea` | `script` | `produce` | `scheduled` |
-  `published`), publishAt, seriesId + slotDate, sourceDropId ✅
+  `published`), publishAt, seriesId + slotDate, sourceDropId, refUrl ✅
 - **DropChannel** — join: dropId, channelId, state, caption, scheduledFor, publishedAt,
   publishedUrl ✅
-- **Mark** — id, title, notes, dueDate, status (`open` | `doing` | `done`), projectId
-  (nullable), areaId — Phase 3
+- **Mark** — id, title, notes, link, track, dueDate, status (`open` | `doing` | `done`),
+  projectId (nullable), areaId ✅
 - **Event** — id, title, start, end, allDay, recurrence, areaId, projectId (nullable) — Phase 4
 - **ChatMessage / Conversation** — Montblanc history — Phase 5
 - **User** — id, email, name, role (`owner` | `child`) — Phase 7. Deliberately absent for
@@ -314,6 +327,27 @@ Built ones are in `prisma/schema.prisma`, which is the source of truth; this is 
 
 `produce` replaced the earlier `edit` stage — it's format-neutral, so filming a TikTok and
 writing a Medium essay share one column instead of needing a board each.
+
+Two fields on Mark are not in the original sketch, both added 2026-07-31:
+
+- **`link`** — the post worth copying, the console page, the thread with the user who
+  asked. For the "try this format" flow the link *is* most of the task, which is why the
+  Hunt Board leads with a paste-a-link capture box rather than a form.
+- **`track`** — a free-text workstream ("Ship", "Users", "Marketing", "Experiments",
+  "Content"). Free text, not an enum: streams differ per project and inventing one
+  shouldn't cost a migration. Utaitai runs three at once and without this the board is a
+  flat wall of twenty unrelated rows. Suggested names live in `lib/tracks.ts`, which is
+  kept free of any Prisma import so client components can read it.
+
+### Dates are a trap here
+
+`slotDate` and `dueDate` are `@db.Date`, which Prisma returns as **UTC midnight**. Two
+rules, both learned by getting them wrong:
+
+1. Format them with `timeZone: "UTC"`, or west of Greenwich every date renders a day early.
+2. Compare them against `todayKey()` from `lib/utils.ts`, never
+   `new Date().toISOString().slice(0, 10)` — that's the UTC day, and it puts the "today"
+   marker on the wrong row for part of every day.
 
 ---
 
@@ -480,11 +514,11 @@ Named animations: `animate-rise` (fade + 8px up — cards, columns, rows arrivin
 
 ---
 
-_Last updated: 2026-07-30 · Status: **Phase 2 (Studio) built and running locally.** The
-social layer is written end to end — schema, seed, board, channel admin, series generation
-— and the project type-checks, lints and builds clean. Railway Postgres is provisioned and
-migrated, the seed is loaded, Google OAuth credentials are in `.env.local`, and
-`npm run dev` serves the auth-gated app on `localhost:3000`. A motion system (§10) and a
-user-facing Studio guide (`docs/studio-guide.md`) landed the same day. Outstanding: sign-in
-has not been exercised end to end against Google yet, the Studio animations have not been
-watched in a running browser, and the phone layout still needs a look on a real device._
+_Last updated: 2026-07-31 · Status: **Phases 2 and 3 both real and running locally.**
+Studio now batches: `/studio/batch` fills a whole week of slots from one grid, and the
+board shows a daily-queue strip instead of ~28 empty slot cards. The Hunt Board is live
+with Marks grouped by project and track, a paste-a-link experiment capture, and Utaitai's
+twenty ship/users/marketing marks seeded. Postgres is migrated, the seed is loaded, and
+all three surfaces have been checked in a signed-in browser. Outstanding: Today's four
+bands are still empty states (band 1 only needs wiring — `getDueMarks` exists), Project
+CRUD, and the phone layout still needs a look on a real device._
