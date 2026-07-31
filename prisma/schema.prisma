@@ -1,0 +1,288 @@
+// Clan Centurio — data model.
+//
+// This first migration covers the *social layer* only (CLAUDE.md §6): Areas and
+// Projects (because a Drop needs somewhere to hang), plus the distribution
+// nouns — Brand, Channel, Series, Drop, DropChannel. Mark and Event arrive with
+// their own phases; leaving them out keeps this migration honest.
+//
+// Ownership is deliberately absent. The app is single-tenant behind an e-mail
+// allowlist, and there is no User table because Auth.js runs on JWT sessions
+// with no adapter. Adding `ownerId` later is a purely additive migration.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Enums
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum ProjectStatus {
+  active
+  simmering
+  paused
+  archived
+}
+
+enum Platform {
+  tiktok
+  instagram
+  youtube
+  facebook
+  threads
+  x
+  medium
+  steam
+  other
+}
+
+/// A channel usually exists before the account does — half of these are still
+/// "I should make one". `planned` keeps them visible without pretending they
+/// can be published to.
+enum ChannelState {
+  planned
+  live
+  paused
+}
+
+/// The shape of the asset, which decides how a Drop moves through the stages
+/// and what "produce" means for it.
+enum DropFormat {
+  short_video
+  article
+  text_post
+  image
+}
+
+/// Format-neutral on purpose. `produce` is filming+editing for a video and
+/// writing for an article — one column, no per-format board.
+enum DropStage {
+  idea
+  script
+  produce
+  scheduled
+  published
+}
+
+enum ChannelPostState {
+  pending
+  scheduled
+  published
+  skipped
+}
+
+enum Cadence {
+  daily
+  weekdays
+  weekly
+  custom
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Areas & Projects
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Life domain. Coarse, ~5 ever. Doubles as the calendar grouping (§8).
+model Area {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  name      String
+  color     String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  projects Project[]
+
+  @@index([sortOrder])
+}
+
+/// The thing being pushed forward. Answers "what is this about".
+model Project {
+  id            String        @id @default(cuid())
+  slug          String        @unique
+  name          String
+  description   String?
+  status        ProjectStatus @default(active)
+  /// Expected days between touches; drives the drift warning on Today.
+  cadenceDays   Int?
+  /// Bumped whenever one of this project's Drops publishes (or Marks complete,
+  /// once Marks exist). Band 4 of Today sorts on this.
+  lastTouchedAt DateTime      @default(now())
+  sortOrder     Int           @default(0)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  areaId String
+  area   Area   @relation(fields: [areaId], references: [id], onDelete: Cascade)
+
+  drops  Drop[]
+  series Series[]
+
+  @@index([areaId, sortOrder])
+  @@index([status, lastTouchedAt])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Distribution
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// A public identity. Answers "who is saying this, to whose audience" — the
+/// second axis that Project alone can't express. A Sleepy Cat devlog can go out
+/// as Coding Mom (project ≠ brand) without inventing a fake project for it.
+model Brand {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  name      String
+  tagline   String?
+  color     String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  channels Channel[]
+  drops    Drop[]
+  series   Series[]
+
+  @@index([sortOrder])
+}
+
+/// One real account. Belongs to exactly one Brand.
+model Channel {
+  id        String       @id @default(cuid())
+  platform  Platform
+  /// The @handle, without the @.
+  handle    String
+  /// Shown in the UI when one brand has two accounts on the same platform.
+  label     String?
+  url       String?
+  state     ChannelState @default(planned)
+  sortOrder Int          @default(0)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  brandId String
+  brand   Brand  @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  posts         DropChannel[]
+  seriesTargets SeriesChannel[]
+
+  @@unique([platform, handle])
+  @@index([brandId, sortOrder])
+}
+
+/// A standing commitment — "a short video every day on both Utaitai TikToks".
+/// Generates dated Drop slots so the daily cadence isn't 730 rows of manual
+/// data entry a year. Without this the Studio dies in a week.
+model Series {
+  id          String     @id @default(cuid())
+  name        String
+  format      DropFormat
+  cadence     Cadence
+  /// For `weekly` / `custom`: ISO weekdays, 1 = Monday … 7 = Sunday.
+  daysOfWeek  Int[]      @default([])
+  /// Local time of day the slot defaults to, "HH:mm".
+  timeOfDay   String?
+  startsOn    DateTime   @db.Date
+  endsOn      DateTime?  @db.Date
+  isActive    Boolean    @default(true)
+  /// How many days ahead to keep slots materialised.
+  horizonDays Int        @default(14)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  brandId String
+  brand   Brand  @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  /// The channels each generated slot fans out to by default.
+  channels SeriesChannel[]
+  drops    Drop[]
+
+  @@unique([brandId, name])
+  @@index([isActive])
+}
+
+model SeriesChannel {
+  seriesId  String
+  channelId String
+
+  series  Series  @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@id([seriesId, channelId])
+  @@index([channelId])
+}
+
+/// A unit of content going out. Carries both axes: `projectId` is what it's
+/// about (nullable — pure brand-building posts belong to no project) and
+/// `brandId` is who publishes it.
+model Drop {
+  id          String     @id @default(cuid())
+  title       String
+  notes       String?
+  /// The script / caption / article body — whatever "the words" are.
+  body        String?
+  format      DropFormat
+  stage       DropStage  @default(idea)
+  publishAt   DateTime?
+  publishedAt DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  brandId String
+  brand   Brand  @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  seriesId String?
+  series   Series?   @relation(fields: [seriesId], references: [id], onDelete: SetNull)
+  /// The day this fills in its series. Unique per series so slot generation is
+  /// idempotent and can run on every page load.
+  slotDate DateTime? @db.Date
+
+  /// Repurposing, kind 2: same idea, different form (a Medium post becoming a
+  /// Threads thread). Kind 1 — same asset, more places — is just extra rows in
+  /// `channels` below, and costs nothing.
+  sourceDropId String?
+  source       Drop?   @relation("DropDerivation", fields: [sourceDropId], references: [id], onDelete: SetNull)
+  derivatives  Drop[]  @relation("DropDerivation")
+
+  channels DropChannel[]
+
+  @@unique([seriesId, slotDate])
+  @@index([stage, publishAt])
+  @@index([brandId, publishAt])
+  @@index([projectId])
+}
+
+/// One drop landing on one channel. Per-channel because the caption, the
+/// timing and the resulting URL all differ — a YouTube Short and a TikTok are
+/// the same file and not the same post.
+model DropChannel {
+  id           String           @id @default(cuid())
+  state        ChannelPostState @default(pending)
+  /// Overrides the drop's body for this platform when it needs its own copy.
+  caption      String?
+  scheduledFor DateTime?
+  publishedAt  DateTime?
+  publishedUrl String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  dropId String
+  drop   Drop   @relation(fields: [dropId], references: [id], onDelete: Cascade)
+
+  channelId String
+  channel   Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@unique([dropId, channelId])
+  @@index([channelId, state])
+}

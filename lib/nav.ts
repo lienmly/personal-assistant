@@ -53,34 +53,9 @@ export const SURFACES: Surface[] = [
   },
 ];
 
-/**
- * Areas are coarse and near-static — roughly five, ever — so hardcoding them
- * for Phase 1 is fine. Phase 2 moves them into Postgres alongside Projects.
- */
-export type Area = {
-  id: string;
-  name: string;
-  dot: string;
-};
-
-export const AREAS: Area[] = [
-  { id: "work", name: "Work", dot: "#3b6fd4" },
-  { id: "hobbies", name: "Hobbies", dot: "#2f8f5b" },
-  { id: "baby", name: "Baby", dot: "#d9852b" },
-  { id: "home", name: "Home & Money", dot: "#6b5bd4" },
-];
-
-/**
- * PLACEHOLDER. Real projects arrive with the database in Phase 2 — these exist
- * only so the sidebar tree can be judged as a design. Delete this constant
- * (and the import in the sidebar) when Project CRUD lands.
- */
-export const PLACEHOLDER_PROJECTS: Record<string, string[]> = {
-  work: ["Game X", "Side app Y"],
-  hobbies: ["Japanese", "Guitar"],
-  baby: [],
-  home: [],
-};
+// Areas and Projects now live in Postgres — see prisma/schema.prisma. The
+// sidebar receives them from the layout; nothing about them is hardcoded here
+// any more.
 
 export function surfaceForPath(pathname: string): Surface | undefined {
   return SURFACES.find(

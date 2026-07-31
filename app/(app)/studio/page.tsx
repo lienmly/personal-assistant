@@ -1,56 +1,96 @@
-import { Plus } from "lucide-react";
+import Link from "next/link";
+import { Settings2 } from "lucide-react";
 
+import { StudioBoard } from "@/components/studio/studio-board";
+import type { BrandView, DropView } from "@/components/studio/types";
 import { SurfaceHeader } from "@/components/ui/surface-header";
+import { ensureSeriesSlots, getStudioBoard } from "@/lib/studio";
 
 export const metadata = { title: "Studio · Clan Centurio" };
 
-/** The Drop pipeline from CLAUDE.md §6. Cross-project by design — this is the
- *  one place social distribution is viewed as a whole. */
-const STAGES = ["Idea", "Script", "Edit", "Scheduled", "Published"] as const;
+// Slot generation writes, and the board must reflect those writes immediately.
+export const dynamic = "force-dynamic";
 
-export default function StudioPage() {
+const dayFormat = new Intl.DateTimeFormat("en-GB", {
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+});
+
+export default async function StudioPage() {
+  // Idempotent, cheap, and keeps the daily cadence alive without a cron.
+  await ensureSeriesSlots();
+
+  const { drops, brands, projects } = await getStudioBoard();
+  const todayKey = new Date().toDateString();
+
+  const dropViews: DropView[] = drops.map((drop) => ({
+    id: drop.id,
+    title: drop.title,
+    notes: drop.notes,
+    body: drop.body,
+    format: drop.format,
+    stage: drop.stage,
+    publishAt: drop.publishAt?.toISOString() ?? null,
+    publishLabel: drop.publishAt ? dayFormat.format(drop.publishAt) : null,
+    isToday: drop.publishAt?.toDateString() === todayKey,
+    brand: drop.brand,
+    project: drop.project,
+    series: drop.series,
+    sourceDropId: drop.sourceDropId,
+    channels: drop.channels.map((row) => ({
+      id: row.id,
+      state: row.state,
+      publishedUrl: row.publishedUrl,
+      channel: row.channel,
+    })),
+  }));
+
+  const brandViews: BrandView[] = brands.map((brand) => ({
+    id: brand.id,
+    name: brand.name,
+    slug: brand.slug,
+    color: brand.color,
+    channels: brand.channels.map((channel) => ({
+      id: channel.id,
+      platform: channel.platform,
+      handle: channel.handle,
+      label: channel.label,
+      state: channel.state,
+    })),
+  }));
+
+  const open = dropViews.filter((drop) => drop.stage !== "published").length;
+
   return (
     <>
       <SurfaceHeader
         title="Studio"
-        tagline="Content moving toward publication, across every project at once."
-        meta="0 drops"
+        tagline="One asset, many destinations. Every brand's pipeline in one place."
+        meta={`${open} in flight`}
       />
 
-      <div className="-mx-4 overflow-x-auto px-4 pb-2 md:mx-0 md:px-0">
-        <div className="flex min-w-max gap-4">
-          {STAGES.map((stage) => (
-            <div
-              key={stage}
-              className="flex w-[220px] flex-col rounded-card bg-card p-4 shadow-card"
-            >
-              <div className="mb-3 flex items-center justify-between">
-                <span className="text-[13px] font-semibold tracking-tight text-ink">
-                  {stage}
-                </span>
-                <span className="rounded-full bg-inset px-2 py-0.5 text-[11px] font-medium text-faint">
-                  0
-                </span>
-              </div>
+      <StudioBoard
+        drops={dropViews}
+        brands={brandViews}
+        projects={projects}
+      />
 
-              <div className="flex min-h-[220px] flex-1 items-center justify-center rounded-tile border border-dashed border-line">
-                <span className="grid size-8 place-items-center rounded-full bg-inset text-faint">
-                  <Plus className="size-4" strokeWidth={2} />
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
+      <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <Link
+          href="/studio/channels"
+          className="flex items-center gap-2 rounded-chip bg-card px-3.5 py-2 text-[13px] text-muted shadow-card hover:text-ink"
+        >
+          <Settings2 className="size-3.5" strokeWidth={1.8} />
+          Brands, channels & series
+        </Link>
+        <p className="max-w-md text-[12px] leading-relaxed text-faint">
+          A drop carries two axes: the <strong className="font-medium">brand</strong>{" "}
+          publishing it and the <strong className="font-medium">project</strong>{" "}
+          it&rsquo;s about. That&rsquo;s what lets a Sleepy Cat devlog go out as
+          Coding Mom without inventing a second project for it.
+        </p>
       </div>
-
-      <p className="mt-5 max-w-lg text-[13px] leading-relaxed text-muted">
-        A drop belongs to one project and fans out to as many channels as you
-        like — one source asset, many destinations. Publishing one bumps its
-        project&rsquo;s momentum on Today.
-        <span className="ml-1.5 rounded-full bg-card px-2.5 py-1 text-[11px] font-medium text-faint shadow-card">
-          Arrives in Phase 3
-        </span>
-      </p>
     </>
   );
 }

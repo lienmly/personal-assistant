@@ -59,7 +59,7 @@ dashboard/UI ecosystem, easy Google auth, and a clean path to embedding an AI as
 | **Database** | **PostgreSQL** (Railway managed) | Relational fits calendars, tasks, projects, relations. Railway provisions it in a click. |
 | **ORM** | **Prisma** | Type-safe DB access, easy migrations, gentle learning curve. (Drizzle is the lighter-weight alternative if we prefer.) |
 | **Auth** | **Auth.js (NextAuth) with Google provider** | Free, self-hosted, "Login with Google" out of the box. Restrict to my own Google account(s) via an allowlist. |
-| **AI assistant (Montblanc)** | **Anthropic Claude API** + **Vercel AI SDK** | Latest Claude models (e.g. `claude-opus-4-8` / `claude-sonnet-5`). AI SDK handles streaming chat + tool-calling so Montblanc can eventually act on my data. |
+| **AI assistant (Montblanc)** | **Qwen API** + **Vercel AI SDK** | Decided 2026-07-30. Qwen exposes an OpenAI-compatible endpoint, so the AI SDK's `openai-compatible` provider talks to it directly and tool-calling still works. Swapping providers later is a one-file change. |
 | **Calendar UI** | **Schedule-X** or **FullCalendar** | Mature calendar rendering (month/week/day). Decide when we build the calendar layer. |
 | **Data fetching / state** | **TanStack Query** (where needed) + React Server Components | Server components for most reads; Query for interactive client bits. |
 | **Hosting** | **Railway** | App + Postgres in one project. Env vars, deploys from GitHub. |
@@ -98,12 +98,16 @@ dashboard/UI ecosystem, easy Google auth, and a clean path to embedding an AI as
 /components/ui     → card, empty state, surface header
 /components/brand  → the moogle mark
 /lib               → auth config, nav config, server actions, utils
+/components/studio → the drop board, drop panel, channel manager
+/lib/db.ts         → Prisma client singleton
+/lib/studio.ts     → board queries + series slot generation
+/lib/studio-actions.ts → server actions for drops, channels, series
 /lib/montblanc     → AI assistant logic (prompts, tools) — Phase 5
-/prisma            → schema.prisma + migrations — Phase 2
+/prisma            → schema.prisma, migrations, seed.ts
 /proxy.ts          → route protection (Next 16's renamed Middleware)
 /public            → static assets, icons, branding
 ```
-_(Everything above exists except `/lib/montblanc` and `/prisma`, which arrive with their phase.)_
+_(Everything above exists except `/lib/montblanc`, which arrives with Phase 5.)_
 
 ---
 
@@ -117,7 +121,8 @@ Ordered so each phase builds on the last. We ship and use each layer before movi
 - [x] Push to GitHub — `https://github.com/lienmly/personal-assistant`
 - [x] Deploy to Railway — branded landing shell is live (pipeline proven end-to-end)
 - [ ] Provision Postgres on the Railway project
-- [ ] Prisma connected, first migration
+- [x] Prisma installed and wired (`prisma/schema.prisma`, `lib/db.ts`, `prisma/seed.ts`)
+- [ ] First migration run — blocked on Postgres above
 
 ### Phase 1 — Auth & Shell
 - [x] Google login via Auth.js v5 (`lib/auth.ts`, JWT sessions — no DB needed yet)
@@ -128,23 +133,29 @@ Ordered so each phase builds on the last. We ship and use each layer before movi
       reference design's nested tree does the job better)
 - [x] Responsive layout baseline — icon rail on desktop, bottom tab bar on phone
       _(phone layout not yet visually confirmed on a real device)_
-- [ ] Swap `PLACEHOLDER_PROJECTS` in `lib/nav.ts` for real data (Phase 2)
+- [x] Sidebar tree reads real Areas and Projects from Postgres (`PLACEHOLDER_PROJECTS` deleted)
 
-### Phase 2 — Areas, Projects & Marks
-_Reordered ahead of Calendar: Today and Momentum are meaningless without Projects, and
-Projects are cheaper to build than a calendar._
-- [ ] Area + Project + Mark schema and migration
-- [ ] Project CRUD, with `status` and `lastTouchedAt`
+### Phase 2 — Studio (content distribution)
+_Pulled ahead of Marks on 2026-07-30. Social output is the work that's actually
+overflowing right now — a daily cadence on two TikToks with three more brands coming —
+so it earns the first real data layer. Marks can wait; the posting can't._
+- [x] Area + Project + Brand + Channel + Series + Drop + DropChannel schema
+- [x] Seed of the real brands, accounts and standing series
+- [x] Studio board: five stages, brand filter, drop panel, per-channel publish checklist
+- [x] Series slot generation — the daily cadence materialises itself
+- [x] Repurposing both ways: extra channels on one drop, derived drops across forms
+- [x] Brands & channels admin at `/studio/channels`
+- [x] Publishing a Drop bumps its Project's `lastTouchedAt`
+- [x] Projects surface reads real projects, with drift warnings
+- [ ] Today, band 2 (Going out today)
+- [ ] Per-project Drop list on the project card
+
+### Phase 3 — Marks & the Hunt Board
+- [ ] Mark schema and migration
 - [ ] Mark CRUD; completing a Mark bumps its Project's `lastTouchedAt`
 - [ ] Hunt Board: open Marks grouped by Project
-- [ ] Projects surface: roster + project cards
+- [ ] Project CRUD (creating/editing projects, not just reading them)
 - [ ] Today, bands 1 & 4 (Marks due, Momentum)
-
-### Phase 3 — Studio (content distribution)
-- [ ] Drop + Channel + DropChannel schema
-- [ ] Studio kanban by stage; publishing a Drop bumps `lastTouchedAt`
-- [ ] Per-project Drop list on the project card
-- [ ] Today, band 2 (Going out today)
 
 ### Phase 4 — Calendar
 - [ ] Calendar data model (events, recurring events)
@@ -188,19 +199,55 @@ sitting alongside them. The earlier draft listed "Social Media Branding" as an A
 With many concurrent projects that breaks down fast. So: **distribution is a dimension, not
 a destination.**
 
-### Four nouns
+### Six nouns
 
 | Noun | What it is | Example | Churn |
 |---|---|---|---|
 | **Area** | Life domain. Coarse. Supplies colour + calendar separation. | Work, Baby, Hobbies, Home & Money | ~5 ever |
-| **Project** | The thing being pushed forward. Belongs to one Area. | "Game X", "Japanese", "Rental 4B" | Constant |
+| **Project** | The thing being pushed forward. Belongs to one Area. | "Utaitai", "Sleepy Cat", "Rental 4B" | Constant |
+| **Brand** | A public identity with an audience and a voice. Owns Channels. | Utaitai, Coding Mom, Sleepy Cat | Rare |
 | **Mark** | A task. Belongs to a Project, or floats in an Area for one-offs. | "Fix collision bug" | Constant |
-| **Drop** | A unit of content going out. Belongs to a Project, targets 1..n Channels. | "Devlog #7 → YT + TikTok" | Constant |
+| **Drop** | A unit of content going out. Carries a Brand and (optionally) a Project. | "Devlog #7 → X + Threads" | Constant |
+| **Series** | A standing commitment that generates dated Drop slots. | "Daily short, both Utaitai TikToks" | Rare |
 
 **Drop is deliberately not a Mark.** A Mark is binary — open or done. A Drop moves through
 repeating pipeline stages, fans out to several channels from one source asset, and has a
 *publish datetime* rather than a *due date*. Merging them yields a task list where most rows
 are "post the thing" and the real work is buried. Two entities, one shared daily view.
+
+### Brand and Project are two axes, not one — decided 2026-07-30
+
+The first draft hung a Drop off a Project alone. That collapses the moment one identity
+promotes several projects, which is exactly the situation:
+
+- A **Sleepy Cat** devlog posted from **Coding Mom's** TikTok
+- The same game posted from **@sleepycatgame** on X
+- A postpartum-coding story that belongs to **no project at all**
+
+So a Drop carries `brandId` (who is saying it, to whose audience) *and* a nullable
+`projectId` (what it's about). Without the second axis you end up inventing shadow projects
+called "Coding Mom content" and losing the thread. A Channel is one real account and belongs
+to one Brand; `state` distinguishes accounts that exist from accounts that are still an
+intention.
+
+### Repurposing is two different things
+
+Calling both of these "repurposing" is what made the whole thing feel unmanageable:
+
+1. **Same asset, more places** — a TikTok going to IG Reels, FB Reels and YT Shorts. That's
+   **one Drop with more DropChannel rows**, each carrying its own caption, state and
+   published URL. Near-zero effort, and it should stay that way.
+2. **Same idea, different form** — a Medium essay becoming a Threads post. That's a
+   **derived Drop** (`sourceDropId`), with its own stages and its own publish date, because
+   it has to be rewritten rather than re-uploaded.
+
+### Cadence is generated, never typed
+
+Posting daily on two accounts is ~730 drops a year. A Studio that requires hand-creating
+each one dies in a week. **Series** solves this: a brand + channels + cadence + format that
+materialises empty dated slots ahead of time (`ensureSeriesSlots`, run on Studio load —
+idempotent via the `[seriesId, slotDate]` unique key, so no cron and no infrastructure to
+keep alive). The daily post is a card waiting to be filled, not a row to remember to make.
 
 ### Navigation: by verb and time; filter by area
 
@@ -239,19 +286,31 @@ channel row.
 
 ### Entities
 
-- **User** — id, email, name, role (`owner` | `child` later)
-- **Area** — id, name, color, icon, sortOrder, ownerId
+Built ones are in `prisma/schema.prisma`, which is the source of truth; this is the map.
+
+- **Area** — slug, name, color, sortOrder ✅
   _(Area doubles as the calendar grouping — see §8, resolved.)_
-- **Project** — id, name, description, areaId, status (`active` | `simmering` | `paused` |
-  `archived`), lastTouchedAt, cadenceDays (nullable, drives drift warnings), ownerId
+- **Project** — slug, name, description, areaId, status (`active` | `simmering` | `paused` |
+  `archived`), lastTouchedAt, cadenceDays (nullable, drives drift warnings) ✅
+- **Brand** — slug, name, tagline, color, sortOrder ✅
+- **Channel** — brandId, platform, handle, label, url, state (`planned` | `live` | `paused`) ✅
+- **Series** — brandId, projectId (nullable), format, cadence, daysOfWeek, timeOfDay,
+  startsOn/endsOn, horizonDays, isActive; channels via **SeriesChannel** ✅
+- **Drop** — title, notes, body, brandId, projectId (nullable), format (`short_video` |
+  `article` | `text_post` | `image`), stage (`idea` | `script` | `produce` | `scheduled` |
+  `published`), publishAt, seriesId + slotDate, sourceDropId ✅
+- **DropChannel** — join: dropId, channelId, state, caption, scheduledFor, publishedAt,
+  publishedUrl ✅
 - **Mark** — id, title, notes, dueDate, status (`open` | `doing` | `done`), projectId
-  (nullable), areaId, ownerId
-- **Drop** — id, title, notes, projectId, stage (`idea` | `script` | `edit` | `scheduled` |
-  `published`), publishAt, ownerId
-- **Channel** — id, name, platform (`youtube` | `tiktok` | `instagram` | `x` | …), handle, ownerId
-- **DropChannel** — join: dropId, channelId, per-channel status + published URL
-- **Event** — id, title, start, end, allDay, recurrence, areaId, projectId (nullable), ownerId
-- **ChatMessage / Conversation** — Montblanc history (Phase 5)
+  (nullable), areaId — Phase 3
+- **Event** — id, title, start, end, allDay, recurrence, areaId, projectId (nullable) — Phase 4
+- **ChatMessage / Conversation** — Montblanc history — Phase 5
+- **User** — id, email, name, role (`owner` | `child`) — Phase 7. Deliberately absent for
+  now: the app is single-tenant behind the allowlist and Auth.js runs JWT sessions with no
+  adapter, so no table exists to hang `ownerId` off. Adding it is purely additive.
+
+`produce` replaced the earlier `edit` stage — it's format-neutral, so filming a TikTok and
+writing a Medium essay share one column instead of needing a board each.
 
 ---
 
@@ -268,7 +327,7 @@ channel row.
   - `AUTH_URL` — production only, the public Railway URL
   - `DATABASE_URL` — on Railway use the reference `${{Postgres.DATABASE_URL}}`;
     locally use Railway's `DATABASE_PUBLIC_URL` (`*.proxy.rlwy.net`)
-  - `ANTHROPIC_API_KEY` — Phase 5
+  - `QWEN_API_KEY`, `QWEN_BASE_URL` — Phase 5 (Montblanc)
 - `.env.local` for local dev, `.env.example` committed as a template.
 
 > Auth.js v5 reads `AUTH_*` names natively, so the older `NEXTAUTH_*` / `GOOGLE_*`
@@ -293,7 +352,11 @@ channel row.
 - [ ] shadcn/ui — deferred. Phase 1 needed no complex primitives, and the design is custom
       enough that shadcn defaults would be fought rather than used. Revisit at Phase 2 when
       dialogs, selects and popovers appear.
-- [ ] Prisma vs Drizzle (default: Prisma) — decide before Phase 2
+- [x] **Prisma vs Drizzle** — resolved: **Prisma**, pinned to `6.x`. Prisma 7 requires Node
+      20.19+ and this machine is on 20.15.1; 6.x supports 18.18+. Bump both once Node is
+      upgraded — the schema is fresh, so the 6→7 move is a non-event.
+- [x] **Montblanc's model provider** — resolved 2026-07-30: **Qwen**, via its
+      OpenAI-compatible endpoint. See §3.
 - [ ] Calendar library (Schedule-X vs FullCalendar) — decide at Phase 4
 - [ ] Notifications channel (push vs email) — Phase 7
 
@@ -317,7 +380,9 @@ channel row.
 - **npm cache is redirected to `D:\npm-cache`** (the `C:` system drive has been prone to
   running full). If npm ever errors with `ENOSPC` or Node throws "heap out of memory",
   check free space on `C:` first — a full system drive breaks the Windows pagefile.
-- Node v20.15.1 at time of setup (a lint dependency prefers 20.19+, harmless warning).
+- Node v20.15.1 at time of setup. This is now load-bearing: **Prisma 7 refuses to install
+  below 20.19**, which is why Prisma is pinned to 6.x. `winget install OpenJS.NodeJS.LTS`
+  fixes it, and then both Prisma packages can go to latest.
 - **Next.js 16 / React 19.** This is a recent major — APIs and conventions may differ from
   older Next.js knowledge. Version-specific docs are bundled at
   `node_modules/next/dist/docs/`; the scaffold's `AGENTS.md` reminds agents to consult them
@@ -325,7 +390,9 @@ channel row.
 
 ---
 
-_Last updated: 2026-07-30 · Status: **Phase 1 built.** Information architecture and visual
-design both decided (§6, §8). Auth + the five-surface shell are in and building clean.
-Outstanding before Phase 2: Google OAuth credentials, Postgres on Railway, and a look at
-the phone layout on a real device._
+_Last updated: 2026-07-30 · Status: **Phase 2 (Studio) built, awaiting a database.** The
+social layer is written end to end — schema, seed, board, channel admin, series generation
+— and the project type-checks, lints and builds clean. It cannot run until Postgres is
+provisioned on Railway and `DATABASE_URL` is set; that is the single outstanding blocker.
+Also outstanding: Google OAuth credentials, and a look at the phone layout on a real
+device._

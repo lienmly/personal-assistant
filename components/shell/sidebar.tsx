@@ -3,20 +3,30 @@
 import { useState } from "react";
 import { ChevronDown, Plus, Settings2, X } from "lucide-react";
 
-import { AREAS, PLACEHOLDER_PROJECTS } from "@/lib/nav";
 import { cn } from "@/lib/utils";
+
+export type SidebarArea = {
+  id: string;
+  slug: string;
+  name: string;
+  color: string;
+  projects: { id: string; name: string; slug: string }[];
+};
 
 /**
  * The sidebar is the *area filter*, not a second set of destinations. Areas
  * cut across every surface, so this panel stays put while the rail switches
  * what you're looking at.
  *
- * Selecting an area is cosmetic until Phase 2 — there's no data to filter yet.
+ * Selecting an area is still cosmetic — the surfaces don't read the selection
+ * yet. The tree itself is real data now.
  */
 export function Sidebar({
+  areas,
   open,
   onClose,
 }: {
+  areas: SidebarArea[];
   open: boolean;
   onClose: () => void;
 }) {
@@ -91,8 +101,8 @@ export function Sidebar({
         </div>
 
         <nav aria-label="Areas" className="flex-1 overflow-y-auto">
-          {AREAS.map((area) => {
-            const projects = PLACEHOLDER_PROJECTS[area.id] ?? [];
+          {areas.map((area) => {
+            const projects = area.projects;
             const isCollapsed = collapsed[area.id];
             const isSelected = selectedArea === area.id;
 
@@ -111,7 +121,7 @@ export function Sidebar({
                   >
                     <span
                       className="size-2 shrink-0 rounded-full"
-                      style={{ background: area.dot }}
+                      style={{ background: area.color }}
                     />
                     {area.name}
                   </button>
@@ -142,10 +152,10 @@ export function Sidebar({
                     {projects.length > 0 ? (
                       projects.map((project) => (
                         <div
-                          key={project}
+                          key={project.id}
                           className="cursor-default rounded-chip px-3 py-1.5 text-[13px] text-muted hover:text-ink"
                         >
-                          {project}
+                          {project.name}
                         </div>
                       ))
                     ) : (

@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { IconRail } from "@/components/shell/icon-rail";
 import { MobileTabBar } from "@/components/shell/mobile-tab-bar";
-import { Sidebar } from "@/components/shell/sidebar";
+import { Sidebar, type SidebarArea } from "@/components/shell/sidebar";
 import { Topbar } from "@/components/shell/topbar";
 
 export type ShellUser = {
@@ -22,10 +22,12 @@ export type ShellUser = {
 export function AppShell({
   user,
   todayLabel,
+  areas,
   children,
 }: {
   user: ShellUser;
   todayLabel: string;
+  areas: SidebarArea[];
   children: React.ReactNode;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -34,7 +36,11 @@ export function AppShell({
     <div className="h-dvh bg-canvas md:p-4">
       <div className="flex h-full overflow-hidden bg-shell md:rounded-[2rem] md:shadow-float">
         <IconRail />
-        <Sidebar open={menuOpen} onClose={() => setMenuOpen(false)} />
+        <Sidebar
+          areas={areas}
+          open={menuOpen}
+          onClose={() => setMenuOpen(false)}
+        />
 
         <div className="flex min-w-0 flex-1 flex-col">
           <Topbar
