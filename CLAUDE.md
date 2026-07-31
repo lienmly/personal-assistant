@@ -107,6 +107,7 @@ dashboard/UI ecosystem, easy Google auth, and a clean path to embedding an AI as
 /proxy.ts          → route protection (Next 16's renamed Middleware)
 /public            → static assets, icons, branding
 /assets            → styling reference screenshots — consult before building UI (§9)
+/docs              → guides written for me to read, not for agents (§9)
 ```
 _(Everything above exists except `/lib/montblanc`, which arrives with Phase 5.)_
 
@@ -351,7 +352,8 @@ writing a Medium essay share one column instead of needing a board each.
       dashboard). Translated into `app/globals.css`: warm greige canvas, floating white
       cards on a rounded panel, very large radii, near-invisible shadows, separation by
       background contrast rather than borders, and a single crimson accent (`#de1f4c`)
-      that doubles as the moogle's pom-pom. **Light mode only** — the palette is built
+      that doubles as the moogle's pom-pom. Motion tokens followed on the same day — see
+      §10. **Light mode only** — the palette is built
       around warm neutrals and a dark variant would need its own design pass.
       The reference screenshots live in **`/assets`** — see §9, they are required reading
       before building any new surface.
@@ -402,6 +404,64 @@ writing a Medium essay share one column instead of needing a board each.
   If a new surface needs a pattern the reference doesn't show, extend it in the reference's
   spirit and note the new pattern in §8 so the next feature inherits it.
 
+- **User docs live in `/docs`.** Guides written for *me reading later*, not for agents:
+  - `docs/studio-guide.md` — how to use the Studio (brands, channels, drops, series,
+    the board, repurposing). Written 2026-07-30. Update it when Studio behaviour changes.
+
+---
+
+## 10. Motion
+
+**Established 2026-07-30.** Motion is part of the design system, not decoration sprinkled
+per-component. Everything below is defined once in `app/globals.css` under `@theme`; a new
+surface uses these tokens and adds nothing of its own without a note here.
+
+### Tokens
+
+| Token | Value | Use |
+|---|---|---|
+| `--ease-soft` | `cubic-bezier(0.22, 1, 0.36, 1)` | Everything entering or settling. Decelerating, no overshoot. |
+| `--ease-exit` | `cubic-bezier(0.4, 0, 1, 1)` | Things leaving. Accelerates away. |
+| `--duration-quick` | `120ms` | Colour, opacity, hover. |
+| `--duration-base` | `200ms` | Transforms, small elements. |
+| `--duration-slow` | `320ms` | Panels, whole-surface entrances. |
+
+Named animations: `animate-rise` (fade + 8px up — cards, columns, rows arriving),
+`animate-panel-in` / `animate-panel-out` (side panel slide), `animate-scrim-in` /
+`animate-scrim-out` (overlay fade), `animate-pop` (a scale-in confirmation).
+
+> **Tailwind v4 gotcha:** `--ease-*` and `--animate-*` are real theme namespaces and give
+> you `ease-soft` / `animate-rise` for free. **`--duration-*` is not.** Write the duration
+> as the CSS-variable shorthand — `duration-(--duration-base)` — or the class silently
+> generates nothing. It compiles fine and looks right in the source; only the built CSS
+> shows it missing.
+
+### Rules
+
+- **Reference the tokens, never raw ms or a bare `transition-all`.** Name the properties:
+  `transition-[background-color,transform]`. Animating `all` fights layout.
+- **Motion travels 8px or less.** The reference gets depth from layering, not from things
+  flying in. A 1px hover lift plus `shadow-card` is the whole vocabulary for "raised".
+- **Enter animations are staggered, ~35–45ms apart**, in reading order — columns left to
+  right, cards top to bottom. The board should assemble, not blink into place.
+- **Stagger via inline `animationDelay`**, and let React's keys do the work: keyed on a
+  stable id, an animation replays only on a genuine mount (filtering, arriving in a new
+  column), not on every re-render.
+- **Anything that closes must animate out.** Hold a `closing` state, run the exit
+  animation, unmount in `onAnimationEnd` — guarded with
+  `event.target === event.currentTarget` so bubbling child animations don't fire it early.
+  `DropPanel` is the reference implementation.
+- **Pending server actions recede** (`opacity-45` + `pointer-events-none`) rather than
+  freezing, so a wait reads as progress.
+- **Press feedback is `active:scale-[0.97]`** on buttons and chips (`0.985` on large
+  cards). Small enough to feel, too small to notice.
+- **`animate-pop` is the only attention-grabbing motion.** Reserve it for a thing that just
+  became true — ticking a channel as posted. If it's on more than one element per surface,
+  it's being overused.
+- **Reduced motion is already handled globally** at the bottom of `globals.css` (all
+  durations collapse to 0.01ms, which still fires `animationend`, so exit-then-unmount
+  keeps working). Don't add per-component `prefers-reduced-motion` checks.
+
 ---
 
 ## Environment notes
@@ -424,6 +484,7 @@ _Last updated: 2026-07-30 · Status: **Phase 2 (Studio) built and running locall
 social layer is written end to end — schema, seed, board, channel admin, series generation
 — and the project type-checks, lints and builds clean. Railway Postgres is provisioned and
 migrated, the seed is loaded, Google OAuth credentials are in `.env.local`, and
-`npm run dev` serves the auth-gated app on `localhost:3000`. Outstanding: sign-in has not
-been exercised end to end against Google yet, and the phone layout still needs a look on a
-real device._
+`npm run dev` serves the auth-gated app on `localhost:3000`. A motion system (§10) and a
+user-facing Studio guide (`docs/studio-guide.md`) landed the same day. Outstanding: sign-in
+has not been exercised end to end against Google yet, the Studio animations have not been
+watched in a running browser, and the phone layout still needs a look on a real device._

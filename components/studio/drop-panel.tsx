@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { Check, ExternalLink, Trash2, X } from "lucide-react";
 
 import { ChannelBadge } from "@/components/studio/channel-badge";
@@ -47,6 +47,19 @@ export function DropPanel({
     drop?.brand.id ?? defaultBrandId ?? brands[0]?.id ?? "",
   );
   const [error, setError] = useState<string | null>(null);
+  // The panel unmounts itself only once its exit animation has finished, so
+  // closing slides out instead of vanishing. Every dismissal goes through
+  // `dismiss()`; `onClose` is called from the animation end.
+  const [closing, setClosing] = useState(false);
+  const dismiss = () => setClosing(true);
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setClosing(true);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   const brand = brands.find((b) => b.id === brandId);
   const attached = new Set(drop?.channels.map((row) => row.channel.id) ?? []);
@@ -58,7 +71,7 @@ export function DropPanel({
     startTransition(async () => {
       try {
         await saveDrop(form);
-        onClose();
+        dismiss();
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : "Could not save");
       }
@@ -70,11 +83,24 @@ export function DropPanel({
       <button
         type="button"
         aria-label="Close"
-        onClick={onClose}
-        className="absolute inset-0 bg-obsidian/25"
+        onClick={dismiss}
+        className={cn(
+          "absolute inset-0 bg-obsidian/25",
+          closing ? "animate-scrim-out" : "animate-scrim-in",
+        )}
       />
 
-      <div className="relative flex h-full w-full max-w-[460px] flex-col bg-stage shadow-float">
+      <div
+        onAnimationEnd={(event) => {
+          // Form fields inside the panel animate too; only the panel's own
+          // exit should unmount it.
+          if (closing && event.target === event.currentTarget) onClose();
+        }}
+        className={cn(
+          "relative flex h-full w-full max-w-[460px] flex-col bg-stage shadow-float",
+          closing ? "animate-panel-out" : "animate-panel-in",
+        )}
+      >
         <div className="flex items-center justify-between px-5 py-4">
           <div>
             <h2 className="text-[15px] font-semibold tracking-tight text-ink">
@@ -88,9 +114,9 @@ export function DropPanel({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={dismiss}
             aria-label="Close"
-            className="grid size-8 place-items-center rounded-full text-muted hover:bg-card"
+            className="grid size-8 place-items-center rounded-full text-muted transition-[background-color,color,transform] duration-(--duration-base) ease-soft hover:rotate-90 hover:bg-card hover:text-ink"
           >
             <X className="size-4" />
           </button>
@@ -296,7 +322,7 @@ export function DropPanel({
               onClick={() =>
                 startTransition(async () => {
                   await deleteDrop(drop.id);
-                  onClose();
+                  dismiss();
                 })
               }
               className="mt-6 flex items-center gap-2 text-[13px] text-muted hover:text-accent"
@@ -310,8 +336,8 @@ export function DropPanel({
         <div className="flex items-center justify-end gap-2 bg-shell px-5 py-3">
           <button
             type="button"
-            onClick={onClose}
-            className="rounded-chip px-3.5 py-2 text-[13px] text-muted hover:text-ink"
+            onClick={dismiss}
+            className="rounded-chip px-3.5 py-2 text-[13px] text-muted transition-colors duration-(--duration-quick) hover:text-ink"
           >
             Cancel
           </button>
@@ -319,7 +345,7 @@ export function DropPanel({
             type="submit"
             form="drop-form"
             disabled={pending}
-            className="rounded-chip bg-accent px-4 py-2 text-[13px] font-medium text-white hover:bg-accent-hover disabled:opacity-50"
+            className="rounded-chip bg-accent px-4 py-2 text-[13px] font-medium text-white transition-[background-color,transform,opacity] duration-(--duration-base) ease-soft hover:bg-accent-hover active:scale-[0.97] disabled:opacity-50"
           >
             {pending ? "Saving…" : "Save drop"}
           </button>
@@ -365,11 +391,19 @@ function PublishChecklist({ drop }: { drop: DropView }) {
                   )
                 }
                 className={cn(
-                  "grid size-5 shrink-0 place-items-center rounded-full transition-colors",
-                  done ? "bg-good text-white" : "bg-inset text-faint",
+                  "grid size-5 shrink-0 place-items-center rounded-full transition-[background-color,color,transform] duration-(--duration-base) ease-soft active:scale-90",
+                  done
+                    ? "bg-good text-white"
+                    : "bg-inset text-faint hover:bg-line hover:text-muted",
                 )}
               >
-                <Check className="size-3" strokeWidth={3} />
+                {/* Remounting on the state flip replays the pop — this is the
+                    moment a channel is actually posted, so it earns it. */}
+                <Check
+                  key={done ? "done" : "todo"}
+                  className={cn("size-3", done && "animate-pop")}
+                  strokeWidth={3}
+                />
               </button>
 
               <ChannelBadge

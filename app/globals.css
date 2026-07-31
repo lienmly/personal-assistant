@@ -44,6 +44,90 @@
 
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  /* ----- Motion -------------------------------------------------------------
+     The reference is calm and soft-edged, so motion is too: short, decelerating,
+     never bouncy. Three durations and two curves — anything that needs a fourth
+     is probably doing too much. See CLAUDE.md §10. */
+  --ease-soft: cubic-bezier(0.22, 1, 0.36, 1); /* enter / settle */
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1); /* leave, no overshoot */
+
+  --duration-quick: 120ms; /* colour, opacity, hover */
+  --duration-base: 200ms; /* transforms, small elements */
+  --duration-slow: 320ms; /* panels, whole-surface entrances */
+
+  --animate-rise: rise var(--duration-slow) var(--ease-soft) both;
+  --animate-panel-in: panel-in var(--duration-slow) var(--ease-soft) both;
+  --animate-panel-out: panel-out var(--duration-base) var(--ease-exit) both;
+  --animate-scrim-in: scrim-in var(--duration-base) var(--ease-soft) both;
+  --animate-scrim-out: scrim-out var(--duration-base) var(--ease-exit) both;
+  --animate-pop: pop var(--duration-base) var(--ease-soft) both;
+}
+
+/* Confirmation for a thing that just became true — a ticked checklist row.
+   Used sparingly: it's the only motion in the system that draws attention. */
+@keyframes pop {
+  from {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.12);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Cards, columns and rows arriving. Kept to 8px — the reference's depth comes
+   from layering, so motion shouldn't be travelling far either. */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes panel-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes panel-out {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes scrim-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scrim-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
 }
 
 html {
