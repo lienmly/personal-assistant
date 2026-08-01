@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { ExternalLink, Trash2, X } from "lucide-react";
+import { Check, ExternalLink, Trash2, X } from "lucide-react";
 
 import type { AreaView, BoardProjectView, MarkView } from "@/components/board/types";
+import type { SprintView } from "@/components/sprint/types";
 import { deleteMark, saveMark } from "@/lib/mark-actions";
 import { TRACKS } from "@/lib/tracks";
 import { cn } from "@/lib/utils";
@@ -17,18 +18,26 @@ export function MarkPanel({
   mark,
   projects,
   areas,
+  sprint,
   defaults,
   onClose,
 }: {
   mark: MarkView | null;
   projects: BoardProjectView[];
   areas: AreaView[];
+  /** The running sprint, or null — the commit toggle hides without one. */
+  sprint: SprintView | null;
   defaults?: { projectId?: string | null; track?: string | null };
   onClose: () => void;
 }) {
   const [pending, startTransition] = useTransition();
   const [projectId, setProjectId] = useState(
     mark?.projectId ?? defaults?.projectId ?? "",
+  );
+  // A new mark starts *out* of the sprint. Everything you write down landing
+  // straight in this week's commitment is how the sprint stops being one.
+  const [committed, setCommitted] = useState(
+    sprint !== null && mark?.sprintId === sprint.id,
   );
   const [error, setError] = useState<string | null>(null);
   const [closing, setClosing] = useState(false);
@@ -202,6 +211,40 @@ export function MarkPanel({
                 </select>
               </div>
             </div>
+
+            {sprint && (
+              <div>
+                <input
+                  type="hidden"
+                  name="sprintId"
+                  value={committed ? sprint.id : ""}
+                />
+                <button
+                  type="button"
+                  onClick={() => setCommitted((value) => !value)}
+                  className={cn(
+                    "flex w-full items-center gap-3 rounded-tile px-3 py-2.5 text-left transition-[background-color,transform] duration-(--duration-base) ease-soft active:scale-[0.985]",
+                    committed ? "bg-obsidian text-white" : "bg-inset text-muted",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "grid size-5 shrink-0 place-items-center rounded-full transition-colors duration-(--duration-base)",
+                      committed ? "bg-white text-ink" : "bg-card text-transparent",
+                    )}
+                  >
+                    <Check
+                      key={committed ? "in" : "out"}
+                      className={cn("size-3", committed && "animate-pop")}
+                      strokeWidth={3}
+                    />
+                  </span>
+                  <span className="min-w-0 flex-1 text-[13px]">
+                    {committed ? "In" : "Not in"} {sprint.name}
+                  </span>
+                </button>
+              </div>
+            )}
 
             <div>
               <label className={labelCls} htmlFor="mark-link">

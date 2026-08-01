@@ -1,5 +1,9 @@
 import { PrismaClient } from "@prisma/client";
-import type { DropFormat, ProjectStatus } from "@prisma/client";
+import type {
+  DropFormat,
+  ProjectPriority,
+  ProjectStatus,
+} from "@prisma/client";
 
 const db = new PrismaClient();
 
@@ -20,24 +24,35 @@ const AREAS = [
   { slug: "home", name: "Home & Money", color: "#6b5bd4", sortOrder: 3 },
 ];
 
+/**
+ * The roster, in the order it actually deserves attention — which is what
+ * `priority` records and `sortOrder` mirrors (2026-07-31).
+ *
+ * Two are `main`: Sleepy Cat, which has a launch to reach, and Coding Mom,
+ * which posts every day. Two are `side`: Utaitai, now on maintenance — its
+ * content keeps shipping but no new energy goes in — and Forge, which is design
+ * and research on the side *until Sleepy Cat launches*, at which point it
+ * becomes the main project and this list gets re-tiered.
+ *
+ * `priority` and `status` are separate columns because they answer separate
+ * questions. Utaitai is `active` (it is genuinely still moving, daily) and
+ * `side` (it should not be asking for anything). Encoding "maintenance mode" as
+ * `simmering` would have been the obvious shortcut and it lies twice: it hides
+ * the project from the drift check it still deserves, and it says the content
+ * stopped, which it hasn't.
+ */
 const PROJECTS = [
-  {
-    slug: "utaitai",
-    name: "Utaitai",
-    description: "Learn a language through the songs you already love.",
-    areaSlug: "work",
-    cadenceDays: 1,
-    sortOrder: 0,
-    status: "active",
-  },
   {
     slug: "sleepy-cat",
     name: "Sleepy Cat",
     description:
       "A short cozy game made with my husband — he draws, I build. Headed for Steam.",
     areaSlug: "work",
-    cadenceDays: 7,
-    sortOrder: 1,
+    // Was 7. A main project with a weekly cadence contradicts the tiering: it
+    // could sit untouched for six days without the dashboard saying a word.
+    cadenceDays: 3,
+    sortOrder: 0,
+    priority: "main",
     status: "active",
   },
   // Coding Mom is a Brand *and* a Project, and that is not a contradiction — it's
@@ -53,13 +68,15 @@ const PROJECTS = [
       "Building an audience as a mom who builds — and the community Forge will launch into.",
     areaSlug: "work",
     cadenceDays: 1,
-    sortOrder: 2,
+    sortOrder: 1,
+    priority: "main",
     status: "active",
   },
   // The eventual main startup: AI-designed AIoT hardware plus a marketplace, aimed
-  // at YC. Seeded `simmering` on purpose — the roadmap for it is real but the work
-  // right now is Coding Mom, and only `active` projects drift (§6). An idea that
-  // nags daily before it has been started is an idea you learn to ignore.
+  // at YC. It was seeded `simmering` on 2026-07-31 because nothing had started;
+  // it is `active` and `side` now that design and research are genuinely running
+  // alongside Utaitai. A fortnightly cadence is the point — enough to notice a
+  // month of silence, not enough to nag about a week of it.
   {
     slug: "forge",
     name: "Forge",
@@ -67,8 +84,22 @@ const PROJECTS = [
       "Design life-changing AIoT hardware with AI, prototype for $200, sell it. Vision: docs/forge-vision.md.",
     areaSlug: "work",
     cadenceDays: 14,
+    sortOrder: 2,
+    priority: "side",
+    status: "active",
+  },
+  // Maintenance mode. Still shipping its daily shorts — which is why it stays
+  // `active` and why its `lastTouchedAt` will keep bumping on its own — but the
+  // ship/users/marketing backlog is no longer where the week goes.
+  {
+    slug: "utaitai",
+    name: "Utaitai",
+    description: "Learn a language through the songs you already love.",
+    areaSlug: "work",
+    cadenceDays: 14,
     sortOrder: 3,
-    status: "simmering",
+    priority: "side",
+    status: "active",
   },
 ];
 
@@ -920,6 +951,87 @@ async function reseatMarks() {
   return count;
 }
 
+/**
+ * The first sprint, so the app never opens on an empty focus list.
+ *
+ * Bootstrap, not reconciliation — same rule as `seedMarks`. It runs only when
+ * *no* sprint has ever existed, so it can't reach into a week you've already
+ * planned. After this the sprint is planned in the app, on the Hunt Board.
+ *
+ * What goes in: everything already due inside the window (a due date is a
+ * commitment the sprint has to honour, whatever else is going on), then the top
+ * open marks of the `main` projects until the sprint holds eight. Eight is a
+ * week's worth alongside a daily posting cadence and a baby; the number matters
+ * far less than the fact that there *is* one.
+ */
+async function seedFirstSprint() {
+  if ((await db.sprint.count()) > 0) return null;
+
+  const now = new Date();
+  // `@db.Date`, so UTC midnight standing in for the local calendar day — see
+  // CLAUDE.md §6, "Dates are a trap here".
+  const startsOn = new Date(
+    Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()),
+  );
+  const endsOn = new Date(startsOn);
+  endsOn.setUTCDate(endsOn.getUTCDate() + 6);
+
+  const sprint = await db.sprint.create({
+    data: {
+      name: "Week 1",
+      goal: "Get Coding Mom's accounts standing up and Sleepy Cat honestly assessed.",
+      startsOn,
+      endsOn,
+      status: "active",
+    },
+  });
+
+  const due = await db.mark.findMany({
+    where: { status: { not: "done" }, dueDate: { lte: endsOn } },
+    select: { id: true },
+    orderBy: [{ dueDate: "asc" }, { sortOrder: "asc" }],
+  });
+
+  // Round-robin across the main projects rather than straight down the sorted
+  // list. Ordering by project and taking the first five hands you five marks
+  // from whichever project sorts first, which is a week spent on one thing —
+  // the opposite of what a two-main-project roster is asking for.
+  const mainProjects = await db.project.findMany({
+    where: { priority: "main", status: "active" },
+    select: { id: true },
+    orderBy: { sortOrder: "asc" },
+  });
+
+  const queues = await Promise.all(
+    mainProjects.map((project) =>
+      db.mark.findMany({
+        where: { status: { not: "done" }, dueDate: null, projectId: project.id },
+        select: { id: true },
+        orderBy: { sortOrder: "asc" },
+        take: 8,
+      }),
+    ),
+  );
+
+  const filler: { id: string }[] = [];
+  for (let round = 0; filler.length < 8 - due.length; round += 1) {
+    const before = filler.length;
+    for (const queue of queues) {
+      if (filler.length >= 8 - due.length) break;
+      if (queue[round]) filler.push(queue[round]);
+    }
+    if (filler.length === before) break; // every queue is exhausted
+  }
+
+  const ids = [...due, ...filler].map((mark) => mark.id);
+  await db.mark.updateMany({
+    where: { id: { in: ids } },
+    data: { sprintId: sprint.id },
+  });
+
+  return ids.length;
+}
+
 async function main() {
   const today = new Date();
   const startsOn = new Date(
@@ -934,20 +1046,30 @@ async function main() {
     });
   }
 
-  for (const { areaSlug, status, ...project } of PROJECTS) {
+  for (const { areaSlug, status, priority, ...project } of PROJECTS) {
     const area = await db.area.findUniqueOrThrow({ where: { slug: areaSlug } });
     await db.project.upsert({
       where: { slug: project.slug },
       // `status` is deliberately create-only. Re-seeding must not undo a
       // "let it simmer" — the demotion is a decision, not a typo.
+      //
+      // `priority` is the opposite and is reasserted every run: it is the
+      // tiering *plan*, this file is where the plan is written down, and there
+      // is no in-app editor for it yet. When one arrives, move it up here.
       update: {
         name: project.name,
         description: project.description,
         cadenceDays: project.cadenceDays,
         sortOrder: project.sortOrder,
+        priority: priority as ProjectPriority,
         areaId: area.id,
       },
-      create: { ...project, status: status as ProjectStatus, areaId: area.id },
+      create: {
+        ...project,
+        status: status as ProjectStatus,
+        priority: priority as ProjectPriority,
+        areaId: area.id,
+      },
     });
   }
 
@@ -1037,6 +1159,7 @@ async function main() {
     (await seedMarks("forge", FORGE_MARKS));
 
   const dropsCreated = await seedDrops("coding-mom", CODING_MOM_DROPS);
+  const sprintMarks = await seedFirstSprint();
 
   const counts = {
     areas: await db.area.count(),
@@ -1055,6 +1178,11 @@ async function main() {
   if (marksCreated === 0) {
     console.log("Marks: left alone — every project already has some.");
   }
+  console.log(
+    sprintMarks === null
+      ? "Sprint: left alone — one already exists."
+      : `Sprint: created 'Week 1' with ${sprintMarks} marks.`,
+  );
 }
 
 main()

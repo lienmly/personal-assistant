@@ -30,6 +30,29 @@ enum ProjectStatus {
   archived
 }
 
+/// How much of me a project deserves — a *different question* from `status`.
+///
+/// `status` answers "is this moving"; `priority` answers "should it be". Utaitai
+/// is `active` (its daily content still ships) and `side` (maintenance mode);
+/// Forge is `active` and `side` (design and research on the side) and becomes
+/// `main` the day Sleepy Cat launches. Collapsing the two into one column is
+/// what made the Hunt Board a flat wall of sixty rows: without this, every
+/// project shouts equally loudly.
+enum ProjectPriority {
+  main
+  side
+  later
+}
+
+/// Only one sprint is `active` at a time — enforced in `startSprint`, not in
+/// the schema, because a partial unique index on an enum is more machinery than
+/// a single-user app needs.
+enum SprintStatus {
+  planning
+  active
+  done
+}
+
 enum Platform {
   tiktok
   instagram
@@ -113,19 +136,22 @@ model Area {
 
 /// The thing being pushed forward. Answers "what is this about".
 model Project {
-  id            String        @id @default(cuid())
-  slug          String        @unique
+  id            String          @id @default(cuid())
+  slug          String          @unique
   name          String
   description   String?
-  status        ProjectStatus @default(active)
+  status        ProjectStatus   @default(active)
+  /// The second axis — see `ProjectPriority`. Drives which projects the Hunt
+  /// Board opens expanded and which ones "Next up" draws from.
+  priority      ProjectPriority @default(side)
   /// Expected days between touches; drives the drift warning on Today.
   cadenceDays   Int?
   /// Bumped whenever one of this project's Drops publishes (or Marks complete,
   /// once Marks exist). Section 4 of Today sorts on this.
-  lastTouchedAt DateTime      @default(now())
-  sortOrder     Int           @default(0)
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  lastTouchedAt DateTime        @default(now())
+  sortOrder     Int             @default(0)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
 
   areaId String
   area   Area   @relation(fields: [areaId], references: [id], onDelete: Cascade)
@@ -136,6 +162,41 @@ model Project {
 
   @@index([areaId, sortOrder])
   @@index([status, lastTouchedAt])
+  @@index([priority, sortOrder])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Sprints
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// A short, dated, deliberately small set of Marks: "these, this week".
+///
+/// The Hunt Board answers "what *could* I do" and that list is sixty rows long,
+/// which is not a question anyone can answer at 7am. A sprint is the committed
+/// subset — Today reads from it, so opening the app shows nine things instead of
+/// sixty. Everything not in the sprint is backlog, and backlog is somewhere you
+/// go on purpose rather than something that greets you.
+///
+/// Closing a sprint returns its unfinished Marks to the backlog rather than
+/// dragging them into the next one. A sprint that inherits last week's guilt
+/// stops being a commitment and becomes a second to-do list.
+model Sprint {
+  id       String       @id @default(cuid())
+  name     String
+  /// The one sentence that says what this week is *for*. Optional, but a sprint
+  /// without one is usually just a batch of unrelated marks.
+  goal     String?
+  startsOn DateTime     @db.Date
+  endsOn   DateTime     @db.Date
+  status   SprintStatus @default(active)
+
+  closedAt  DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  marks Mark[]
+
+  @@index([status, startsOn])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -339,6 +400,11 @@ model Mark {
   projectId String?
   project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
+  /// Null means backlog. `SetNull` rather than cascade on purpose: deleting a
+  /// sprint must never delete the work that was in it.
+  sprintId String?
+  sprint   Sprint? @relation(fields: [sprintId], references: [id], onDelete: SetNull)
+
   /// Required even when a project is set — a floating one-off needs somewhere
   /// to hang, and the Area is what supplies the colour and the calendar
   /// grouping. Kept in step with the project's area by `saveMark`.
@@ -348,4 +414,5 @@ model Mark {
   @@index([status, dueDate])
   @@index([projectId, status, sortOrder])
   @@index([areaId, status])
+  @@index([sprintId, status])
 }

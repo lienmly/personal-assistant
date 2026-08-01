@@ -27,6 +27,7 @@ export async function getMomentum() {
         name: true,
         slug: true,
         status: true,
+        priority: true,
         cadenceDays: true,
         lastTouchedAt: true,
         area: { select: { name: true, color: true } },
@@ -63,6 +64,12 @@ export async function getMomentum() {
     .sort(
       (a, b) =>
         Number(b.drifting) - Number(a.drifting) ||
+        PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority] ||
         b.lastTouchedAt.getTime() - a.lastTouchedAt.getTime(),
     );
 }
+
+/** Drifting still wins — a drifting side project is a real signal — but below
+ *  that the main projects lead, because "how are my two big things doing" is
+ *  the question this card is actually being asked. */
+const PRIORITY_RANK: Record<string, number> = { main: 0, side: 1, later: 2 };

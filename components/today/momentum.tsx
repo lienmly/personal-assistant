@@ -12,6 +12,7 @@ export type MomentumView = {
   areaName: string;
   areaColor: string;
   status: string;
+  priority: string;
   /** Preformatted server-side — see components/studio/types.ts. */
   touchedLabel: string;
   idle: number;
@@ -55,11 +56,18 @@ function Row({ project }: { project: MomentumView }) {
         >
           {project.name}
         </Link>
-        {project.status === "simmering" && (
+        {/* One badge, not two. `main` is the tier that changes how you read
+            the row; `side` is the default and saying so on every other row is
+            noise. A simmering project says that instead — it's the louder fact. */}
+        {project.status === "simmering" ? (
           <span className="shrink-0 rounded-full bg-inset px-2 py-0.5 text-[10px] font-medium text-muted">
             simmering
           </span>
-        )}
+        ) : project.priority === "main" ? (
+          <span className="shrink-0 rounded-full bg-obsidian px-2 py-0.5 text-[10px] font-medium text-white">
+            main
+          </span>
+        ) : null}
         <span
           className={cn(
             "ml-auto shrink-0 text-[11px] tabular-nums",

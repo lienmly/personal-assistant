@@ -100,11 +100,15 @@ dashboard/UI ecosystem, easy Google auth, and a clean path to embedding an AI as
 /lib               → auth config, nav config, server actions, utils
 /components/studio → the drop board, daily queue, batch composer, drop panel, channel manager
 /components/board  → the hunt board, mark panel, experiment capture
+/components/sprint → the sprint bar, the sprint panel (shared by Today and the board)
+/components/today  → focus list, "next up", going-out, momentum
 /lib/db.ts         → Prisma client singleton
 /lib/studio.ts     → board queries + series slot generation + batch slots
 /lib/studio-actions.ts → server actions for drops, channels, series, batch save
-/lib/marks.ts      → hunt board + due-mark queries
+/lib/marks.ts      → hunt board query
 /lib/mark-actions.ts → server actions for marks
+/lib/sprints.ts    → active sprint, the focus list, "next up"
+/lib/sprint-actions.ts → start / close a sprint, move marks in and out
 /lib/tracks.ts     → workstream names (client-safe: no Prisma import)
 /lib/montblanc     → AI assistant logic (prompts, tools) — Phase 5
 /prisma            → schema.prisma, migrations, seed.ts
@@ -129,8 +133,8 @@ Ordered so each phase builds on the last. We ship and use each layer before movi
 - [x] Provision Postgres on the Railway project
 - [x] Prisma installed and wired (`prisma/schema.prisma`, `lib/db.ts`, `prisma/seed.ts`)
 - [x] First migration run — `20260731033858_social_layer`, then
-      `20260731190821_marks_and_drop_ref`; seed loaded
-      (4 areas, 2 projects, 3 brands, 10 channels, 4 series)
+      `20260731190821_marks_and_drop_ref`, then `20260801004059_sprints_and_priority`;
+      seed loaded (4 areas, 4 projects, 3 brands, 13 channels, 4 series, 60 marks)
 
 ### Phase 1 — Auth & Shell
 - [x] Google login via Auth.js v5 (`lib/auth.ts`, JWT sessions — no DB needed yet)
@@ -180,10 +184,20 @@ market it — had nowhere to live, and it isn't content, so Studio couldn't hold
       first real due dates in the app: Coding Mom's account chain (e-mail → TikTok →
       a week of warm-up → first post 2026-08-09) is a strict sequence, so section 1 of
       Today now has something to show. See `docs/coding-mom.md` and `docs/forge-vision.md`.
+- [x] **Sprints** (2026-07-31) — `Sprint` + `Mark.sprintId`, the sprint bar and sprint
+      panel, and the whole of Today rebuilt around the committed subset. Added because
+      sixty open marks is the right *contents* for a planning surface and the wrong thing
+      to be shown all at once. See §6, "The sprint".
+- [x] **Project tiering** (2026-07-31) — `Project.priority` (`main` / `side` / `later`),
+      separate from `status`. Sleepy Cat and Coding Mom are main; Utaitai is on
+      maintenance and Forge is side until Sleepy Cat launches. See §6, "Two axes again".
 - [ ] Project CRUD (creating/editing projects, not just reading them) — **the gap that
       hurts.** Adding Coding Mom and Forge meant editing `prisma/seed.ts` and re-seeding,
-      which is not a thing to do from a phone at 3am.
+      which is not a thing to do from a phone at 3am. `priority` has no editor either, so
+      re-tiering when Sleepy Cat launches is currently a seed edit.
 - [ ] Due dates on the rest of the marks — only the Coding Mom setup chain has them
+- [ ] Sprint history — closed sprints keep their finished marks, and nothing reads them
+      yet. "What did I actually get done in July" is a query away and worth having.
 
 ### Phase 4 — Calendar
 - [ ] Calendar data model (events, recurring events)
@@ -227,7 +241,7 @@ sitting alongside them. The earlier draft listed "Social Media Branding" as an A
 With many concurrent projects that breaks down fast. So: **distribution is a dimension, not
 a destination.**
 
-### Six nouns
+### Seven nouns
 
 | Noun | What it is | Example | Churn |
 |---|---|---|---|
@@ -235,6 +249,7 @@ a destination.**
 | **Project** | The thing being pushed forward. Belongs to one Area. | "Utaitai", "Sleepy Cat", "Rental 4B" | Constant |
 | **Brand** | A public identity with an audience and a voice. Owns Channels. | Utaitai, Coding Mom, Sleepy Cat | Rare |
 | **Mark** | A task. Belongs to a Project, or floats in an Area for one-offs. | "Fix collision bug" | Constant |
+| **Sprint** | The handful of Marks that are *this week's* work. Everything else is backlog. | "Week 1 — get the accounts up" | Weekly |
 | **Drop** | A unit of content going out. Carries a Brand and (optionally) a Project. | "Devlog #7 → X + Threads" | Constant |
 | **Series** | A standing commitment that generates dated Drop slots. | "Daily short, both Utaitai TikToks" | Rare |
 
@@ -269,6 +284,60 @@ is that both Coding Mom *series* now carry `projectId: coding-mom` — the daily
 that project's work, so posting has to bump its `lastTouchedAt` or Momentum reports it
 drifting on a day you posted.
 
+### The sprint — decided 2026-07-31
+
+By the time four projects had marks on them the Hunt Board held **sixty open rows** and
+had stopped being usable: it answered "what *could* I do", which is not a question anyone
+can answer at 7am with a baby on one arm. Today was no better — section 1 was "every mark
+with a due date", and since only Coding Mom's setup chain had due dates, the screen you
+open twenty times a day was either empty or one project's admin.
+
+A **Sprint** fixes both ends. It is a named, dated, deliberately small set of Marks —
+"these, this week" — and it changes what each surface is *for*:
+
+- **Today** reads the sprint. Nine rows, ordered so the top one is the answer.
+- **The Hunt Board** stays the complete list, and that is now fine, because it is
+  somewhere you go on purpose rather than the first thing you see.
+
+Three rules make it work, and each is there because the obvious alternative fails:
+
+1. **One active sprint.** Two would put Today back in the business of merging lists.
+2. **Closing a sprint returns its unfinished Marks to the backlog** — it does *not* roll
+   them into the next one. Rolling over is how a sprint quietly becomes a second,
+   permanent to-do list: the leftovers accumulate, next week starts full, and the
+   commitment stops meaning anything. Finished marks keep their `sprintId`, which is the
+   record of what the week actually produced.
+3. **Due dates outrank the sprint.** Today shows anything due or overdue *whether or not*
+   it made the sprint, flagged, with one tap to pull it in. A due date is a promise to the
+   outside world and doesn't stop being true because planning missed it.
+
+The other half of the fix is **"Next up"**, collapsed at the foot of the focus list. When
+the sprint runs dry the answer must be specific rather than "here is the board again":
+the next few Marks from each `main` project, plus the Experiments track — the things you
+meant to try and never got to.
+
+### Two axes again: priority is not status — decided 2026-07-31
+
+Same shape as Brand-vs-Project. `Project.status` answers *is this moving*;
+`Project.priority` (`main` / `side` / `later`) answers *should it be*. Collapsing them is
+what made every project shout equally loudly.
+
+| Project | priority | status | Why |
+|---|---|---|---|
+| Sleepy Cat | `main` | `active` | Has a launch to reach. Cadence tightened 7 → 3. |
+| Coding Mom | `main` | `active` | Posts daily; it's Forge's go-to-market phase 1. |
+| Forge | `side` | `active` | Design and research on the side — becomes `main` when Sleepy Cat launches. |
+| Utaitai | `side` | `active` | Maintenance. Content still ships; no new energy goes in. |
+
+Encoding "maintenance mode" as `simmering` was the obvious shortcut and it lies twice: it
+hides Utaitai from a drift check it still deserves, and it says the content stopped, which
+it hasn't. `priority` drives which sections the Hunt Board opens expanded, which projects
+"Next up" draws from, and the order of the Momentum card and the Projects roster.
+
+`priority` has **no in-app editor yet** — it is reasserted from `prisma/seed.ts` on every
+seed, deliberately, because that file is where the tiering plan is written down. When the
+editor arrives, drop it from the upsert's `update` block the way `status` already is.
+
 ### Repurposing is two different things
 
 Calling both of these "repurposing" is what made the whole thing feel unmanageable:
@@ -296,8 +365,8 @@ row. Left icon rail on desktop, bottom tab bar on mobile — same IA, no redesig
 
 | Surface | Purpose |
 |---|---|
-| **Today** | The one screen opened 20×/day. "What do I do right now." |
-| **Hunt Board** | All open Marks grouped by Project. Where you *plan*, not execute. |
+| **Today** | The one screen opened 20×/day. "What do I do right now." Reads the sprint. |
+| **Hunt Board** | Every open Mark, grouped by Project. Where the sprint gets *planned*, not executed. |
 | **Calendar** | Time. Events + baby + Drop publish dates + Mark due dates, layered. |
 | **Studio** | Cross-project content pipeline. Kanban by stage, or calendar by publish date. |
 | **Projects** | The roster. Health and momentum at a glance. |
@@ -311,14 +380,21 @@ disturbing anything. That's the test the IA is built to pass.
 Four stacked sections, in priority order. ("Section" just means a card on the
 screen — they are numbered so the roadmap can refer to them.)
 
-1. **Marks due** — due today + overdue. Cap the visible list (~7) so it stays scannable,
-   and link to the rest rather than hiding that they exist. Tickable in place. ✅
+1. **This sprint** — the week's committed Marks, plus anything due or overdue from
+   anywhere. Ordered `doing` → overdue → due today → the rest of the sprint, so the top
+   row is literally the answer to "what now". Capped (~8), tickable in place, and each row
+   can be flipped to `doing` without opening anything. Followed by **Next up**, collapsed:
+   where to go when the sprint runs dry. ✅
 2. **Going out today** — Drops publishing today, with channel icons. Visually distinct from
    Marks. Each channel is its own tick, so posting can be recorded without leaving Today. ✅
 3. **Agenda** — calendar events, including baby.
-4. **Momentum** — per-project "last touched", newest first, with drift warnings.
+4. **Momentum** — per-project "last touched", drifting first then main-first, with drift
+   warnings. ✅
 
-Sections 1 and 2 are built; 3 waits on the Calendar phase and 4 is next up.
+Sections 1, 2 and 4 are built; 3 waits on the Calendar phase.
+
+The four stat tiles are Sprint (the one dark hero tile — done/total and days left), On the
+list, Drops going out, Needs attention.
 
 Section 4 is the answer to *"which projects am I actually following?"* Every Project carries a
 `status` and a `lastTouchedAt` that bumps whenever one of its Marks completes or one of its
@@ -341,7 +417,10 @@ Built ones are in `prisma/schema.prisma`, which is the source of truth; this is 
 - **Area** — slug, name, color, sortOrder ✅
   _(Area doubles as the calendar grouping — see §8, resolved.)_
 - **Project** — slug, name, description, areaId, status (`active` | `simmering` | `paused` |
-  `archived`), lastTouchedAt, cadenceDays (nullable, drives drift warnings) ✅
+  `archived`), priority (`main` | `side` | `later`), lastTouchedAt, cadenceDays (nullable,
+  drives drift warnings) ✅
+- **Sprint** — name, goal, startsOn/endsOn (`@db.Date`), status (`planning` | `active` |
+  `done`), closedAt; Marks join via `Mark.sprintId` ✅
 - **Brand** — slug, name, tagline, color, sortOrder ✅
 - **Channel** — brandId, platform, handle, label, url, state (`planned` | `live` | `paused`) ✅
 - **Series** — brandId, projectId (nullable), format, cadence, daysOfWeek, timeOfDay,
@@ -352,7 +431,7 @@ Built ones are in `prisma/schema.prisma`, which is the source of truth; this is 
 - **DropChannel** — join: dropId, channelId, state, caption, scheduledFor, publishedAt,
   publishedUrl ✅
 - **Mark** — id, title, notes, link, track, dueDate, status (`open` | `doing` | `done`),
-  projectId (nullable), areaId ✅
+  sprintId (nullable — null means backlog), projectId (nullable), areaId ✅
 - **Event** — id, title, start, end, allDay, recurrence, areaId, projectId (nullable) — Phase 4
 - **ChatMessage / Conversation** — Montblanc history — Phase 5
 - **User** — id, email, name, role (`owner` | `child`) — Phase 7. Deliberately absent for
@@ -485,15 +564,34 @@ originally — shifts every publish time by the machine's offset.
   - Crimson `#de1f4c` is the *single* accent: one emphasis per region (active nav item, the
     primary action, one highlighted metric). A screen with crimson everywhere is wrong.
   - Black is used sparingly as a second emphasis — the selected pill, one hero tile.
+    **The budget is one black element per screen, and both surfaces have now spent it:**
+    the sprint bar on the Hunt Board (which is why the experiment-capture box was demoted
+    from obsidian to `bg-inset` on 2026-07-31) and the sprint stat tile on Today. The
+    selected scope pill is the one exception — a segmented control needs a filled state,
+    and it's small enough not to compete.
   - Dense, calm typography: small muted labels above large confident numbers/titles.
   - Iconography and avatars are small, round, and inline with text — never decorative.
 
   If a new surface needs a pattern the reference doesn't show, extend it in the reference's
   spirit and note the new pattern in §8 so the next feature inherits it.
 
+- **Hover is not an affordance on a phone.** A control revealed by `group-hover` doesn't
+  exist on touch. Write it `sm:opacity-0 sm:group-hover:opacity-100` — visible outright on
+  small screens, revealed on hover on a pointer device. The add-to-sprint buttons on the
+  Hunt Board and in "Next up" are the reference implementations.
+
+- **Don't put a JSX expression next to text containing an HTML entity.**
+  `{open ? "Hide" : "Show"} what&apos;s next` splits into different text nodes on the
+  server and the client, and React reports a hydration mismatch. Put the whole thing in one
+  expression — `` {`${open ? "Hide" : "Show"} what’s next`} `` — with a real character
+  instead of the entity. Cost half an hour on 2026-07-31.
+
 - **User docs live in `/docs`.** Guides written for *me reading later*, not for agents:
   - `docs/studio-guide.md` — how to use the Studio (brands, channels, drops, series,
     the board, repurposing). Written 2026-07-30. Update it when Studio behaviour changes.
+  - `docs/sprints.md` — the weekly loop: plan on the Hunt Board, work from Today, what
+    happens to leftovers when a sprint closes, and what the project tiers mean.
+    Written 2026-07-31. Update it when sprint behaviour changes.
   - `docs/coding-mom.md` — the brand *and* the project: the account setup chain, the
     seven content pillars and their deliberate order, and where the idea bank lives.
     Written 2026-07-31.
@@ -586,7 +684,7 @@ Named animations: `animate-rise` (fade + 8px up — cards, columns, rows arrivin
 
 ---
 
-_Last updated: 2026-07-31 · Status: **Phases 2 and 3 both real and running locally.**
+_Last updated: 2026-07-31 · Status: **Phases 2 and 3 both real and running locally, now with sprints.**
 Studio now batches: `/studio/batch` fills a whole week of slots from one grid, and the
 board shows a daily-queue strip instead of ~28 empty slot cards. The Hunt Board is live
 with Marks grouped by project and track, a paste-a-link experiment capture, and both
@@ -608,8 +706,27 @@ its own — 13 marks, led by a **Setup** track that runs e-mail → TikTok → a
 → first post on 2026-08-09, and those are the first marks in the app with real due dates,
 so section 1 of Today stopped rendering empty. Its content bank is 25 idea-stage Drops
 across seven pillars, deliberately ordered so Multilingual sets up Hardware and Hardware
-sets up **Forge** — the AIoT hardware startup, seeded `simmering` with 10 marks and a full
-brief in `docs/forge-vision.md`. Coding Mom is Forge's go-to-market phase 1, started early.
-Outstanding: section 3 (Agenda, waits on Phase 4), **Project CRUD — adding these two meant
-editing the seed file**, due dates on everything other than the setup chain, and the phone
-layout still needs a look on a real device._
+sets up **Forge** — the AIoT hardware startup with 10 marks and a full brief in
+`docs/forge-vision.md`. Coding Mom is Forge's go-to-market phase 1, started early.
+**Sprints landed the same day, and they are the answer to the board being unreadable.**
+Four projects' worth of marks added up to sixty open rows, which is the right contents for
+a planning surface and the wrong thing to be greeted by: Today's old section 1 was "every
+mark with a due date", so it showed one project's admin or nothing at all. Now a `Sprint`
+holds the week's committed handful, Today reads it in the order you'd actually work
+(`doing` → overdue → due today → the rest) with due marks from anywhere merged in, and
+**Next up** sits collapsed underneath for when it runs dry. The Hunt Board became the
+planning surface it always claimed to be: a black sprint bar, an "In the sprint" card, a
+Main-projects / Everything scope pill, and project sections that start collapsed unless
+they're `main`. Closing a sprint hands its unfinished marks back to the backlog rather than
+rolling them forward, which is the rule that stops it becoming a second to-do list.
+**The roster was re-tiered at the same time**, via a new `Project.priority` that is
+deliberately *not* `status`: Sleepy Cat (cadence 3) and Coding Mom are `main`; Utaitai is
+`side` on maintenance — its dailies still ship — and Forge moved `simmering` → `active`
+`side` now that design and research are genuinely running, and becomes `main` the day
+Sleepy Cat launches. "Week 1" is seeded with eight marks, round-robined across the two main
+projects. Both surfaces were re-checked in a signed-in browser; a hydration mismatch in
+"Next up" was found and fixed there (see §9).
+Outstanding: section 3 (Agenda, waits on Phase 4), **Project CRUD — and now `priority` has
+no editor either, so re-tiering at launch is a seed edit**, due dates on everything other
+than the setup chain, sprint history (closed sprints keep their finished marks and nothing
+reads them), and the phone layout still needs a look on a real device._

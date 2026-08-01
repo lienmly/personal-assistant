@@ -10,6 +10,7 @@ const markSelect = {
   dueDate: true,
   sortOrder: true,
   createdAt: true,
+  sprintId: true,
   projectId: true,
   areaId: true,
 } as const;
@@ -19,6 +20,11 @@ export type MarkRow = Awaited<ReturnType<typeof getHuntBoard>>["marks"][number];
 /**
  * Everything the Hunt Board needs. Done marks are capped to the recent past —
  * the board is for planning, and an unbounded completed list would bury it.
+ *
+ * Projects come back ordered by `priority` first: Postgres sorts an enum by its
+ * declaration order, and `ProjectPriority` is declared main → side → later
+ * precisely so this line needs no CASE statement. The board leans on that to
+ * decide which sections open expanded.
  */
 export async function getHuntBoard() {
   const since = new Date();
@@ -37,12 +43,13 @@ export async function getHuntBoard() {
     }),
     db.project.findMany({
       where: { status: { in: ["active", "simmering"] } },
-      orderBy: [{ sortOrder: "asc" }],
+      orderBy: [{ priority: "asc" }, { sortOrder: "asc" }],
       select: {
         id: true,
         name: true,
         slug: true,
         status: true,
+        priority: true,
         areaId: true,
         area: { select: { id: true, name: true, color: true } },
       },
@@ -54,46 +61,4 @@ export async function getHuntBoard() {
   ]);
 
   return { marks, projects, areas };
-}
-
-/**
- * Section 1 of Today: due today plus anything already overdue.
- *
- * Capped, and the caller is told the true total — an unbounded list of every
- * overdue thing is the fastest way to make the screen you open twenty times a
- * day feel like a place to avoid.
- */
-export async function getDueMarks(limit = 7) {
-  const endOfDay = new Date();
-  endOfDay.setHours(23, 59, 59, 999);
-
-  const where = {
-    status: { not: "done" as const },
-    dueDate: { lte: endOfDay },
-  };
-
-  const [marks, total] = await Promise.all([
-    db.mark.findMany({
-      where,
-      select: {
-        ...markSelect,
-        project: { select: { name: true, slug: true } },
-        area: { select: { name: true, color: true } },
-      },
-      orderBy: [{ dueDate: "asc" }, { sortOrder: "asc" }],
-      take: limit,
-    }),
-    db.mark.count({ where }),
-  ]);
-
-  return { marks, total };
-}
-
-/** Section 4's raw material, and the "active projects" tile. */
-export async function getProjectCounts() {
-  const [active, openMarks] = await Promise.all([
-    db.project.count({ where: { status: "active" } }),
-    db.mark.count({ where: { status: { not: "done" } } }),
-  ]);
-  return { active, openMarks };
 }

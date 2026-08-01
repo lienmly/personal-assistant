@@ -28,7 +28,15 @@ export default async function ProjectsPage() {
       include: { _count: { select: { projects: true } } },
     }),
     db.project.findMany({
-      orderBy: [{ status: "asc" }, { lastTouchedAt: "desc" }],
+      // Tier first. "Which of these actually matters" is the question the
+      // roster is opened with, and status-then-recency answered a different
+      // one — an active side project sorted above a main one that had been
+      // quiet for a week.
+      orderBy: [
+        { priority: "asc" },
+        { status: "asc" },
+        { lastTouchedAt: "desc" },
+      ],
       include: {
         area: { select: { name: true, color: true } },
         _count: { select: { drops: true } },
@@ -90,6 +98,11 @@ export default async function ProjectsPage() {
                   <h2 className="truncate text-[14px] font-semibold tracking-tight text-ink">
                     {project.name}
                   </h2>
+                  {project.priority === "main" && (
+                    <span className="shrink-0 rounded-full bg-obsidian px-2 py-0.5 text-[10px] font-medium text-white">
+                      main
+                    </span>
+                  )}
                   <span className="ml-auto shrink-0 text-[11px] text-faint">
                     {project.area.name}
                   </span>

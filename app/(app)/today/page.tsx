@@ -1,15 +1,21 @@
 import Link from "next/link";
-import { CalendarClock, Radio, Swords, TrendingUp } from "lucide-react";
+import { CalendarClock, Flag, Radio, TrendingUp } from "lucide-react";
 
-import { DueMarks } from "@/components/today/due-marks";
+import { FocusList } from "@/components/today/focus-list";
 import { GoingOut } from "@/components/today/going-out";
 import { Momentum, type MomentumView } from "@/components/today/momentum";
-import type { DueMarkView, GoingOutView } from "@/components/today/types";
+import type {
+  FocusMarkView,
+  GoingOutView,
+  NextGroupView,
+  NextMarkView,
+} from "@/components/today/types";
+import { UpNext } from "@/components/today/up-next";
 import { Card, CardHeader, StatTile } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SurfaceHeader } from "@/components/ui/surface-header";
-import { getDueMarks, getProjectCounts } from "@/lib/marks";
 import { getMomentum } from "@/lib/projects";
+import { dayKey, getActiveSprint, getFocus, getUpNext } from "@/lib/sprints";
 import { ensureSeriesSlots, getGoingOutToday } from "@/lib/studio";
 import { todayKey } from "@/lib/utils";
 
@@ -31,18 +37,26 @@ const timeFormat = new Intl.DateTimeFormat("en-GB", {
 });
 
 /**
- * The four sections from CLAUDE.md §6, in priority order: what's due, what
- * ships today, what's scheduled, and which projects are drifting.
+ * Today: what needs you right now, and nothing else.
+ *
+ * The screen is built around the sprint (CLAUDE.md §6). Before it existed, the
+ * top card was "every mark with a due date" — which meant it was either empty
+ * or the one project that happened to have due dates, and the *real* answer to
+ * "what am I doing today" was sixty rows away on the Hunt Board. Now the top
+ * card is the week's commitment, ordered so the first row is the answer, and
+ * the backlog is one deliberate click below it.
  */
 export default async function TodayPage() {
   // Today is the screen that actually gets opened, so it's the honest place to
   // keep the daily cadence materialised — not just Studio.
   await ensureSeriesSlots();
 
-  const [{ marks, total }, drops, counts, momentum] = await Promise.all([
-    getDueMarks(),
+  const sprint = await getActiveSprint();
+
+  const [focus, upNext, drops, momentum] = await Promise.all([
+    getFocus(sprint?.id ?? null),
+    getUpNext(sprint?.id ?? null),
     getGoingOutToday(),
-    getProjectCounts(),
     getMomentum(),
   ]);
 
@@ -54,19 +68,40 @@ export default async function TodayPage() {
     month: "long",
   }).format(new Date());
 
-  const markViews: DueMarkView[] = marks.map((mark) => {
-    const due = mark.dueDate!.toISOString().slice(0, 10);
-    return {
-      id: mark.id,
-      title: mark.title,
-      link: mark.link,
-      track: mark.track,
-      dueLabel: due === today ? "Today" : dueFormat.format(mark.dueDate!),
-      overdue: due < today,
-      projectName: mark.project?.name ?? null,
-      areaColor: mark.area.color,
-    };
+  const focusViews: FocusMarkView[] = focus.marks.map((mark) => ({
+    id: mark.id,
+    title: mark.title,
+    link: mark.link,
+    track: mark.track,
+    status: mark.status,
+    dueLabel: mark.dueDate
+      ? dayKey(mark.dueDate) === today
+        ? "Today"
+        : dueFormat.format(mark.dueDate)
+      : null,
+    reason: mark.reason,
+    inSprint: sprint !== null && mark.sprintId === sprint.id,
+    projectName: mark.project?.name ?? null,
+    areaColor: mark.area.color,
+  }));
+
+  const toNextView = (mark: {
+    id: string;
+    title: string;
+    track: string | null;
+    link: string | null;
+  }): NextMarkView => ({
+    id: mark.id,
+    title: mark.title,
+    track: mark.track,
+    link: mark.link,
   });
+
+  const nextGroups: NextGroupView[] = upNext.groups.map((group) => ({
+    projectName: group.projectName,
+    color: group.color,
+    marks: group.marks.map(toNextView),
+  }));
 
   const dropViews: GoingOutView[] = drops.map((drop) => ({
     id: drop.id,
@@ -92,6 +127,7 @@ export default async function TodayPage() {
     areaName: project.area.name,
     areaColor: project.area.color,
     status: project.status,
+    priority: project.priority,
     touchedLabel:
       project.idle === 0
         ? "Today"
@@ -105,7 +141,7 @@ export default async function TodayPage() {
   }));
 
   const drifting = momentumViews.filter((project) => project.drifting).length;
-  const overdue = markViews.filter((mark) => mark.overdue).length;
+  const late = focusViews.filter((mark) => mark.reason === "overdue").length;
   const outstanding = dropViews.filter((drop) =>
     drop.channels.some((channel) => channel.state !== "published"),
   ).length;
@@ -119,14 +155,32 @@ export default async function TodayPage() {
       />
 
       <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {/* The one dark tile on the screen. The sprint is the frame everything
+            else on Today hangs off, so it gets the single hero treatment the
+            reference reserves for the most important number. */}
         <StatTile
-          label="Marks due"
-          value={String(total)}
+          label={sprint ? `Sprint · ${sprint.name}` : "Sprint"}
+          value={sprint ? String(sprint.done) : "—"}
+          tail={sprint ? `/${sprint.total}` : undefined}
+          tone="dark"
           note={
-            overdue > 0
-              ? `${overdue} overdue`
-              : total > 0
-                ? "All due today"
+            sprint
+              ? sprint.daysLeft < 0
+                ? `Ended ${-sprint.daysLeft}d ago — close it out`
+                : sprint.daysLeft === 0
+                  ? "Last day"
+                  : `${sprint.daysLeft} days left`
+              : "Nothing committed — plan one on the Hunt Board"
+          }
+        />
+        <StatTile
+          label="On the list"
+          value={String(focus.total)}
+          note={
+            late > 0
+              ? `${late} overdue`
+              : focus.total === 0
+                ? "Clear"
                 : "Nothing overdue"
           }
         />
@@ -142,14 +196,8 @@ export default async function TodayPage() {
           }
         />
         <StatTile
-          label="Active projects"
-          value={String(counts.active)}
-          note={`${counts.openMarks} open marks`}
-        />
-        <StatTile
           label="Needs attention"
           value={String(drifting)}
-          tone="dark"
           note={
             drifting === 0
               ? "Nothing drifting"
@@ -162,18 +210,39 @@ export default async function TodayPage() {
         <div className="flex flex-col gap-5 lg:col-span-2">
           <Card>
             <CardHeader
-              title="Marks due"
-              count={`${total} due`}
+              title={sprint ? "This sprint" : "Due and overdue"}
+              count={`${focus.total} open`}
             />
-            {markViews.length > 0 ? (
-              <DueMarks marks={markViews} total={total} />
+            {sprint?.goal && (
+              <p className="-mt-2 mb-3 text-[13px] leading-relaxed text-muted">
+                {sprint.goal}
+              </p>
+            )}
+            {focusViews.length > 0 ? (
+              <FocusList
+                marks={focusViews}
+                total={focus.total}
+                sprintId={sprint?.id ?? null}
+              />
             ) : (
               <EmptyState
-                icon={Swords}
-                title="Nothing due"
-                body="Marks due today and anything overdue collect here. Give a mark a due date on the Hunt Board and it will show up."
+                icon={Flag}
+                title={sprint ? "Sprint's clear" : "No sprint running"}
+                body={
+                  sprint
+                    ? "Everything you committed to this week is done. Have a look at what's next below, or close the sprint out and plan the next one."
+                    : "A sprint is the handful of marks that are actually this week's work. Start one on the Hunt Board and this becomes the only list you need to read."
+                }
               />
             )}
+            <div className="mt-4 border-t border-line/60 pt-4">
+              <UpNext
+                groups={nextGroups}
+                ideas={upNext.ideas.map(toNextView)}
+                backlogTotal={upNext.backlogTotal}
+                sprintId={sprint?.id ?? null}
+              />
+            </div>
           </Card>
 
           <Card>

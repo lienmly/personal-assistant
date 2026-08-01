@@ -58,6 +58,13 @@ export async function saveMark(form: FormData) {
   }
   if (!areaId) throw new Error("A mark needs a project or an area");
 
+  // Only written when the form actually carries the field. The mark panel
+  // always does; anything else that saves a mark must not silently pull it out
+  // of the sprint just by not knowing sprints exist.
+  const sprint = form.has("sprintId")
+    ? { sprintId: str(form, "sprintId") }
+    : {};
+
   const data = {
     title,
     notes: str(form, "notes"),
@@ -67,6 +74,7 @@ export async function saveMark(form: FormData) {
     dueDate: dateOnly(str(form, "dueDate")),
     projectId,
     areaId,
+    ...sprint,
   };
 
   const mark = id
