@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CalendarClock, Flag, Radio, TrendingUp } from "lucide-react";
 
+import { Agenda } from "@/components/today/agenda";
 import { FocusList } from "@/components/today/focus-list";
 import { GoingOut } from "@/components/today/going-out";
 import { Momentum, type MomentumView } from "@/components/today/momentum";
@@ -14,6 +15,8 @@ import { UpNext } from "@/components/today/up-next";
 import { Card, CardHeader, StatTile } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SurfaceHeader } from "@/components/ui/surface-header";
+import { getAgenda } from "@/lib/calendar";
+import { minutesOfDay } from "@/lib/calendar-keys";
 import { getMomentum } from "@/lib/projects";
 import { dayKey, getActiveSprint, getFocus, getUpNext } from "@/lib/sprints";
 import { ensureSeriesSlots, getGoingOutToday } from "@/lib/studio";
@@ -52,15 +55,15 @@ export default async function TodayPage() {
   await ensureSeriesSlots();
 
   const sprint = await getActiveSprint();
+  const today = todayKey();
 
-  const [focus, upNext, drops, momentum] = await Promise.all([
+  const [focus, upNext, drops, momentum, agenda] = await Promise.all([
     getFocus(sprint?.id ?? null),
     getUpNext(sprint?.id ?? null),
     getGoingOutToday(),
     getMomentum(),
+    getAgenda(today),
   ]);
-
-  const today = todayKey();
 
   const dateLabel = new Intl.DateTimeFormat("en-GB", {
     weekday: "long",
@@ -270,13 +273,29 @@ export default async function TodayPage() {
 
         <div className="flex flex-col gap-5">
           <Card>
-            <CardHeader title="Agenda" hint="Today" />
-            <EmptyState
-              icon={CalendarClock}
-              title="No events yet"
-              body="Calendar events — including the baby's routine — will sit on this timeline."
-              phase="Phase 4"
+            <CardHeader
+              title="Agenda"
+              count={`${agenda.length} ${agenda.length === 1 ? "event" : "events"}`}
             />
+            {agenda.length > 0 ? (
+              <Agenda
+                items={agenda}
+                nowMinutes={minutesOfDay(new Date())}
+                dayHref={`/calendar?view=day&date=${today}`}
+              />
+            ) : (
+              <EmptyState
+                icon={CalendarClock}
+                title="Nothing on today"
+                body="Events — including the baby's feeds, naps and appointments — sit on this timeline. Add one from the calendar."
+              />
+            )}
+            <Link
+              href={`/calendar?view=day&date=${today}`}
+              className="mt-3 inline-block text-[12px] text-muted transition-colors duration-(--duration-quick) hover:text-ink"
+            >
+              Open the calendar →
+            </Link>
           </Card>
 
           <Card>

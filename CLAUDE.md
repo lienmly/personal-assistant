@@ -60,7 +60,7 @@ dashboard/UI ecosystem, easy Google auth, and a clean path to embedding an AI as
 | **ORM** | **Prisma** | Type-safe DB access, easy migrations, gentle learning curve. (Drizzle is the lighter-weight alternative if we prefer.) |
 | **Auth** | **Auth.js (NextAuth) with Google provider** | Free, self-hosted, "Login with Google" out of the box. Restrict to my own Google account(s) via an allowlist. |
 | **AI assistant (Montblanc)** | **Qwen API** + **Vercel AI SDK** | Decided 2026-07-30. Qwen exposes an OpenAI-compatible endpoint, so the AI SDK's `openai-compatible` provider talks to it directly and tool-calling still works. Swapping providers later is a one-file change. |
-| **Calendar UI** | **Schedule-X** or **FullCalendar** | Mature calendar rendering (month/week/day). Decide when we build the calendar layer. |
+| **Calendar UI** | **Hand-built** (CSS grid + day arithmetic) | Decided 2026-08-01. Neither Schedule-X nor FullCalendar survived contact with the design: both ship their own DOM and stylesheet, and this look — borderless, very round, tiles on a tinted ground — gets fought rather than configured. Month/week/day came to ~600 lines with zero new dependencies. See §8. |
 | **Data fetching / state** | **TanStack Query** (where needed) + React Server Components | Server components for most reads; Query for interactive client bits. |
 | **Hosting** | **Railway** | App + Postgres in one project. Env vars, deploys from GitHub. |
 | **Source control** | **Git + GitHub** | Local git initialized in Phase 0. Push to GitHub when ready. |
@@ -101,7 +101,8 @@ dashboard/UI ecosystem, easy Google auth, and a clean path to embedding an AI as
 /components/studio → the drop board, daily queue, batch composer, drop panel, channel manager
 /components/board  → the hunt board, mark panel, experiment capture
 /components/sprint → the sprint bar, the sprint panel (shared by Today and the board)
-/components/today  → focus list, "next up", going-out, momentum
+/components/today  → focus list, "next up", going-out, momentum, agenda
+/components/calendar → month grid, week/day time grid, item chips, the event panel
 /components/projects → the roster, the project panel
 /lib/db.ts         → Prisma client singleton
 /lib/studio.ts     → board queries + series slot generation + batch slots
@@ -113,6 +114,9 @@ dashboard/UI ecosystem, easy Google auth, and a clean path to embedding an AI as
 /lib/projects.ts   → momentum (Today §4) + the roster query
 /lib/project-actions.ts → create / edit / re-tier / archive / delete a project
 /lib/tracks.ts     → workstream names (client-safe: no Prisma import)
+/lib/calendar.ts   → the window query, recurrence expansion, the three-source merge
+/lib/calendar-keys.ts → day-key arithmetic (client-safe: no Prisma import)
+/lib/event-actions.ts → server actions for events
 /lib/montblanc     → AI assistant logic (prompts, tools) — Phase 5
 /prisma            → schema.prisma, migrations, seed.ts
 /proxy.ts          → route protection (Next 16's renamed Middleware)
@@ -206,12 +210,20 @@ market it — had nowhere to live, and it isn't content, so Studio couldn't hold
       yet. "What did I actually get done in July" is a query away and worth having.
 
 ### Phase 4 — Calendar
-- [ ] Calendar data model (events, recurring events)
-- [ ] Month / week / day views
-- [ ] Create / edit / delete events
-- [ ] Layer in Mark due dates and Drop publish dates alongside events
-- [ ] Baby daughter's activity calendar (feeds, naps, milestones, appointments)
-- [ ] Today, section 3 (Agenda)
+_Built 2026-08-01._
+- [x] `Event` model + `Recurrence` enum (`20260801054445_calendar_events`)
+- [x] Month / week / day views, hand-built (§8) — view and cursor live in the URL
+- [x] Create / edit / delete events, with simple recurrence
+- [x] Layer in Mark due dates and Drop publish times alongside events
+- [x] Baby daughter's activity calendar — Events in the Baby area, seeded with the
+      real routine (7 daily rows standing in for ~2,500 occurrences a year)
+- [x] Today, section 3 (Agenda) — events only, now-aware
+- [ ] Drag to move / resize an event. Every occurrence is positioned from
+      `startMinutes` already, so this is a pointer handler and a server action,
+      not a rewrite. Deliberately deferred: creating and editing had to be real
+      first, and on a phone the panel is the honest interaction anyway.
+- [ ] Per-occurrence exceptions ("skip *this* nap"). Needs a table; see the note
+      on `Recurrence` in the schema for why it isn't there yet.
 
 ### Phase 5 — Montblanc (AI assistant)
 - [ ] Chat drawer with streaming (Claude via AI SDK), available on every surface
@@ -247,7 +259,7 @@ sitting alongside them. The earlier draft listed "Social Media Branding" as an A
 With many concurrent projects that breaks down fast. So: **distribution is a dimension, not
 a destination.**
 
-### Seven nouns
+### Eight nouns
 
 | Noun | What it is | Example | Churn |
 |---|---|---|---|
@@ -258,6 +270,7 @@ a destination.**
 | **Sprint** | The handful of Marks that are *this week's* work. Everything else is backlog. | "Week 1 — get the accounts up" | Weekly |
 | **Drop** | A unit of content going out. Carries a Brand and (optionally) a Project. | "Devlog #7 → X + Threads" | Constant |
 | **Series** | A standing commitment that generates dated Drop slots. | "Daily short, both Utaitai TikToks" | Rare |
+| **Event** | Something that *happens at a time*, as opposed to something to do. | "Afternoon nap", "Paediatrician" | Constant |
 
 **Drop is deliberately not a Mark.** A Mark is binary — open or done. A Drop moves through
 repeating pipeline stages, fans out to several channels from one source asset, and has a
@@ -426,11 +439,15 @@ screen — they are numbered so the roadmap can refer to them.)
    where to go when the sprint runs dry. ✅
 2. **Going out today** — Drops publishing today, with channel icons. Visually distinct from
    Marks. Each channel is its own tick, so posting can be recorded without leaving Today. ✅
-3. **Agenda** — calendar events, including baby.
+3. **Agenda** — today's calendar events, including the baby's routine, in time order with
+   the all-day ones first. **Events only**: the marks are the focus list two cards up and
+   the drops have their own card in between, so replaying either here would put the same
+   row on one screen three times. Anything already finished recedes rather than vanishing,
+   and whatever is happening *right now* is the card's one accent. ✅
 4. **Momentum** — per-project "last touched", drifting first then main-first, with drift
    warnings. ✅
 
-Sections 1, 2 and 4 are built; 3 waits on the Calendar phase.
+All four sections are built as of 2026-08-01.
 
 The four stat tiles are Sprint (the one dark hero tile — done/total and days left), On the
 list, Drops going out, Needs attention.
@@ -471,7 +488,10 @@ Built ones are in `prisma/schema.prisma`, which is the source of truth; this is 
   publishedUrl ✅
 - **Mark** — id, title, notes, link, track, dueDate, status (`open` | `doing` | `done`),
   sprintId (nullable — null means backlog), projectId (nullable), areaId ✅
-- **Event** — id, title, start, end, allDay, recurrence, areaId, projectId (nullable) — Phase 4
+- **Event** — id, title, notes, location, start, end (both real timestamps, `end`
+  inclusive), allDay, recurrence (`none` | `daily` | `weekdays` | `weekly` |
+  `monthly`), daysOfWeek, repeatUntil (`@db.Date`, null = forever), areaId,
+  projectId (nullable) ✅
 - **ChatMessage / Conversation** — Montblanc history — Phase 5
 - **User** — id, email, name, role (`owner` | `child`) — Phase 7. Deliberately absent for
   now: the app is single-tenant behind the allowlist and Auth.js runs JWT sessions with no
@@ -498,6 +518,43 @@ Two fields on Mark are not in the original sketch, both added 2026-07-31:
   streams from two new projects, at a cost of zero migrations: that is the case for free
   text, made twice.
 
+### The calendar: one grid, three sources — decided 2026-08-01
+
+Only **Events** are stored for the calendar. A Mark's due date and a Drop's publish time
+are layered onto the same grid **at read time** (`lib/calendar.ts`), never copied into
+event rows. Duplicating a due date gives it two places to be wrong and a synchronisation
+job nobody will write — and the Mark is still the thing that owns it.
+
+That means three sources arrive with three *different* date conventions (`Event.start` a
+real timestamp, `Mark.dueDate` a `@db.Date` at UTC midnight, `Drop.publishAt` a real
+timestamp), which is exactly the trap below. The resolution is that everything is reduced
+to a **local day key** — "YYYY-MM-DD" — the moment it is read, and the grid only ever sees
+keys. Three conventions agreeing on which *cell* they land in is the whole trick.
+
+Four rules fell out of building it:
+
+1. **Day arithmetic happens on strings, via UTC.** `lib/calendar-keys.ts` adds days by
+   pivoting through `Date.UTC` and reading back the date part. The obvious version — add
+   86,400,000 milliseconds — builds a grid that loses or repeats a day twice a year at the
+   DST boundary. UTC has no DST, and the keys are what the grid indexes on anyway.
+2. **The rule is stored, not the occurrences.** A daily nap over a year is 365 rows that
+   are only ever read seven at a time, and editing the nap time would mean rewriting every
+   one of them. The consequence is stated out loud in the panel: editing any occurrence
+   edits all of them, because there is only one row.
+3. **Events are the one model where `start`/`end` are both real timestamps**, deliberately
+   breaking the split below. An Event is the only row where a *time* is the point, and
+   mixing a date column and a time column inside one model is what makes a calendar drift
+   by a day. `end` is **inclusive** (an all-day event runs to 23:59:59.999), so walking
+   start-day → end-day yields exactly the days it occupies with no off-by-one at either end.
+4. **The calendar is not an editor for marks and drops.** Clicking an event opens the
+   panel; clicking a mark or a drop goes to the Hunt Board or Studio. A mark's real context
+   is its project and track, a drop's is its channel checklist — reproducing either here
+   would be a second, worse copy of a screen that already exists.
+
+Shape is the legend, not colour: a **bar** is an event, a **square** is a mark due, a
+**dot** is a drop going out. Colour is already spoken for — it carries the area (or the
+brand for a drop), which is the other thing a cell has to say at a glance.
+
 ### Dates are a trap here
 
 There are **two kinds of date column** and they take opposite handling. Every rule below
@@ -514,6 +571,12 @@ was learned by getting it wrong.
 **Real timestamps** (`publishAt`, `publishedAt`, `lastTouchedAt`) — ordinary instants,
 formatted and compared in **local** time. `getGoingOutToday` builds a local
 midnight-to-midnight window; do not reach for `dateKey` there.
+
+**The third case (Phase 4):** a **local day key**, `localDayKey()` in `lib/utils.ts`, which
+is what `todayKey()` now calls. It is how a real timestamp gets reduced to the calendar day
+it falls on. When such a key is turned back into a `Date` for formatting it becomes UTC
+midnight, so it formats with `timeZone: "UTC"` — the same rule as a `@db.Date`, for the
+same reason. `app/(app)/calendar/page.tsx` does this for every label it renders.
 
 **Where the two meet:** `slotPublishAt` combines a `slotDate` with `Series.timeOfDay` to
 produce a `publishAt`. Both inputs mean *local*, so the result must be built with the local
@@ -570,7 +633,15 @@ originally — shifts every publish time by the machine's offset.
       upgraded — the schema is fresh, so the 6→7 move is a non-event.
 - [x] **Montblanc's model provider** — resolved 2026-07-30: **Qwen**, via its
       OpenAI-compatible endpoint. See §3.
-- [ ] Calendar library (Schedule-X vs FullCalendar) — decide at Phase 4
+- [x] **Calendar library** — resolved 2026-08-01: **neither. Hand-built.** Month is a
+      7-column CSS grid of tiles; week and day are an hour grid with absolutely positioned
+      blocks and a first-fit lane packer for overlaps. Both libraries bring their own DOM
+      and their own stylesheet, and this design (borderless, 1.5rem radii, tiles on a
+      tinted ground, token-driven motion) is precisely the kind that gets fought rather
+      than configured — the same argument that deferred shadcn in Phase 1, and the reason
+      the grid could adopt `animate-rise`, the crimson today-pill and the accent now-line
+      without a single override. ~600 lines, no new dependencies. The cost is that
+      drag-to-move doesn't come for free; see Phase 4's open box.
 - [ ] Notifications channel (push vs email) — Phase 7
 
 ---
@@ -619,6 +690,15 @@ originally — shifts every publish time by the machine's offset.
   small screens, revealed on hover on a pointer device. The add-to-sprint buttons on the
   Hunt Board and in "Next up" are the reference implementations.
 
+- **A grid column that has to stay in its lane needs `minmax(0, 1fr)`, not `1fr`.**
+  `1fr` is really `minmax(auto, 1fr)`, so a track whose content has a large min-content
+  width simply grows past its share and shoves every other column along. The week view's
+  all-day band did exactly this: a long mark title made Saturday's cell overlap Sunday, and
+  the items looked like they were landing on the wrong days when the *data* was right and
+  only the layout was wrong. Tailwind's `grid-cols-*` already emits `minmax(0, 1fr)` — this
+  only bites where the template is written by hand in a `style` prop, as it must be when
+  the column count is dynamic. Found on 2026-08-01.
+
 - **Don't put a JSX expression next to text containing an HTML entity.**
   `{open ? "Hide" : "Show"} what&apos;s next` splits into different text nodes on the
   server and the client, and React reports a hydration mismatch. Put the whole thing in one
@@ -631,6 +711,9 @@ originally — shifts every publish time by the machine's offset.
   - `docs/sprints.md` — the weekly loop: plan on the Hunt Board, work from Today, what
     happens to leftovers when a sprint closes, and what the project tiers mean.
     Written 2026-07-31. Update it when sprint behaviour changes.
+  - `docs/calendar.md` — the three things on the grid and how they differ, getting
+    around the views, repeating events and what editing one actually changes, and the
+    baby's routine. Written 2026-08-01. Update it when calendar behaviour changes.
   - `docs/coding-mom.md` — the brand *and* the project: the account setup chain, the
     seven content pillars and their deliberate order, and where the idea bank lives.
     Written 2026-07-31.
@@ -707,15 +790,28 @@ Named animations: `animate-rise` (fade + 8px up — cards, columns, rows arrivin
 
 ## Environment notes
 
-- **Windows machine.** Project lives on `D:\personal assistant dashboard`.
-- **npm cache is redirected to `D:\npm-cache`** (the `C:` system drive has been prone to
-  running full). If npm ever errors with `ENOSPC` or Node throws "heap out of memory",
-  check free space on `C:` first — a full system drive breaks the Windows pagefile.
-  _Measured 2026-07-31: `C:` was at **100% (69 MB free)**. Chrome extensions were already
-  throwing `FILE_ERROR_NO_SPACE`. This is not hypothetical — clear it._
-- Node v20.15.1 at time of setup. This is now load-bearing: **Prisma 7 refuses to install
-  below 20.19**, which is why Prisma is pinned to 6.x. `winget install OpenJS.NodeJS.LTS`
-  fixes it, and then both Prisma packages can go to latest.
+- **Now on macOS**, at `/Users/hcb3o/startups/personal-assistant` (Node v20.20.2, TZ
+  `America/Los_Angeles`). Phase 4 was built and verified here. The Windows notes below are
+  kept because that machine still exists, but they are no longer where the work happens.
+  - _Windows:_ project lived on `D:\personal assistant dashboard`, npm cache redirected to
+    `D:\npm-cache` because the `C:` system drive kept filling. If npm errors with `ENOSPC`
+    or Node throws "heap out of memory" there, check free space on `C:` first — a full
+    system drive breaks the pagefile. Measured 2026-07-31 at **100% (69 MB free)**.
+- **The app assumes the server's local time is *my* local time**, and Phase 4 makes that
+  assumption load-bearing rather than theoretical. Every "today", every publish window and
+  the whole calendar grid is computed server-side with `new Date()` and the local-time
+  constructor. Railway containers run **UTC**, so deployed, the calendar is currently
+  7–8 hours ahead of the person reading it: an 18:00 drop lands on the wrong row, and after
+  17:00 local "today" is tomorrow. **Fix: set `TZ=America/Los_Angeles` in the Railway
+  service's variables.** One line, and it makes the deployed app agree with every rule in
+  §6. The proper fix — storing a preferred timezone and formatting against it — only earns
+  its keep if this ever becomes multi-user or I move.
+- **Prisma is pinned to 6.x, and the reason has expired.** The pin exists because Prisma 7
+  refuses to install below Node 20.19 and the Windows machine was on 20.15.1. This Mac runs
+  **20.20.2**, which clears it — so on this machine the 6→7 bump is now just a version
+  change, and the schema is small enough that it should be a non-event. Left pinned rather
+  than bumped mid-phase; do it as its own change. The Windows machine still needs
+  `winget install OpenJS.NodeJS.LTS` first.
 - **Next.js 16 / React 19.** This is a recent major — APIs and conventions may differ from
   older Next.js knowledge. Version-specific docs are bundled at
   `node_modules/next/dist/docs/`; the scaffold's `AGENTS.md` reminds agents to consult them
@@ -723,7 +819,34 @@ Named animations: `animate-rise` (fade + 8px up — cards, columns, rows arrivin
 
 ---
 
-_Last updated: 2026-07-31 · Status: **Phases 2 and 3 both real and running locally, now with sprints.**
+_Last updated: 2026-08-01 · Status: **Phase 4 is done — the Calendar is live, and Today is
+finally whole.**_
+
+_**Phase 4, built 2026-08-01.** The Calendar was the last surface still showing an empty
+state, and it is now month, week and day, hand-built rather than pulled from a library —
+the decision §8 had been carrying since the start, resolved against Schedule-X and
+FullCalendar for the same reason shadcn was deferred: this design gets fought rather than
+configured, and ~600 lines of CSS grid inherited `animate-rise`, the crimson today-pill and
+the accent now-line for free. A new `Event` model carries simple recurrence
+(daily / weekdays / weekly-on-days / monthly, plus an end date) and stores **the rule, not
+the occurrences** — the baby's seven daily rows stand in for roughly 2,500 occurrences a
+year, and a month view renders 296 of them without materialising anything. Mark due dates
+and Drop publish times are layered onto the same grid at read time rather than copied into
+event rows, which meant three date conventions had to agree on which cell they land in;
+they do it by reducing to a **local day key** the moment they're read (§6, "The calendar").
+Today's section 3 is real, so all four sections now read live data. The baby's routine is
+seeded — feeds, naps, bath and bed, a swim class, a check-up — and the Sunday filming block
+is deliberately parked inside the afternoon nap, because the naps are the only two blocks
+of the day the other projects can happen in, and the calendar is the first screen that
+shows that. Verified end-to-end in a signed-in browser at UTC-7, which is the west-of-
+Greenwich case §6 keeps warning about: created a weekly-on-Wednesday event, confirmed it
+first fired on the right day, round-tripped the edit, deleted it. One real bug was found
+and fixed there — a hand-written `1fr` grid track let a long title push Saturday's all-day
+cell over Sunday's (§9). **One thing to do before this helps on the phone: set
+`TZ=America/Los_Angeles` on the Railway service**, or the deployed calendar runs on UTC and
+puts the evening on the wrong day — see Environment notes._
+
+_Previously: **Phases 2 and 3 both real and running locally, with sprints.**
 Studio now batches: `/studio/batch` fills a whole week of slots from one grid, and the
 board shows a daily-queue strip instead of ~28 empty slot cards. The Hunt Board is live
 with Marks grouped by project and track, a paste-a-link experiment capture, and both

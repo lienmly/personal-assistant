@@ -3,6 +3,7 @@ import type {
   DropFormat,
   ProjectPriority,
   ProjectStatus,
+  Recurrence,
 } from "@prisma/client";
 
 const db = new PrismaClient();
@@ -665,6 +666,197 @@ const FORGE_MARKS: SeedMark[] = [
   },
 ];
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Events (Phase 4)
+// ─────────────────────────────────────────────────────────────────────────────
+
+type SeedEvent = {
+  title: string;
+  areaSlug: string;
+  projectSlug?: string;
+  /** "HH:mm"–"HH:mm", or omitted for an all-day event. */
+  from?: string;
+  to?: string;
+  /** Offsets in days from the seed run, so the calendar has something on it
+   *  whenever this is run rather than in one fixed week of 2026. */
+  startsIn?: number;
+  endsIn?: number;
+  allDay?: boolean;
+  recurrence?: Recurrence;
+  daysOfWeek?: number[];
+  location?: string;
+  notes?: string;
+};
+
+/**
+ * The baby's day, which is the reason this phase exists.
+ *
+ * A newborn's routine is *entirely* recurrence — seven rows here stand in for
+ * roughly 2,500 occurrences a year, which is the case for storing the rule and
+ * expanding on read rather than materialising anything. The naps are also the
+ * most useful thing on the whole calendar: they are the only two blocks of the
+ * day when the other projects can actually be worked on, which is why the
+ * Sunday filming block below is deliberately parked inside one.
+ */
+const EVENTS: SeedEvent[] = [
+  // ── Baby: the daily routine ───────────────────────────────────────────────
+  { title: "Morning feed", areaSlug: "baby", from: "07:00", to: "07:30", recurrence: "daily" },
+  {
+    title: "Morning nap",
+    areaSlug: "baby",
+    from: "09:00",
+    to: "10:30",
+    recurrence: "daily",
+    notes: "The reliable one. Good for anything that needs quiet.",
+  },
+  { title: "Midday feed", areaSlug: "baby", from: "11:30", to: "12:00", recurrence: "daily" },
+  {
+    title: "Afternoon nap",
+    areaSlug: "baby",
+    from: "13:00",
+    to: "15:00",
+    recurrence: "daily",
+    notes: "The long one — the only two-hour block in the day.",
+  },
+  { title: "Evening feed", areaSlug: "baby", from: "18:30", to: "19:00", recurrence: "daily" },
+  { title: "Bath and bed", areaSlug: "baby", from: "19:30", to: "20:15", recurrence: "daily" },
+  { title: "Dream feed", areaSlug: "baby", from: "22:30", to: "23:00", recurrence: "daily" },
+
+  // ── Baby: the dated things ────────────────────────────────────────────────
+  {
+    title: "Baby swim class",
+    areaSlug: "baby",
+    from: "10:00",
+    to: "10:45",
+    recurrence: "weekly",
+    daysOfWeek: [6],
+    location: "Leisure centre",
+  },
+  {
+    title: "Paediatrician — check-up",
+    areaSlug: "baby",
+    from: "10:15",
+    to: "11:00",
+    startsIn: 12,
+    location: "Clinic",
+    notes: "Bring the red book and the list of questions.",
+  },
+
+  // ── Work: the standing blocks ─────────────────────────────────────────────
+  {
+    title: "Batch-film the week's shorts",
+    areaSlug: "work",
+    projectSlug: "coding-mom",
+    from: "13:00",
+    to: "15:00",
+    recurrence: "weekly",
+    daysOfWeek: [7],
+    notes:
+      "Inside the long nap on purpose. A daily cadence only survives if it's produced weekly.",
+  },
+  {
+    title: "Fill the week's slots in Studio",
+    areaSlug: "work",
+    projectSlug: "coding-mom",
+    from: "08:00",
+    to: "08:30",
+    recurrence: "weekly",
+    daysOfWeek: [1],
+  },
+  {
+    title: "Sleepy Cat playtest",
+    areaSlug: "work",
+    projectSlug: "sleepy-cat",
+    from: "20:30",
+    to: "21:30",
+    recurrence: "weekly",
+    daysOfWeek: [7],
+    notes: "Play the current build together and write down what felt bad.",
+  },
+
+  // ── Home: the two shapes nothing else covers ──────────────────────────────
+  {
+    title: "Check the rent has landed",
+    areaSlug: "home",
+    allDay: true,
+    startsIn: 1,
+    recurrence: "monthly",
+  },
+  {
+    title: "In-laws visiting",
+    areaSlug: "home",
+    allDay: true,
+    startsIn: 14,
+    endsIn: 17,
+  },
+];
+
+/**
+ * Bootstrap, not reconciliation — same rule as the marks below. Events are
+ * seeded only into a completely empty table, because there is no stable key to
+ * upsert a "Morning feed" on and re-running this must not quietly give the baby
+ * two of every nap.
+ */
+async function seedEvents() {
+  if ((await db.event.count()) > 0) return 0;
+
+  const areas = new Map(
+    (await db.area.findMany()).map((area) => [area.slug, area]),
+  );
+  const projects = new Map(
+    (await db.project.findMany()).map((project) => [project.slug, project]),
+  );
+
+  const now = new Date();
+  /** A local calendar day, `offset` days from today. Built with the local
+   *  constructor because `Event.start` is a real timestamp and both halves of
+   *  the seed data mean local wall-clock (CLAUDE.md §6). */
+  const at = (offset: number, time: string) => {
+    const [hours, minutes] = time.split(":").map(Number);
+    return new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() + offset,
+      hours,
+      minutes,
+    );
+  };
+
+  const data = EVENTS.flatMap((event) => {
+    const project = event.projectSlug ? projects.get(event.projectSlug) : null;
+    // The project's area wins, exactly as `saveEvent` enforces it.
+    const area = project
+      ? [...areas.values()].find((row) => row.id === project.areaId)
+      : areas.get(event.areaSlug);
+    if (!area) return [];
+
+    const startsIn = event.startsIn ?? 0;
+    const endsIn = event.endsIn ?? startsIn;
+
+    return [
+      {
+        title: event.title,
+        notes: event.notes ?? null,
+        location: event.location ?? null,
+        start: event.allDay ? at(startsIn, "00:00") : at(startsIn, event.from!),
+        // Inclusive end — the last instant of the final day. See the note on
+        // `Event.end` in the schema.
+        end: event.allDay
+          ? new Date(at(endsIn, "00:00").getTime() + 86_399_999)
+          : at(endsIn, event.to!),
+        allDay: event.allDay ?? false,
+        recurrence: event.recurrence ?? "none",
+        daysOfWeek: event.daysOfWeek ?? [],
+        areaId: area.id,
+        projectId: project?.id ?? null,
+      },
+    ];
+  });
+
+  await db.event.createMany({ data });
+  return data.length;
+}
+
 /**
  * Bootstrap, not reconciliation: marks are seeded only into a project that has
  * none. Upserting them would resurrect every mark you'd since completed and
@@ -1157,6 +1349,7 @@ async function main() {
 
   const dropsCreated = await seedDrops("coding-mom", CODING_MOM_DROPS);
   const sprintMarks = await seedFirstSprint();
+  const eventsCreated = await seedEvents();
 
   const counts = {
     areas: await db.area.count(),
@@ -1166,6 +1359,7 @@ async function main() {
     series: await db.series.count(),
     marks: await db.mark.count(),
     drops: await db.drop.count(),
+    events: await db.event.count(),
   };
   console.log("Seeded:", counts);
   console.log(`Marks created: ${marksCreated}, ideas banked: ${dropsCreated}`);
@@ -1179,6 +1373,11 @@ async function main() {
     sprintMarks === null
       ? "Sprint: left alone — one already exists."
       : `Sprint: created 'Week 1' with ${sprintMarks} marks.`,
+  );
+  console.log(
+    eventsCreated === 0
+      ? "Events: left alone — the calendar already has some."
+      : `Events: created ${eventsCreated}, including the baby's daily routine.`,
   );
 }
 

@@ -1,15 +1,25 @@
 /**
- * Today as "YYYY-MM-DD" in the *local* calendar, not UTC.
+ * Any instant as "YYYY-MM-DD" in the *local* calendar, not UTC.
  *
- * `new Date().toISOString().slice(0, 10)` is the obvious version and it is
- * wrong: east of Greenwich it returns yesterday for most of the evening, which
- * put the "today" chip on the wrong row of the batch composer. `@db.Date`
- * columns are stored at UTC midnight keyed on the local day (see `dateKey` in
- * lib/studio.ts), so this is the string they must be compared against.
+ * `date.toISOString().slice(0, 10)` is the obvious version and it is wrong:
+ * east of Greenwich it returns yesterday for most of the evening, which put the
+ * "today" chip on the wrong row of the batch composer. `@db.Date` columns are
+ * stored at UTC midnight keyed on the local day (see `dateKey` in lib/studio.ts),
+ * so this is the string they must be compared against.
+ *
+ * The calendar (Phase 4) leans on this hard: every item on the grid — an event
+ * occurrence, a mark's due date, a drop's publish time — is placed by reducing
+ * it to one of these keys. Three sources with three different date conventions
+ * agreeing on which *cell* they land in is the whole trick.
  */
-export function todayKey(now: Date = new Date()): string {
+export function localDayKey(date: Date): string {
   const pad = (n: number) => String(n).padStart(2, "0");
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+/** Today's local day key. */
+export function todayKey(now: Date = new Date()): string {
+  return localDayKey(now);
 }
 
 /**

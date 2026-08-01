@@ -4,7 +4,8 @@
 // needs somewhere to hang), plus the distribution nouns — Brand, Channel,
 // Series, Drop, DropChannel. Mark followed, pulled forward from Phase 3 the
 // moment Utaitai's non-content work (ship the apps, talk to users, marketing)
-// had nowhere to live. Event is still its own phase.
+// had nowhere to live. Event arrived last, in Phase 4, and is the only noun
+// that had to be designed around *time* rather than around state.
 //
 // Ownership is deliberately absent. The app is single-tenant behind an e-mail
 // allowlist, and there is no User table because Auth.js runs on JWT sessions
@@ -115,6 +116,22 @@ enum MarkStatus {
   done
 }
 
+/// Deliberately not RRULE. The vocabulary is the one `Cadence` already uses for
+/// Series, plus `monthly` and a `none` — one mental model for "how often does
+/// this repeat" across the whole app, and no iCal parser to carry.
+///
+/// The cost is honest and known: no "every other Tuesday", and no per-occurrence
+/// exceptions ("skip this one nap"). A single-user calendar whose recurring rows
+/// are feeds, naps and a standing weekly call does not need either, and adding
+/// an exceptions table later is purely additive.
+enum Recurrence {
+  none
+  daily
+  weekdays
+  weekly
+  monthly
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Areas & Projects
 // ─────────────────────────────────────────────────────────────────────────────
@@ -130,6 +147,7 @@ model Area {
 
   projects Project[]
   marks    Mark[]
+  events   Event[]
 
   @@index([sortOrder])
 }
@@ -159,6 +177,7 @@ model Project {
   drops  Drop[]
   series Series[]
   marks  Mark[]
+  events Event[]
 
   @@index([areaId, sortOrder])
   @@index([status, lastTouchedAt])
@@ -415,4 +434,66 @@ model Mark {
   @@index([projectId, status, sortOrder])
   @@index([areaId, status])
   @@index([sprintId, status])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Calendar
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Something that happens *at a time*, as opposed to something that needs doing.
+///
+/// The third citizen of the calendar and the only one stored for it. Mark due
+/// dates and Drop publish times are layered onto the same grid at read time
+/// (`lib/calendar.ts`) rather than copied into rows here — a due date belongs to
+/// the Mark, and duplicating it would give it two places to be wrong.
+///
+/// There is no separate Calendar entity: §8 resolved that **Area is the calendar
+/// grouping**, so an Event carries an `areaId` and inherits its colour. The
+/// baby's feeds, naps and appointments are simply Events in the Baby area — that
+/// decision being cashed in rather than a fourth noun.
+model Event {
+  id       String  @id @default(cuid())
+  title    String
+  notes    String?
+  location String?
+
+  /// **Both are real timestamps, never `@db.Date`** — the one deliberate
+  /// exception to CLAUDE.md §6's two-kinds-of-date split, and the reason is that
+  /// an Event is the only row where a *time* is the point. Mixing a date column
+  /// and a time column inside one model is what makes a calendar drift by a day.
+  ///
+  /// `end` is **inclusive**: an all-day event runs local-midnight to
+  /// 23:59:59.999 of its last day, so walking start-day → end-day yields exactly
+  /// the days it occupies with no off-by-one at either edge.
+  start  DateTime
+  end    DateTime
+  allDay Boolean  @default(false)
+
+  /// The rule, not the occurrences. Nothing is materialised — a daily nap over a
+  /// year is 365 rows that only ever get read as a window of seven, and editing
+  /// the nap time would then mean rewriting every one of them.
+  recurrence  Recurrence @default(none)
+  /// For `weekly`: ISO weekdays, 1 = Monday … 7 = Sunday. Same convention as
+  /// `Series.daysOfWeek`, so the expansion logic reads the same in both places.
+  daysOfWeek  Int[]      @default([])
+  /// Last day the rule produces an occurrence, inclusive. Null means forever —
+  /// which a nap routine genuinely is until it isn't.
+  repeatUntil DateTime?  @db.Date
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  areaId String
+  area   Area   @relation(fields: [areaId], references: [id], onDelete: Cascade)
+
+  /// Optional, and mostly null. A dentist appointment belongs to an Area and to
+  /// nothing else; a playtest session belongs to Sleepy Cat.
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([start])
+  @@index([areaId, start])
+  /// Recurring rows are fetched by rule rather than by window — every calendar
+  /// read has to consider them regardless of how far in the future it looks.
+  @@index([recurrence, start])
 }
