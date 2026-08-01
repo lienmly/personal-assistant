@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import type { DropFormat, ProjectStatus } from "@prisma/client";
 
 const db = new PrismaClient();
 
@@ -27,6 +28,7 @@ const PROJECTS = [
     areaSlug: "work",
     cadenceDays: 1,
     sortOrder: 0,
+    status: "active",
   },
   {
     slug: "sleepy-cat",
@@ -36,6 +38,37 @@ const PROJECTS = [
     areaSlug: "work",
     cadenceDays: 7,
     sortOrder: 1,
+    status: "active",
+  },
+  // Coding Mom is a Brand *and* a Project, and that is not a contradiction — it's
+  // the two-axis model (§6) at its clearest. The brand is who is talking; the
+  // project is the audience-building work itself, which has its own accounts to
+  // create, its own content bank to keep stocked and its own backlog. Without the
+  // project half, "create the Coding Mom TikTok" had to be filed under Sleepy Cat,
+  // which is where it actually was until 2026-07-31.
+  {
+    slug: "coding-mom",
+    name: "Coding Mom",
+    description:
+      "Building an audience as a mom who builds — and the community Forge will launch into.",
+    areaSlug: "work",
+    cadenceDays: 1,
+    sortOrder: 2,
+    status: "active",
+  },
+  // The eventual main startup: AI-designed AIoT hardware plus a marketplace, aimed
+  // at YC. Seeded `simmering` on purpose — the roadmap for it is real but the work
+  // right now is Coding Mom, and only `active` projects drift (§6). An idea that
+  // nags daily before it has been started is an idea you learn to ignore.
+  {
+    slug: "forge",
+    name: "Forge",
+    description:
+      "Design life-changing AIoT hardware with AI, prototype for $200, sell it. Vision: docs/forge-vision.md.",
+    areaSlug: "work",
+    cadenceDays: 14,
+    sortOrder: 3,
+    status: "simmering",
   },
 ];
 
@@ -137,9 +170,13 @@ const SERIES = [
   {
     name: "Daily short",
     brandSlug: "coding-mom",
-    // No project: this is brand-building, not work on a specific app. That's
-    // exactly why Drop.projectId is nullable.
-    projectSlug: null,
+    // Was `null` — "brand-building, not work on a specific app". True until
+    // 2026-07-31, when Coding Mom became a project in its own right. The daily
+    // short *is* that project's work, so it hangs off it and each post bumps its
+    // `lastTouchedAt`; otherwise Momentum would show it drifting on a day you
+    // posted. The two axes still don't collapse: a Sleepy Cat devlog going out
+    // from this brand carries `projectId: sleepy-cat`, which is the whole point.
+    projectSlug: "coding-mom",
     format: "short_video",
     cadence: "daily",
     daysOfWeek: [],
@@ -160,7 +197,7 @@ const SERIES = [
   {
     name: "Weekly essay",
     brandSlug: "coding-mom",
-    projectSlug: null,
+    projectSlug: "coding-mom",
     format: "article",
     cadence: "weekly",
     daysOfWeek: [7], // Sunday
@@ -182,7 +219,15 @@ type SeedMark = {
   title: string;
   notes?: string;
   link?: string;
+  /** "YYYY-MM-DD", read as a *local* calendar day. `dueDate` is `@db.Date`, so
+   *  it is stored as UTC midnight standing in for that day (§6). */
+  dueDate?: string;
 };
+
+/** The `@db.Date` convention, applied to a hand-written day string. */
+function dateOnly(day: string): Date {
+  return new Date(`${day}T00:00:00.000Z`);
+}
 
 const UTAITAI_MARKS: SeedMark[] = [
   // ── Ship ──────────────────────────────────────────────────────────────────
@@ -393,15 +438,199 @@ const SLEEPY_CAT_MARKS: SeedMark[] = [
     notes:
       "Both are sitting in Studio → Channels as `planned`. Flip them to `live` once they exist.",
   },
-  {
-    track: "Marketing",
-    title: "Create the Coding Mom TikTok account",
-    notes:
-      "Unblocks the 'Daily short' series, which is switched off until the account is real.",
-  },
+  // "Create the Coding Mom TikTok account" used to live here, because Coding Mom
+  // was only a brand and its chores had nowhere else to go. It now sits on the
+  // Coding Mom project with the rest of the account chain — see `reseatMarks`.
   {
     track: "Marketing",
     title: "Cut a trailer — Steam page and socials off the same edit",
+  },
+];
+
+/**
+ * Coding Mom's own work, added 2026-07-31 when it stopped being only a brand.
+ *
+ * The Setup track is a strict chain and it is the only place in this file with
+ * real due dates: create the e-mail, create the account, then *do not post for a
+ * week*. A brand-new TikTok that posts on day one gets throttled, and a warm-up
+ * is a thing you either do on specific days or don't do at all — so it is the one
+ * piece of this that a date genuinely helps with. Everything downstream is dated
+ * off the end of that week rather than off "soon".
+ *
+ * Dates assume a start of 2026-08-01. Move them; they're a spine, not a promise.
+ */
+const CODING_MOM_MARKS: SeedMark[] = [
+  // ── Setup: the account chain ──────────────────────────────────────────────
+  {
+    track: "Setup",
+    title: "Create the dedicated Coding Mom e-mail account",
+    notes:
+      "First, because every account below hangs off it — TikTok, Instagram, Facebook, YouTube, Threads, Medium. Doing this after the fact means migrating accounts instead of creating them.",
+    dueDate: "2026-08-01",
+  },
+  {
+    track: "Setup",
+    title: "Create the Coding Mom TikTok account with that e-mail",
+    notes:
+      "The channel already exists in Studio → Channels as `planned`. Flip it to `live` once the account is real.",
+    dueDate: "2026-08-01",
+  },
+  {
+    track: "Setup",
+    title: "Warm up the TikTok for a week — no posting until 2026-08-09",
+    notes:
+      "15 minutes a day: scroll, watch to the end, like, follow and comment in the mom / build / AIoT niche. This is what teaches the algorithm who you are before you ask it for anything, and it doubles as the best possible research for the content bank.",
+    dueDate: "2026-08-08",
+  },
+  {
+    track: "Setup",
+    title: "Claim @codingmom on Instagram, Facebook, YouTube and Threads",
+    notes:
+      "Same e-mail, same handle. Claiming costs nothing today and is impossible later — all four are already sitting in Studio → Channels as `planned`.",
+    dueDate: "2026-08-02",
+  },
+  {
+    track: "Setup",
+    title: "Write the bio — one line that says who this is and points at Forge",
+    notes:
+      "The bio is the only place Coding Mom converts an audience into Forge's waitlist. Worth 20 minutes now rather than a rewrite at 10k followers.",
+  },
+  {
+    track: "Setup",
+    title: "Flip the Coding Mom channels to `live` and switch on the Daily short",
+    notes:
+      "The series is seeded `isActive: false` because slots you cannot fill are worse than no slots. Turning it on is the last step of the warm-up week, not the first.",
+    dueDate: "2026-08-09",
+  },
+
+  // ── Content ───────────────────────────────────────────────────────────────
+  {
+    track: "Content",
+    title: "Brain-dump the rest of the app ideas before they're gone again",
+    notes:
+      "There were 'a ton' and most of them are already lost. Sit with a 15-minute timer and empty your head into the idea column — the roster of on-brand apps is a whole content pillar on its own, and you cannot post about ideas you can't remember.",
+  },
+  {
+    track: "Content",
+    title: "Decide what BLM stands for in 'BLM recipe app'",
+    notes:
+      "Written down from the brain-dump exactly as it was said. Expand it before it becomes a post — the idea is in the bank with the same warning on it.",
+  },
+  {
+    track: "Content",
+    title: "Set the pillar rotation — which pillar posts on which day",
+    notes:
+      "Seven pillars, one post a day. Deciding the rotation once is what stops the daily question 'what do I post today', which is the thing that actually kills a daily cadence.",
+    dueDate: "2026-08-07",
+  },
+  {
+    track: "Content",
+    title: "Batch-film the first week of shorts during the warm-up",
+    notes:
+      "Day one of posting must not also be day one of filming. Fill them in Studio → Fill the week once the series is on.",
+    dueDate: "2026-08-08",
+  },
+
+  // ── Users ─────────────────────────────────────────────────────────────────
+  {
+    track: "Users",
+    title: "Find and follow 20 mom-builder / multilingual-parenting accounts",
+    notes:
+      "Do it inside the warm-up week — it counts as warming and it maps the niche you are about to post into.",
+    dueDate: "2026-08-08",
+  },
+  {
+    track: "Users",
+    title: "Reply to every comment for the first month",
+    notes:
+      "Small accounts grow on replies. It is also where the Forge interviews come from — the people who comment on a SIDS-monitor video are exactly who you need to talk to.",
+  },
+
+  // ── Marketing ─────────────────────────────────────────────────────────────
+  {
+    track: "Marketing",
+    title: "Stand up a Forge waitlist page for the bio to point at",
+    notes:
+      "Coding Mom is the community-building for Forge (§ docs/forge-vision.md). Until there is somewhere to send people, the audience doesn't compound into anything.",
+  },
+];
+
+/**
+ * Forge — the startup Coding Mom is the on-ramp to. Simmering by design: this is
+ * the destination, and the work that gets you there is the audience and the two
+ * prototypes, which are already marks below.
+ *
+ * The full brief lives in `docs/forge-vision.md`; these are only the next real
+ * moves, so the project reads as a thing you could start on a Tuesday rather
+ * than as a pitch deck.
+ */
+const FORGE_MARKS: SeedMark[] = [
+  // ── Build: the two flagship prototypes ────────────────────────────────────
+  {
+    track: "Build",
+    title: "Spec the multilingual book reader — what it clips to, what it reads",
+    notes:
+      "The flagship. Start from the actual use: a Russian children's book, a Vietnamese-English household, a toddler who cannot read yet. One page of what it must do beats three months of what it could do.",
+  },
+  {
+    track: "Build",
+    title: "Breadboard version of the book reader — camera, speaker, off-the-shelf parts",
+    notes:
+      "Ugly and wired to a laptop is fine. The point is to learn whether it reads a real page in a real room, which no amount of design settles.",
+  },
+  {
+    track: "Build",
+    title: "Spec the baby breathing tracker as the comfortable alternative to the sock",
+    notes:
+      "The complaint is comfort and price, so those are the spec — not more sensors. Owlet already owns 'more sensors'.",
+  },
+  {
+    track: "Build",
+    title: "Price a $200 prototype run end to end with one manufacturer",
+    notes:
+      "The $200 sample credit is the load-bearing promise of the whole pitch. Find out what $200 actually buys before it goes on a landing page.",
+  },
+
+  // ── Users: the research the pitch assumes ─────────────────────────────────
+  {
+    track: "Users",
+    title: "Interview 5 multilingual parents about reading to their kids",
+    notes: "Recruit them from the Coding Mom comments — that is what the audience is for.",
+  },
+  {
+    track: "Users",
+    title: "Interview a pediatrician and a speech therapist",
+    notes:
+      "Both flagship products make claims about babies. Two conversations decide whether they are claims you can make.",
+  },
+  {
+    track: "Users",
+    title: "Talk to 3 manufacturers about small-run AIoT samples",
+    notes:
+      "The marketplace half of Forge is manufacturing partnerships. Nothing about it is real until someone on that side says yes.",
+  },
+
+  // ── Marketing ─────────────────────────────────────────────────────────────
+  {
+    track: "Marketing",
+    title: "Document every prototype build as Coding Mom content",
+    notes:
+      "Phase 1 of the go-to-market *is* the content plan — the build videos are the marketing, so nothing gets built off-camera.",
+  },
+  {
+    track: "Marketing",
+    title: "Pick the real name — 'Forge' is a placeholder",
+    notes:
+      "ForgeMarket / ImpactForge / LuminaForge were the shortlist. Check the domain and the handles at the same time, and rename the project when it lands.",
+  },
+
+  // ── Ship ──────────────────────────────────────────────────────────────────
+  {
+    track: "Ship",
+    title: "Draft the YC application against the current vision doc",
+    notes:
+      "Draft it early even if you apply late — the questions are the fastest way to find which parts of the vision are still hand-waving.",
+    link: "https://www.ycombinator.com/apply",
   },
 ];
 
@@ -423,6 +652,7 @@ async function seedMarks(slug: string, marks: SeedMark[]) {
       notes: mark.notes ?? null,
       link: mark.link ?? null,
       track: mark.track,
+      dueDate: mark.dueDate ? dateOnly(mark.dueDate) : null,
       projectId: project.id,
       areaId: project.areaId,
       sortOrder: index,
@@ -430,6 +660,264 @@ async function seedMarks(slug: string, marks: SeedMark[]) {
   });
 
   return marks.length;
+}
+
+/**
+ * Coding Mom's content bank — seven pillars, written down once so the daily
+ * question is "which of these" and never "what on earth do I post today".
+ *
+ * These are Drops, not Marks, and stage `idea` is exactly what it's for (§6): a
+ * post is not binary work, it moves through produce → scheduled → published and
+ * fans out to four accounts. They carry no `publishAt` and no series, so they sit
+ * in the board's idea column as a bank and get pulled into a slot when their turn
+ * comes, rather than pretending to be scheduled.
+ *
+ * `projectId` is the second axis doing its job: most are the audience-building
+ * itself (Coding Mom), one is about the game (Sleepy Cat), the hardware ones are
+ * about Forge, and the unbuilt app ideas belong to no project at all yet.
+ */
+type SeedDrop = {
+  pillar: string;
+  title: string;
+  format: DropFormat;
+  notes?: string;
+  projectSlug?: string | null;
+};
+
+const CODING_MOM_DROPS: SeedDrop[] = [
+  // ── Pillar: Baby — what I'm learning by doing it ──────────────────────────
+  {
+    pillar: "Baby",
+    title: "The baby-care thing I got wrong for three weeks straight",
+    format: "short_video",
+  },
+  {
+    pillar: "Baby",
+    title: "Newborn wake windows, explained the way I wish someone had",
+    format: "short_video",
+  },
+  {
+    pillar: "Baby",
+    title: "The five baby purchases that actually earned their place",
+    format: "short_video",
+  },
+
+  // ── Pillar: Build — what I'm making and how ───────────────────────────────
+  {
+    pillar: "Build",
+    title: "How I ship an app in nap-length blocks",
+    format: "short_video",
+    projectSlug: "coding-mom",
+  },
+  {
+    pillar: "Build",
+    title: "What 'I built this with AI' actually looks like hour to hour",
+    format: "short_video",
+  },
+  {
+    pillar: "Build",
+    title: "Idea to TestFlight, alone, with a baby: the whole stack",
+    format: "short_video",
+    projectSlug: "utaitai",
+  },
+
+  // ── Pillar: The roster — on-brand apps I'm building or want to ────────────
+  {
+    pillar: "Roster",
+    title: "We made a game to stay connected postpartum — he draws, I build",
+    format: "short_video",
+    notes:
+      "Sleepy Cat. The 'it's a bit forced' part is the honest bit and it is what makes it land — two exhausted people inventing a reason to be in the same room.",
+    projectSlug: "sleepy-cat",
+  },
+  {
+    pillar: "Roster",
+    title: "The baby scheduling app I'm building because the notebook stopped working",
+    format: "short_video",
+    projectSlug: null,
+  },
+  {
+    pillar: "Roster",
+    title: "An app that shows the registered offenders near an address you're considering",
+    format: "short_video",
+    notes:
+      "Built on the public registries. The hook is the real moment: checking before deciding where to live.",
+    projectSlug: null,
+  },
+  {
+    pillar: "Roster",
+    title: "BLM recipe app",
+    format: "short_video",
+    notes:
+      "Captured verbatim from the brain-dump — expand what BLM stands for before this becomes a post. There's a mark on the Coding Mom board for it.",
+    projectSlug: null,
+  },
+  {
+    pillar: "Roster",
+    title: "The app ideas I lost because I didn't write them down",
+    format: "short_video",
+    notes:
+      "Doubles as content and as recovery: the comments will hand you back better versions of the ones you forgot.",
+  },
+
+  // ── Pillar: B-roll — the 3am reasons ──────────────────────────────────────
+  {
+    pillar: "B-roll",
+    title: "Lying awake at 3am dreaming about the day this works and I can stay home with her",
+    format: "short_video",
+  },
+  {
+    pillar: "B-roll",
+    title: "Hoping this takes off so she never has to ask for the life I want to give her",
+    format: "short_video",
+  },
+  {
+    pillar: "B-roll",
+    title: "One hand on the keyboard, one hand holding her",
+    format: "short_video",
+  },
+  {
+    pillar: "B-roll",
+    title: "The version of me she'll remember is the one building at midnight",
+    format: "short_video",
+  },
+
+  // ── Pillar: Mom & wife — the harder ones ──────────────────────────────────
+  {
+    pillar: "Home truths",
+    title: "\"A husband trains his wife to be virtuous\" — a phrase I grew up hearing",
+    format: "short_video",
+  },
+  {
+    pillar: "Home truths",
+    title: "My dad was kind to me and dismissive of my mom. Both are true.",
+    format: "article",
+    notes:
+      "Long-form first — this one needs room and a Medium essay gives it that. Cut the short version from the essay afterwards as a derived drop, not the other way round.",
+  },
+  {
+    pillar: "Home truths",
+    title: "Splitting a baby, a house and two startups with the same person",
+    format: "short_video",
+  },
+
+  // ── Pillar: Multilingual — the plan for her ───────────────────────────────
+  {
+    pillar: "Multilingual",
+    title: "The plan to raise her multilingual — who speaks what, and when",
+    format: "short_video",
+  },
+  {
+    pillar: "Multilingual",
+    title: "Why I started before she could talk",
+    format: "short_video",
+  },
+  {
+    pillar: "Multilingual",
+    title: "What I'd have to buy to make her foreign-language books readable at home (it doesn't exist)",
+    format: "short_video",
+    notes:
+      "The bridge post. This is the one that hands the audience the problem Forge is being built to solve, so it should run before the hardware pillar starts.",
+    projectSlug: "forge",
+  },
+
+  // ── Pillar: Hardware — the on-ramp to Forge ───────────────────────────────
+  {
+    pillar: "Hardware",
+    title: "Building a clip-on that reads any physical book aloud, in any language",
+    format: "short_video",
+    projectSlug: "forge",
+  },
+  {
+    pillar: "Hardware",
+    title: "The baby breathing sock is uncomfortable. Here's what I'd build instead.",
+    format: "short_video",
+    projectSlug: "forge",
+  },
+  {
+    pillar: "Hardware",
+    title: "$200 and an AI design tool — what can you actually get manufactured?",
+    format: "short_video",
+    projectSlug: "forge",
+  },
+  {
+    pillar: "Hardware",
+    title: "Hardware is where software was before AI",
+    format: "article",
+    notes: "The thesis post. This is Forge's pitch, told as an essay rather than a deck.",
+    projectSlug: "forge",
+  },
+];
+
+/**
+ * Bootstrap only, on the same principle as `seedMarks`: seeded once, into a brand
+ * with no free-standing drops. Re-running must not resurrect an idea you looked
+ * at and threw away. Series slots are excluded from the check — those are
+ * generated, and they exist for Coding Mom already.
+ */
+async function seedDrops(brandSlug: string, drops: SeedDrop[]) {
+  const brand = await db.brand.findUnique({ where: { slug: brandSlug } });
+  if (!brand) return 0;
+
+  const existing = await db.drop.count({
+    where: { brandId: brand.id, seriesId: null },
+  });
+  if (existing > 0) return 0;
+
+  const projects = await db.project.findMany({ select: { id: true, slug: true } });
+  const projectId = new Map(projects.map((p) => [p.slug, p.id]));
+
+  await db.drop.createMany({
+    data: drops.map((drop) => ({
+      title: drop.title,
+      // There is no `pillar` column and there shouldn't be one — seven strings
+      // don't earn a table. Carrying it in the notes keeps the rotation legible
+      // on the card without a migration.
+      notes: [`Pillar: ${drop.pillar}`, drop.notes].filter(Boolean).join("\n\n"),
+      format: drop.format,
+      stage: "idea" as const,
+      brandId: brand.id,
+      projectId: drop.projectSlug ? (projectId.get(drop.projectSlug) ?? null) : null,
+    })),
+  });
+
+  return drops.length;
+}
+
+/**
+ * The one piece of reconciliation in this file. "Create the Coding Mom TikTok
+ * account" was seeded under Sleepy Cat because Coding Mom had no project to hang
+ * it on; it does now, and the account chain there supersedes it. Only removed
+ * while it is still untouched — a mark you have started or finished is yours.
+ */
+async function reseatMarks() {
+  const codingMom = await db.project.findUnique({ where: { slug: "coding-mom" } });
+  const sleepyCat = await db.project.findUnique({ where: { slug: "sleepy-cat" } });
+  if (!codingMom || !sleepyCat) return 0;
+
+  const { count } = await db.mark.deleteMany({
+    where: {
+      projectId: sleepyCat.id,
+      status: "open",
+      title: "Create the Coding Mom TikTok account",
+    },
+  });
+
+  // Changing a Series' project doesn't retouch the slots it already generated,
+  // so an empty slot made before Coding Mom was a project would publish without
+  // bumping it. Restricted to *unfilled* slots — an empty title and no project is
+  // the definition of untouched, and it leaves the 2026-08-02 essay (which
+  // deliberately carries Sleepy Cat) exactly where it is.
+  await db.drop.updateMany({
+    where: {
+      title: "",
+      projectId: null,
+      series: { brand: { slug: "coding-mom" } },
+    },
+    data: { projectId: codingMom.id },
+  });
+
+  return count;
 }
 
 async function main() {
@@ -446,10 +934,12 @@ async function main() {
     });
   }
 
-  for (const { areaSlug, ...project } of PROJECTS) {
+  for (const { areaSlug, status, ...project } of PROJECTS) {
     const area = await db.area.findUniqueOrThrow({ where: { slug: areaSlug } });
     await db.project.upsert({
       where: { slug: project.slug },
+      // `status` is deliberately create-only. Re-seeding must not undo a
+      // "let it simmer" — the demotion is a decision, not a typo.
       update: {
         name: project.name,
         description: project.description,
@@ -457,7 +947,7 @@ async function main() {
         sortOrder: project.sortOrder,
         areaId: area.id,
       },
-      create: { ...project, areaId: area.id },
+      create: { ...project, status: status as ProjectStatus, areaId: area.id },
     });
   }
 
@@ -538,9 +1028,15 @@ async function main() {
     }
   }
 
+  const reseated = await reseatMarks();
+
   const marksCreated =
     (await seedMarks("utaitai", UTAITAI_MARKS)) +
-    (await seedMarks("sleepy-cat", SLEEPY_CAT_MARKS));
+    (await seedMarks("sleepy-cat", SLEEPY_CAT_MARKS)) +
+    (await seedMarks("coding-mom", CODING_MOM_MARKS)) +
+    (await seedMarks("forge", FORGE_MARKS));
+
+  const dropsCreated = await seedDrops("coding-mom", CODING_MOM_DROPS);
 
   const counts = {
     areas: await db.area.count(),
@@ -549,10 +1045,15 @@ async function main() {
     channels: await db.channel.count(),
     series: await db.series.count(),
     marks: await db.mark.count(),
+    drops: await db.drop.count(),
   };
   console.log("Seeded:", counts);
+  console.log(`Marks created: ${marksCreated}, ideas banked: ${dropsCreated}`);
+  if (reseated > 0) {
+    console.log("Moved 'Create the Coding Mom TikTok account' off Sleepy Cat.");
+  }
   if (marksCreated === 0) {
-    console.log("Marks: left alone — both projects already have some.");
+    console.log("Marks: left alone — every project already has some.");
   }
 }
 

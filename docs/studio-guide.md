@@ -19,10 +19,17 @@ A public identity, with its own audience and its own voice. You have three:
 | **Coding Mom** | You, personally. Building apps and games for moms and families. |
 | **Sleepy Cat** | The game's own account — devlog and art, aimed at players. |
 
-**A brand is not a project.** "Coding Mom" isn't something you're building — it's a persona
-that can talk about *any* of your projects, or about nothing in particular. A postpartum-
-coding story belongs to no project at all. That's why the board filters by brand, and why
-every drop's project field has a `None — brand building` option.
+**A brand is not a project.** A brand is a persona that can talk about *any* of your
+projects, or about nothing in particular — an app idea you haven't started belongs to no
+project at all. That's why the board filters by brand, and why every drop's project field
+has a `None — brand building` option.
+
+> **"But Coding Mom is in both lists now."** It is, since 2026-07-31, and the two are
+> different things. The *brand* is the voice. The *project* is the work of building the
+> audience — creating the accounts, warming them up, keeping the idea bank stocked. A
+> Sleepy Cat devlog posted from Coding Mom's TikTok still carries `projectId: sleepy-cat`,
+> which is the two axes doing exactly what they're for. See
+> [the Coding Mom guide](./coding-mom.md).
 
 ### Channel — *one real account*
 

@@ -11,6 +11,10 @@
  * after, alphabetically.
  */
 export const TRACKS = [
+  // "Setup" leads because it is the work that unblocks everything else — a brand
+  // with no e-mail account has no TikTok, and so has no content and no audience.
+  // It empties out once a project is running, which is exactly right.
+  "Setup",
   "Build",
   "Art",
   "Ship",

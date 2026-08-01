@@ -176,8 +176,14 @@ market it — had nowhere to live, and it isn't content, so Studio couldn't hold
 - [x] Today, section 1 (Marks due) — due + overdue, capped at 7, tickable in place
 - [x] Today, section 4 (Momentum) — drifting first, with "Let it simmer" inline
 - [x] Sleepy Cat's road to Steam seeded — 19 marks over **Build / Art / Ship / Marketing**
-- [ ] Project CRUD (creating/editing projects, not just reading them)
-- [ ] Give marks due dates — nothing has one, so section 1 sits empty by default
+- [x] **Coding Mom and Forge seeded as projects** (2026-07-31) — 13 + 10 marks, and the
+      first real due dates in the app: Coding Mom's account chain (e-mail → TikTok →
+      a week of warm-up → first post 2026-08-09) is a strict sequence, so section 1 of
+      Today now has something to show. See `docs/coding-mom.md` and `docs/forge-vision.md`.
+- [ ] Project CRUD (creating/editing projects, not just reading them) — **the gap that
+      hurts.** Adding Coding Mom and Forge meant editing `prisma/seed.ts` and re-seeding,
+      which is not a thing to do from a phone at 3am.
+- [ ] Due dates on the rest of the marks — only the Coding Mom setup chain has them
 
 ### Phase 4 — Calendar
 - [ ] Calendar data model (events, recurring events)
@@ -251,6 +257,17 @@ So a Drop carries `brandId` (who is saying it, to whose audience) *and* a nullab
 called "Coding Mom content" and losing the thread. A Channel is one real account and belongs
 to one Brand; `state` distinguishes accounts that exist from accounts that are still an
 intention.
+
+**A name can be both — added 2026-07-31.** "Coding Mom" is now a Brand *and* a Project, and
+that is the model working rather than leaking. The brand is the voice; the project is the
+audience-building *work* — create the e-mail, create the accounts, warm them up for a week,
+keep the idea bank stocked, reply to everyone. Those are marks, they have due dates, and
+before the project existed the only place to file "create the Coding Mom TikTok account"
+was **Sleepy Cat**, which is where it actually sat. The axes still don't collapse: a Sleepy
+Cat devlog posted from Coding Mom's TikTok carries `projectId: sleepy-cat`. What did change
+is that both Coding Mom *series* now carry `projectId: coding-mom` — the daily short is
+that project's work, so posting has to bump its `lastTouchedAt` or Momentum reports it
+drifting on a day you posted.
 
 ### Repurposing is two different things
 
@@ -350,15 +367,18 @@ Two fields on Mark are not in the original sketch, both added 2026-07-31:
 - **`link`** — the post worth copying, the console page, the thread with the user who
   asked. For the "try this format" flow the link *is* most of the task, which is why the
   Hunt Board leads with a paste-a-link capture box rather than a form.
-- **`track`** — a free-text workstream ("Build", "Art", "Ship", "Users", "Marketing",
-  "Experiments", "Content"). Free text, not an enum: streams differ per project and
-  inventing one shouldn't cost a migration. Utaitai runs three at once and without this
-  the board is a flat wall of twenty unrelated rows. Suggested names live in
+- **`track`** — a free-text workstream ("Setup", "Build", "Art", "Ship", "Users",
+  "Marketing", "Experiments", "Content"). Free text, not an enum: streams differ per
+  project and inventing one shouldn't cost a migration. Utaitai runs three at once and
+  without this the board is a flat wall of twenty unrelated rows. Suggested names live in
   `lib/tracks.ts`, which is kept free of any Prisma import so client components can read
   it. **"Build" and "Art" were added 2026-07-31** when Sleepy Cat arrived: a game's two
   big jobs are gameplay polish and art assets, they're *different people's* work, and
-  folding them into "Ship" hid that half of the project isn't mine to do. That's the
-  case for free text — a second project needed two new streams and it cost nothing.
+  folding them into "Ship" hid that half of the project isn't mine to do. **"Setup"
+  followed the same day** with Coding Mom, whose first ten days are entirely accounts and
+  handles — work that blocks everything else and then disappears forever. Three new
+  streams from two new projects, at a cost of zero migrations: that is the case for free
+  text, made twice.
 
 ### Dates are a trap here
 
@@ -474,6 +494,12 @@ originally — shifts every publish time by the machine's offset.
 - **User docs live in `/docs`.** Guides written for *me reading later*, not for agents:
   - `docs/studio-guide.md` — how to use the Studio (brands, channels, drops, series,
     the board, repurposing). Written 2026-07-30. Update it when Studio behaviour changes.
+  - `docs/coding-mom.md` — the brand *and* the project: the account setup chain, the
+    seven content pillars and their deliberate order, and where the idea bank lives.
+    Written 2026-07-31.
+  - `docs/forge-vision.md` — the startup brief: AI-designed AIoT hardware, $200
+    prototypes, the marketplace, the go-to-market that Coding Mom *is* phase 1 of.
+    Written 2026-07-31. "Forge" is a placeholder name.
 
 ---
 
@@ -575,6 +601,15 @@ all three surfaces have been checked in a signed-in browser.
 (Momentum) all read real data and are actionable in place — tick a mark done, tick a
 channel posted, let a drifting project simmer. All four stat tiles are wired. Building
 section 2 exposed and corrected a `timeOfDay` bug that had every series publishing at the
-wrong hour. Outstanding: section 3 (Agenda, waits on Phase 4), Project CRUD, **no mark has
-a due date yet so section 1 renders empty**, and the phone layout still needs a look on a
-real device._
+wrong hour.
+**Two projects joined the roster on 2026-07-31: Coding Mom and Forge.** Coding Mom was
+only a brand until now; it is a project too, because building the audience is a backlog of
+its own — 13 marks, led by a **Setup** track that runs e-mail → TikTok → a week of warm-up
+→ first post on 2026-08-09, and those are the first marks in the app with real due dates,
+so section 1 of Today stopped rendering empty. Its content bank is 25 idea-stage Drops
+across seven pillars, deliberately ordered so Multilingual sets up Hardware and Hardware
+sets up **Forge** — the AIoT hardware startup, seeded `simmering` with 10 marks and a full
+brief in `docs/forge-vision.md`. Coding Mom is Forge's go-to-market phase 1, started early.
+Outstanding: section 3 (Agenda, waits on Phase 4), **Project CRUD — adding these two meant
+editing the seed file**, due dates on everything other than the setup chain, and the phone
+layout still needs a look on a real device._
