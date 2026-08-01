@@ -1050,20 +1050,17 @@ async function main() {
     const area = await db.area.findUniqueOrThrow({ where: { slug: areaSlug } });
     await db.project.upsert({
       where: { slug: project.slug },
-      // `status` is deliberately create-only. Re-seeding must not undo a
-      // "let it simmer" — the demotion is a decision, not a typo.
+      // Create-only, all of it. `status` always was — re-seeding must not undo
+      // a "let it simmer", because the demotion is a decision, not a typo —
+      // and as of the Projects editor every other column here is a decision
+      // too: the name, the area, the cadence and the tiering are all set from
+      // the app now. This file bootstraps an empty database and records what
+      // the roster started as; the app owns it from the first edit onward.
       //
-      // `priority` is the opposite and is reasserted every run: it is the
-      // tiering *plan*, this file is where the plan is written down, and there
-      // is no in-app editor for it yet. When one arrives, move it up here.
-      update: {
-        name: project.name,
-        description: project.description,
-        cadenceDays: project.cadenceDays,
-        sortOrder: project.sortOrder,
-        priority: priority as ProjectPriority,
-        areaId: area.id,
-      },
+      // A project that needs correcting gets corrected in the UI. Reasserting
+      // from here would mean a re-seed silently reverting last week's
+      // re-tiering, which is the exact failure the editor exists to end.
+      update: {},
       create: {
         ...project,
         status: status as ProjectStatus,

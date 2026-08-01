@@ -12,6 +12,19 @@ export function todayKey(now: Date = new Date()): string {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
+/**
+ * "Coding Mom" → "coding-mom". Lives here rather than next to one of its
+ * callers because `prisma/seed.ts` upserts on `slug`, so the app and the seed
+ * have to agree on the spelling — a project created in the UI and then named
+ * in the seed must resolve to the *same* row, not two.
+ */
+export function slugify(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
 /** Tiny classname joiner. Swap for clsx + tailwind-merge if we ever need
  *  conflict resolution; today we don't. */
 export function cn(

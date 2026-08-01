@@ -102,6 +102,7 @@ dashboard/UI ecosystem, easy Google auth, and a clean path to embedding an AI as
 /components/board  → the hunt board, mark panel, experiment capture
 /components/sprint → the sprint bar, the sprint panel (shared by Today and the board)
 /components/today  → focus list, "next up", going-out, momentum
+/components/projects → the roster, the project panel
 /lib/db.ts         → Prisma client singleton
 /lib/studio.ts     → board queries + series slot generation + batch slots
 /lib/studio-actions.ts → server actions for drops, channels, series, batch save
@@ -109,6 +110,8 @@ dashboard/UI ecosystem, easy Google auth, and a clean path to embedding an AI as
 /lib/mark-actions.ts → server actions for marks
 /lib/sprints.ts    → active sprint, the focus list, "next up"
 /lib/sprint-actions.ts → start / close a sprint, move marks in and out
+/lib/projects.ts   → momentum (Today §4) + the roster query
+/lib/project-actions.ts → create / edit / re-tier / archive / delete a project
 /lib/tracks.ts     → workstream names (client-safe: no Prisma import)
 /lib/montblanc     → AI assistant logic (prompts, tools) — Phase 5
 /prisma            → schema.prisma, migrations, seed.ts
@@ -191,10 +194,13 @@ market it — had nowhere to live, and it isn't content, so Studio couldn't hold
 - [x] **Project tiering** (2026-07-31) — `Project.priority` (`main` / `side` / `later`),
       separate from `status`. Sleepy Cat and Coding Mom are main; Utaitai is on
       maintenance and Forge is side until Sleepy Cat launches. See §6, "Two axes again".
-- [ ] Project CRUD (creating/editing projects, not just reading them) — **the gap that
-      hurts.** Adding Coding Mom and Forge meant editing `prisma/seed.ts` and re-seeding,
-      which is not a thing to do from a phone at 3am. `priority` has no editor either, so
-      re-tiering when Sleepy Cat launches is currently a seed edit.
+- [x] **Project CRUD** (2026-07-31) — the roster is now the editor. A project panel on
+      `/projects` (same shape as the mark panel) creates, renames, re-areas, re-tiers,
+      archives and deletes; the status chips became filters so archiving somewhere to put
+      things doesn't clutter the roster. This was the gap that hurt: adding Coding Mom and
+      Forge meant editing `prisma/seed.ts` and re-seeding, which is not a thing to do from
+      a phone at 3am, and `priority` had no editor at all. Three rules fell out of it —
+      see §6, "The roster is the editor".
 - [ ] Due dates on the rest of the marks — only the Coding Mom setup chain has them
 - [ ] Sprint history — closed sprints keep their finished marks, and nothing reads them
       yet. "What did I actually get done in July" is a query away and worth having.
@@ -334,9 +340,42 @@ hides Utaitai from a drift check it still deserves, and it says the content stop
 it hasn't. `priority` drives which sections the Hunt Board opens expanded, which projects
 "Next up" draws from, and the order of the Momentum card and the Projects roster.
 
-`priority` has **no in-app editor yet** — it is reasserted from `prisma/seed.ts` on every
-seed, deliberately, because that file is where the tiering plan is written down. When the
-editor arrives, drop it from the upsert's `update` block the way `status` already is.
+`priority` is editable from the project panel as of 2026-07-31, so re-tiering Forge the day
+Sleepy Cat launches is two taps rather than a seed edit.
+
+### The roster is the editor — decided 2026-07-31
+
+Projects were the last noun with no way to create one. Adding Coding Mom and Forge meant
+editing `prisma/seed.ts` and running `db:seed`, so for a week every Coding Mom setup task
+was filed under **Sleepy Cat** — the project you can't create is the project whose work
+ends up in the wrong place. `/projects` now opens a panel on any card, and a "New project"
+button mints one.
+
+Three rules, each because the obvious alternative fails:
+
+1. **The seed no longer updates existing projects — `update: {}`.** It used to reassert
+   name, description, cadence, sortOrder and priority on every run, with `status`
+   create-only on the grounds that a "let it simmer" is a decision and not a typo. The
+   moment those columns became editable in the app, *all* of them are decisions: a
+   re-seed that reverted last week's re-tiering is exactly the failure the editor exists
+   to end. The seed bootstraps an empty database and records what the roster started as.
+2. **The slug is minted once and never follows a rename.** The seed upserts on `slug`, so
+   a slug that tracked the name would make the next seed run *create a second row* instead
+   of finding the existing one — the project would silently fork in two. Name is the
+   label, slug is the identity. Collisions get `-2` appended.
+3. **Deleting is refused for a project that holds anything.** Every relation pointing at a
+   Project is `SetNull`, which is right for one row and disastrous in bulk: deleting
+   Sleepy Cat wouldn't delete its nineteen marks, it would *orphan* them onto the Hunt
+   Board as unfiled rows with no way to tell where they came from. The panel says what's
+   holding it ("18 marks and 2 drops") and points at Archive. Delete is for the one you
+   named wrong two minutes ago.
+
+Two smaller things fell out. Moving a project to another Area re-files its Marks in the
+same transaction — a Mark carries its own `areaId` and `saveMark` keeps the two in step,
+so without it the project moves and its marks stay behind, coloured for an area they've
+left. And `project-actions.ts` revalidates `("/", "layout")` rather than a list of pages,
+because the area tree lives in the app layout: a new project that appeared on the roster
+but not in the sidebar reads as a save that half-failed.
 
 ### Repurposing is two different things
 
@@ -726,7 +765,21 @@ deliberately *not* `status`: Sleepy Cat (cadence 3) and Coding Mom are `main`; U
 Sleepy Cat launches. "Week 1" is seeded with eight marks, round-robined across the two main
 projects. Both surfaces were re-checked in a signed-in browser; a hydration mismatch in
 "Next up" was found and fixed there (see §9).
-Outstanding: section 3 (Agenda, waits on Phase 4), **Project CRUD — and now `priority` has
-no editor either, so re-tiering at launch is a seed edit**, due dates on everything other
+**Project CRUD closed the last hole in Phase 3, also on 2026-07-31.** Projects were the
+only noun with no way to create one, and the cost was visible: every Coding Mom setup task
+sat under Sleepy Cat for a week because "create the Coding Mom TikTok account" had nowhere
+else to go. The roster is now the editor — a panel on any card creates, renames, re-areas,
+re-tiers, archives and deletes, the status chips became filters, and moving a project to
+another Area re-files its marks in the same transaction. `prisma/seed.ts` stopped updating
+existing projects entirely (`update: {}`): once the columns are editable in-app they are
+all decisions, and a re-seed that reverted last week's re-tiering is the exact thing the
+editor was built to end. Deleting is refused for a project holding marks, drops or series
+— `SetNull` everywhere means deletion orphans the work rather than removing it — so the
+panel names what's holding it and points at Archive instead. Verified in a signed-in
+browser: created a throwaway project, edited it, deleted it, and round-tripped a save of
+Utaitai with every column unchanged.
+Outstanding: section 3 (Agenda, waits on Phase 4), due dates on everything other
 than the setup chain, sprint history (closed sprints keep their finished marks and nothing
-reads them), and the phone layout still needs a look on a real device._
+reads them), Area CRUD (the sidebar's "Add area" and "Manage areas" are still disabled —
+five areas ever, so it has never bitten), and the phone layout still needs a look on a real
+device._

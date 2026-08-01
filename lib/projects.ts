@@ -6,6 +6,77 @@ export function daysSince(date: Date): number {
   return Math.floor((Date.now() - date.getTime()) / 86_400_000);
 }
 
+const dayFormat = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+});
+
+/**
+ * The Projects surface. Every project, including archived ones — the roster is
+ * the complete record, and the status chips filter it.
+ *
+ * Tier first: "which of these actually matters" is the question the roster is
+ * opened with, and status-then-recency answered a different one — an active
+ * side project sorted above a main one that had been quiet for a week.
+ *
+ * `lastTouchedAt` is a real timestamp, not a `@db.Date`, so it formats in local
+ * time (CLAUDE.md §6, "Dates are a trap here").
+ */
+export async function getRoster() {
+  const [projects, openMarks] = await Promise.all([
+    db.project.findMany({
+      orderBy: [
+        { priority: "asc" },
+        { status: "asc" },
+        { lastTouchedAt: "desc" },
+      ],
+      include: {
+        area: { select: { name: true, color: true } },
+        _count: { select: { drops: true } },
+      },
+    }),
+    db.mark.groupBy({
+      by: ["projectId"],
+      where: { status: { not: "done" }, projectId: { not: null } },
+      _count: { _all: true },
+    }),
+  ]);
+
+  const openByProject = new Map(
+    openMarks.map((row) => [row.projectId, row._count._all]),
+  );
+
+  return projects.map((project) => {
+    const idle = daysSince(project.lastTouchedAt);
+    return {
+      id: project.id,
+      name: project.name,
+      slug: project.slug,
+      description: project.description,
+      status: project.status,
+      priority: project.priority,
+      cadenceDays: project.cadenceDays,
+      areaId: project.areaId,
+      areaName: project.area.name,
+      areaColor: project.area.color,
+      idle,
+      touchedLabel:
+        idle === 0
+          ? "Touched today"
+          : `${idle}d since ${dayFormat.format(project.lastTouchedAt)}`,
+      // Only an *active* project can drift — same rule as `getMomentum`, and
+      // for the same reason: demoting to simmering has to actually silence the
+      // warning or the nagging becomes unquittable.
+      drifting:
+        project.status === "active" &&
+        project.cadenceDays !== null &&
+        idle > project.cadenceDays,
+      openMarks: openByProject.get(project.id) ?? 0,
+      drops: project._count.drops,
+    };
+  });
+}
+
 /**
  * Section 4 of Today: the answer to "which projects am I actually following?"
  *

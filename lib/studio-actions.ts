@@ -14,6 +14,7 @@ import type {
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { STAGE_ORDER, type StageId } from "@/lib/platforms";
+import { slugify } from "@/lib/utils";
 
 /**
  * Every action goes through this. The layout already gates the pages, but
@@ -305,13 +306,6 @@ export async function setChannelState(form: FormData) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Brands, channels, series
 // ─────────────────────────────────────────────────────────────────────────────
-
-function slugify(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-}
 
 export async function saveBrand(form: FormData) {
   await requireSession();

@@ -103,9 +103,16 @@ Right now:
 where "Next up" draws from. Utaitai is `active` rather than `simmering` on purpose — its
 dailies genuinely still ship, and calling it simmering would be saying the content stopped.
 
-**When Sleepy Cat launches, Forge becomes `main`.** There's no editor for priority yet, so
-that's currently an edit to `prisma/seed.ts` followed by `npm run db:seed`. Same as adding
-a project. It's the next gap worth closing.
+**When Sleepy Cat launches, Forge becomes `main`.** Open **Projects**, tap the Forge card,
+tap **Main**, save. Two taps from a phone — this used to be an edit to `prisma/seed.ts`
+followed by `npm run db:seed`, which is why it never happened at the right moment.
+
+The same panel is where you create a project, rename one, move it to another Area (its
+marks come with it), change its cadence, or archive it. Two things it deliberately won't
+do: renaming a project doesn't change its slug, and deleting is refused for any project
+still holding marks, drops or a series — it tells you what's holding it and points you at
+**Archive**, because deleting wouldn't remove that work, it would set it loose with no
+project to belong to.
 
 ## Small things worth knowing
 
