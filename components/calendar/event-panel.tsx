@@ -35,7 +35,7 @@ const ISO_DAYS = [
 ];
 
 /**
- * Create / edit / delete an Event. Same shape as the mark and project panels —
+ * Create / edit / delete an Event. Same shape as the task and project panels —
  * slide-in from the right, exit animated, `Escape` closes.
  *
  * The one thing it does that they don't is warn about recurrence. Only the rule
@@ -324,7 +324,7 @@ export function EventPanel({
                 </select>
               </div>
 
-              {/* Same rule as the mark panel: a project supplies the area, so
+              {/* Same rule as the task panel: a project supplies the area, so
                   offering both would be offering a choice the server overrules. */}
               {!projectId && (
                 <div>

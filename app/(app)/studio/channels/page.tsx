@@ -47,7 +47,7 @@ export default async function ChannelsPage() {
       projectId: series.projectId,
       projectName: series.project?.name ?? null,
       channelIds: series.channels.map((link) => link.channelId),
-      dropCount: series._count.drops,
+      itemCount: series._count.items,
     })),
   }));
 

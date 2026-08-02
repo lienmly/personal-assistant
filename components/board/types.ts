@@ -1,5 +1,5 @@
 import type {
-  MarkStatus,
+  TaskStatus,
   ProjectPriority,
   ProjectStatus,
 } from "@prisma/client";
@@ -22,19 +22,19 @@ export type BoardProjectView = {
   area: AreaView;
 };
 
-export type MarkView = {
+export type TaskView = {
   id: string;
   title: string;
   notes: string | null;
   link: string | null;
   track: string | null;
-  status: MarkStatus;
+  status: TaskStatus;
   /** "YYYY-MM-DD", for `<input type="date">` to round-trip without a zone. */
   dueDate: string | null;
   /** Preformatted server-side — see the note in `components/studio/types.ts`. */
   dueLabel: string | null;
   overdue: boolean;
-  /** The running sprint's id when this mark is committed to it, else null. */
+  /** The running sprint's id when this task is committed to it, else null. */
   sprintId: string | null;
   projectId: string | null;
   areaId: string;

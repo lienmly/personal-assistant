@@ -1,6 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import type {
-  DropFormat,
+  ContentFormat,
   ProjectPriority,
   ProjectStatus,
   Recurrence,
@@ -11,7 +11,7 @@ const db = new PrismaClient();
 /**
  * Seeds the real world as of 2026-07-30. Idempotent — every write is an upsert
  * keyed on something stable, so `npm run db:seed` is safe to re-run after a
- * schema change without wiping the drops you've since typed in.
+ * schema change without wiping the items you've since typed in.
  *
  * Handles are best guesses where I didn't have them. Edit them in Studio →
  * Channels rather than here; this file is a starting point, not the source of
@@ -243,7 +243,7 @@ const SERIES = [
  * Utaitai's non-content work, which is most of what "the project" actually is.
  * Grouped by track so the Hunt Board doesn't render one flat wall of twenty.
  *
- * Bootstrap only — see `seedMarks`. Marks get completed and deleted, so unlike
+ * Bootstrap only — see `seedMarks`. Tasks get completed and deleted, so unlike
  * everything above these are written once and never reconciled.
  */
 type SeedMark = {
@@ -323,7 +323,7 @@ const UTAITAI_MARKS: SeedMark[] = [
     track: "Marketing",
     title: "Build-in-public thread from Coding Mom about shipping Utaitai",
     notes:
-      "Different brand, same work — this is exactly the drop that carries a brand and no project.",
+      "Different brand, same work — this is exactly the item that carries a brand and no project.",
   },
 
   // ── Users ─────────────────────────────────────────────────────────────────
@@ -590,7 +590,7 @@ const CODING_MOM_MARKS: SeedMark[] = [
 /**
  * Forge — the startup Coding Mom is the on-ramp to. Simmering by design: this is
  * the destination, and the work that gets you there is the audience and the two
- * prototypes, which are already marks below.
+ * prototypes, which are already tasks below.
  *
  * The full brief lives in `docs/forge-vision.md`; these are only the next real
  * moves, so the project reads as a thing you could start on a Tuesday rather
@@ -792,7 +792,7 @@ const EVENTS: SeedEvent[] = [
 ];
 
 /**
- * Bootstrap, not reconciliation — same rule as the marks below. Events are
+ * Bootstrap, not reconciliation — same rule as the tasks below. Events are
  * seeded only into a completely empty table, because there is no stable key to
  * upsert a "Morning feed" on and re-running this must not quietly give the baby
  * two of every nap.
@@ -858,38 +858,38 @@ async function seedEvents() {
 }
 
 /**
- * Bootstrap, not reconciliation: marks are seeded only into a project that has
- * none. Upserting them would resurrect every mark you'd since completed and
+ * Bootstrap, not reconciliation: tasks are seeded only into a project that has
+ * none. Upserting them would resurrect every task you'd since completed and
  * deleted, which is the opposite of useful.
  */
-async function seedMarks(slug: string, marks: SeedMark[]) {
+async function seedMarks(slug: string, tasks: SeedMark[]) {
   const project = await db.project.findUnique({ where: { slug } });
   if (!project) return 0;
 
-  const existing = await db.mark.count({ where: { projectId: project.id } });
+  const existing = await db.task.count({ where: { projectId: project.id } });
   if (existing > 0) return 0;
 
-  await db.mark.createMany({
-    data: marks.map((mark, index) => ({
-      title: mark.title,
-      notes: mark.notes ?? null,
-      link: mark.link ?? null,
-      track: mark.track,
-      dueDate: mark.dueDate ? dateOnly(mark.dueDate) : null,
+  await db.task.createMany({
+    data: tasks.map((task, index) => ({
+      title: task.title,
+      notes: task.notes ?? null,
+      link: task.link ?? null,
+      track: task.track,
+      dueDate: task.dueDate ? dateOnly(task.dueDate) : null,
       projectId: project.id,
       areaId: project.areaId,
       sortOrder: index,
     })),
   });
 
-  return marks.length;
+  return tasks.length;
 }
 
 /**
  * Coding Mom's content bank — seven pillars, written down once so the daily
  * question is "which of these" and never "what on earth do I post today".
  *
- * These are Drops, not Marks, and stage `idea` is exactly what it's for (§6): a
+ * These are Content, not Tasks, and stage `idea` is exactly what it's for (§6): a
  * post is not binary work, it moves through produce → scheduled → published and
  * fans out to four accounts. They carry no `publishAt` and no series, so they sit
  * in the board's idea column as a bank and get pulled into a slot when their turn
@@ -902,7 +902,7 @@ async function seedMarks(slug: string, marks: SeedMark[]) {
 type SeedDrop = {
   pillar: string;
   title: string;
-  format: DropFormat;
+  format: ContentFormat;
   notes?: string;
   projectSlug?: string | null;
 };
@@ -972,7 +972,7 @@ const CODING_MOM_DROPS: SeedDrop[] = [
     title: "BLM recipe app",
     format: "short_video",
     notes:
-      "Captured verbatim from the brain-dump — expand what BLM stands for before this becomes a post. There's a mark on the Coding Mom board for it.",
+      "Captured verbatim from the brain-dump — expand what BLM stands for before this becomes a post. There's a task on the Coding Mom board for it.",
     projectSlug: null,
   },
   {
@@ -1016,7 +1016,7 @@ const CODING_MOM_DROPS: SeedDrop[] = [
     title: "My dad was kind to me and dismissive of my mom. Both are true.",
     format: "article",
     notes:
-      "Long-form first — this one needs room and a Medium essay gives it that. Cut the short version from the essay afterwards as a derived drop, not the other way round.",
+      "Long-form first — this one needs room and a Medium essay gives it that. Cut the short version from the essay afterwards as a derived item, not the other way round.",
   },
   {
     pillar: "Home truths",
@@ -1074,15 +1074,15 @@ const CODING_MOM_DROPS: SeedDrop[] = [
 
 /**
  * Bootstrap only, on the same principle as `seedMarks`: seeded once, into a brand
- * with no free-standing drops. Re-running must not resurrect an idea you looked
+ * with no free-standing items. Re-running must not resurrect an idea you looked
  * at and threw away. Series slots are excluded from the check — those are
  * generated, and they exist for Coding Mom already.
  */
-async function seedDrops(brandSlug: string, drops: SeedDrop[]) {
+async function seedDrops(brandSlug: string, items: SeedDrop[]) {
   const brand = await db.brand.findUnique({ where: { slug: brandSlug } });
   if (!brand) return 0;
 
-  const existing = await db.drop.count({
+  const existing = await db.contentItem.count({
     where: { brandId: brand.id, seriesId: null },
   });
   if (existing > 0) return 0;
@@ -1090,35 +1090,35 @@ async function seedDrops(brandSlug: string, drops: SeedDrop[]) {
   const projects = await db.project.findMany({ select: { id: true, slug: true } });
   const projectId = new Map(projects.map((p) => [p.slug, p.id]));
 
-  await db.drop.createMany({
-    data: drops.map((drop) => ({
-      title: drop.title,
+  await db.contentItem.createMany({
+    data: items.map((item) => ({
+      title: item.title,
       // There is no `pillar` column and there shouldn't be one — seven strings
       // don't earn a table. Carrying it in the notes keeps the rotation legible
       // on the card without a migration.
-      notes: [`Pillar: ${drop.pillar}`, drop.notes].filter(Boolean).join("\n\n"),
-      format: drop.format,
+      notes: [`Pillar: ${item.pillar}`, item.notes].filter(Boolean).join("\n\n"),
+      format: item.format,
       stage: "idea" as const,
       brandId: brand.id,
-      projectId: drop.projectSlug ? (projectId.get(drop.projectSlug) ?? null) : null,
+      projectId: item.projectSlug ? (projectId.get(item.projectSlug) ?? null) : null,
     })),
   });
 
-  return drops.length;
+  return items.length;
 }
 
 /**
  * The one piece of reconciliation in this file. "Create the Coding Mom TikTok
  * account" was seeded under Sleepy Cat because Coding Mom had no project to hang
  * it on; it does now, and the account chain there supersedes it. Only removed
- * while it is still untouched — a mark you have started or finished is yours.
+ * while it is still untouched — a task you have started or finished is yours.
  */
 async function reseatMarks() {
   const codingMom = await db.project.findUnique({ where: { slug: "coding-mom" } });
   const sleepyCat = await db.project.findUnique({ where: { slug: "sleepy-cat" } });
   if (!codingMom || !sleepyCat) return 0;
 
-  const { count } = await db.mark.deleteMany({
+  const { count } = await db.task.deleteMany({
     where: {
       projectId: sleepyCat.id,
       status: "open",
@@ -1131,7 +1131,7 @@ async function reseatMarks() {
   // bumping it. Restricted to *unfilled* slots — an empty title and no project is
   // the definition of untouched, and it leaves the 2026-08-02 essay (which
   // deliberately carries Sleepy Cat) exactly where it is.
-  await db.drop.updateMany({
+  await db.contentItem.updateMany({
     where: {
       title: "",
       projectId: null,
@@ -1152,7 +1152,7 @@ async function reseatMarks() {
  *
  * What goes in: everything already due inside the window (a due date is a
  * commitment the sprint has to honour, whatever else is going on), then the top
- * open marks of the `main` projects until the sprint holds eight. Eight is a
+ * open tasks of the `main` projects until the sprint holds eight. Eight is a
  * week's worth alongside a daily posting cadence and a baby; the number matters
  * far less than the fact that there *is* one.
  */
@@ -1178,14 +1178,14 @@ async function seedFirstSprint() {
     },
   });
 
-  const due = await db.mark.findMany({
+  const due = await db.task.findMany({
     where: { status: { not: "done" }, dueDate: { lte: endsOn } },
     select: { id: true },
     orderBy: [{ dueDate: "asc" }, { sortOrder: "asc" }],
   });
 
   // Round-robin across the main projects rather than straight down the sorted
-  // list. Ordering by project and taking the first five hands you five marks
+  // list. Ordering by project and taking the first five hands you five tasks
   // from whichever project sorts first, which is a week spent on one thing —
   // the opposite of what a two-main-project roster is asking for.
   const mainProjects = await db.project.findMany({
@@ -1196,7 +1196,7 @@ async function seedFirstSprint() {
 
   const queues = await Promise.all(
     mainProjects.map((project) =>
-      db.mark.findMany({
+      db.task.findMany({
         where: { status: { not: "done" }, dueDate: null, projectId: project.id },
         select: { id: true },
         orderBy: { sortOrder: "asc" },
@@ -1215,8 +1215,8 @@ async function seedFirstSprint() {
     if (filler.length === before) break; // every queue is exhausted
   }
 
-  const ids = [...due, ...filler].map((mark) => mark.id);
-  await db.mark.updateMany({
+  const ids = [...due, ...filler].map((task) => task.id);
+  await db.task.updateMany({
     where: { id: { in: ids } },
     data: { sprintId: sprint.id },
   });
@@ -1357,22 +1357,22 @@ async function main() {
     brands: await db.brand.count(),
     channels: await db.channel.count(),
     series: await db.series.count(),
-    marks: await db.mark.count(),
-    drops: await db.drop.count(),
+    tasks: await db.task.count(),
+    items: await db.contentItem.count(),
     events: await db.event.count(),
   };
   console.log("Seeded:", counts);
-  console.log(`Marks created: ${marksCreated}, ideas banked: ${dropsCreated}`);
+  console.log(`Tasks created: ${marksCreated}, ideas banked: ${dropsCreated}`);
   if (reseated > 0) {
     console.log("Moved 'Create the Coding Mom TikTok account' off Sleepy Cat.");
   }
   if (marksCreated === 0) {
-    console.log("Marks: left alone — every project already has some.");
+    console.log("Tasks: left alone — every project already has some.");
   }
   console.log(
     sprintMarks === null
       ? "Sprint: left alone — one already exists."
-      : `Sprint: created 'Week 1' with ${sprintMarks} marks.`,
+      : `Sprint: created 'Week 1' with ${sprintMarks} tasks.`,
   );
   console.log(
     eventsCreated === 0

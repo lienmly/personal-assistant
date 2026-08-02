@@ -1,8 +1,8 @@
 import type {
   ChannelPostState,
   ChannelState,
-  DropFormat,
-  DropStage,
+  ContentFormat,
+  ContentStage,
   Platform,
 } from "@prisma/client";
 
@@ -30,7 +30,7 @@ export type BrandView = {
 
 export type ProjectView = { id: string; name: string; slug: string };
 
-export type DropChannelView = {
+export type ContentChannelView = {
   id: string;
   state: ChannelPostState;
   publishedUrl: string | null;
@@ -42,17 +42,17 @@ export type DropChannelView = {
   };
 };
 
-export type DropView = {
+export type ContentView = {
   id: string;
   title: string;
   notes: string | null;
   body: string | null;
   /** The post this one is based on — the viral TikTok being reproduced. */
   refUrl: string | null;
-  format: DropFormat;
-  stage: DropStage;
+  format: ContentFormat;
+  stage: ContentStage;
   publishAt: string | null;
-  /** "YYYY-MM-DD" when this drop fills a series slot, else null. */
+  /** "YYYY-MM-DD" when this item fills a series slot, else null. */
   slotDate: string | null;
   /** Preformatted on the server. Formatting dates in the client causes a
    *  hydration mismatch — Node's ICU and the browser's disagree on separators
@@ -62,8 +62,8 @@ export type DropView = {
   brand: { id: string; name: string; slug: string; color: string };
   project: ProjectView | null;
   series: { id: string; name: string } | null;
-  sourceDropId: string | null;
-  channels: DropChannelView[];
+  sourceItemId: string | null;
+  channels: ContentChannelView[];
 };
 
 /** One row of the batch composer: a dated series slot, waiting to be filled. */
@@ -76,7 +76,7 @@ export type BatchSlotView = {
   dayLabel: string;
   isToday: boolean;
   isPast: boolean;
-  stage: DropStage;
+  stage: ContentStage;
   brandId: string;
   seriesName: string;
   channels: { id: string; platform: Platform; handle: string; label: string | null }[];

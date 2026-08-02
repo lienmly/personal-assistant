@@ -3,7 +3,7 @@ import { todayKey } from "@/lib/utils";
 
 /**
  * The sprint layer. Everything here exists to answer one question — "what am I
- * working on right now" — without the answer being "here are sixty marks".
+ * working on right now" — without the answer being "here are sixty tasks".
  *
  * The Hunt Board is the complete list and always will be. This module is the
  * committed subset that Today reads from, plus the two escape hatches for when
@@ -59,11 +59,11 @@ export async function getActiveSprint(): Promise<SprintSummary | null> {
   const sprint = await db.sprint.findFirst({
     where: { status: "active" },
     orderBy: { startsOn: "desc" },
-    include: { _count: { select: { marks: true } } },
+    include: { _count: { select: { tasks: true } } },
   });
   if (!sprint) return null;
 
-  const done = await db.mark.count({
+  const done = await db.task.count({
     where: { sprintId: sprint.id, status: "done" },
   });
 
@@ -85,7 +85,7 @@ export async function getActiveSprint(): Promise<SprintSummary | null> {
     ),
     daysLeft: daysBetweenKeys(today, endsOn),
     done,
-    total: sprint._count.marks,
+    total: sprint._count.tasks,
   };
 }
 
@@ -94,7 +94,7 @@ export type FocusReason = "doing" | "overdue" | "today" | "sprint";
 /**
  * Section 1 of Today, rewritten around the sprint.
  *
- * It is the union of two sets, not one: the sprint's open marks, *and* anything
+ * It is the union of two sets, not one: the sprint's open tasks, *and* anything
  * due today or overdue whether or not it made the sprint. A due date is a
  * promise to the outside world — "the TikTok account has to exist before the
  * warm-up week starts" doesn't stop being true because sprint planning missed
@@ -108,7 +108,7 @@ export async function getFocus(sprintId: string | null, limit = 8) {
   const today = todayKey();
   const endOfToday = new Date(`${today}T23:59:59.999Z`);
 
-  const marks = await db.mark.findMany({
+  const tasks = await db.task.findMany({
     where: {
       status: { not: "done" },
       OR: [
@@ -120,18 +120,18 @@ export async function getFocus(sprintId: string | null, limit = 8) {
     orderBy: [{ dueDate: "asc" }, { sortOrder: "asc" }],
   });
 
-  const ranked = marks
-    .map((mark) => {
-      const due = mark.dueDate ? dayKey(mark.dueDate) : null;
+  const ranked = tasks
+    .map((task) => {
+      const due = task.dueDate ? dayKey(task.dueDate) : null;
       const reason: FocusReason =
-        mark.status === "doing"
+        task.status === "doing"
           ? "doing"
           : due !== null && due < today
             ? "overdue"
             : due === today
               ? "today"
               : "sprint";
-      return { ...mark, reason };
+      return { ...task, reason };
     })
     .sort(
       (a, b) =>
@@ -140,7 +140,7 @@ export async function getFocus(sprintId: string | null, limit = 8) {
         a.sortOrder - b.sortOrder,
     );
 
-  return { marks: ranked.slice(0, limit), total: ranked.length };
+  return { tasks: ranked.slice(0, limit), total: ranked.length };
 }
 
 const RANK: Record<FocusReason, number> = {
@@ -154,14 +154,14 @@ const RANK: Record<FocusReason, number> = {
  * "I've run out of sprint — now what."
  *
  * Deliberately not the whole backlog. Two small, differently-shaped answers:
- * the next few marks from each `main` project (the pending work you'd pick up
+ * the next few tasks from each `main` project (the pending work you'd pick up
  * anyway), and the Experiments track across everything (the things you wanted
  * to try and never got to). Anything else is a trip to the Hunt Board, which is
  * a decision rather than an interruption.
  */
 export async function getUpNext(sprintId: string | null, perProject = 3) {
   const [pending, ideas] = await Promise.all([
-    db.mark.findMany({
+    db.task.findMany({
       where: {
         status: "open",
         sprintId: null,
@@ -171,7 +171,7 @@ export async function getUpNext(sprintId: string | null, perProject = 3) {
       select: focusSelect,
       orderBy: [{ project: { sortOrder: "asc" } }, { sortOrder: "asc" }],
     }),
-    db.mark.findMany({
+    db.task.findMany({
       where: { status: "open", sprintId: null, track: "Experiments" },
       select: focusSelect,
       orderBy: [{ createdAt: "desc" }],
@@ -183,26 +183,26 @@ export async function getUpNext(sprintId: string | null, perProject = 3) {
   // function but Prisma's query builder can't, and the list is small enough
   // that a LIMIT per group would be more machinery than it saves.
   const byProject = new Map<string, typeof pending>();
-  for (const mark of pending) {
-    const key = mark.project?.id ?? "none";
+  for (const task of pending) {
+    const key = task.project?.id ?? "none";
     const bucket = byProject.get(key);
     if (bucket) {
-      if (bucket.length < perProject) bucket.push(mark);
+      if (bucket.length < perProject) bucket.push(task);
     } else {
-      byProject.set(key, [mark]);
+      byProject.set(key, [task]);
     }
   }
 
   return {
-    groups: [...byProject.values()].map((marks) => ({
-      projectName: marks[0].project?.name ?? "One-offs",
-      color: marks[0].area.color,
-      marks,
+    groups: [...byProject.values()].map((tasks) => ({
+      projectName: tasks[0].project?.name ?? "One-offs",
+      color: tasks[0].area.color,
+      tasks,
     })),
     ideas,
     // What "everything else" adds up to, so the link to the Hunt Board can be
     // honest about how much it is hiding instead of pretending it's a detour.
-    backlogTotal: await db.mark.count({
+    backlogTotal: await db.task.count({
       where: {
         status: { not: "done" },
         ...(sprintId ? { sprintId: null } : {}),

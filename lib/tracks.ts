@@ -1,6 +1,6 @@
 /**
  * Workstreams within a project. Its own module, free of any `lib/db` import,
- * because the Hunt Board and the mark panel are client bundles and pulling
+ * because the Hunt Board and the task panel are client bundles and pulling
  * Prisma into one is a build error.
  *
  * Offered as datalist suggestions rather than enforced as an enum: a project
@@ -31,6 +31,6 @@ const TRACK_ORDER = new Map<string, number>(
 );
 
 export function trackRank(track: string | null): number {
-  if (!track) return TRACKS.length + 1; // untracked marks sink to the bottom
+  if (!track) return TRACKS.length + 1; // untracked tasks sink to the bottom
   return TRACK_ORDER.get(track) ?? TRACKS.length;
 }

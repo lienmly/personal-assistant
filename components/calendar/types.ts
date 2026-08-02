@@ -4,7 +4,7 @@ import type { Recurrence } from "@prisma/client";
  *  must not pull `lib/db` into the bundle. Same rule as studio/, board/ and
  *  today/. */
 
-export type CalendarKind = "event" | "mark" | "drop";
+export type CalendarKind = "event" | "task" | "item";
 
 /**
  * One thing on one day of the grid.
@@ -33,11 +33,11 @@ export type CalendarItem = {
   /** Preformatted server-side — formatting dates in the client hydrates wrong.
    *  Null for all-day items and for the continuation days of a span. */
   timeLabel: string | null;
-  /** The area's colour, or the brand's for a drop. */
+  /** The area's colour, or the brand's for a content item. */
   color: string;
   /** Project name, brand name, or the location — whatever earns the second line. */
   meta: string | null;
-  /** A ticked mark or a published drop. Rendered receded, not hidden. */
+  /** A ticked task or a published item. Rendered receded, not hidden. */
   done: boolean;
   /** Where this day sits in a multi-day span, for the rounded-end treatment. */
   span: "single" | "start" | "middle" | "end";

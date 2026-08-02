@@ -4,26 +4,26 @@ import { useTransition } from "react";
 import Link from "next/link";
 import { Check, CirclePlus, ExternalLink, Play } from "lucide-react";
 
-import type { FocusMarkView, FocusReason } from "@/components/today/types";
-import { setMarkStatus } from "@/lib/mark-actions";
-import { setMarkSprint } from "@/lib/sprint-actions";
+import type { FocusTaskView, FocusReason } from "@/components/today/types";
+import { setMarkStatus } from "@/lib/task-actions";
+import { setTaskSprint } from "@/lib/sprint-actions";
 import { cn } from "@/lib/utils";
 
 /**
  * Section 1 of Today, rebuilt around the sprint.
  *
- * It used to be "every mark with a due date", which on a board where only one
+ * It used to be "every task with a due date", which on a board where only one
  * project had due dates meant the screen was either empty or a list of one
  * project's admin. Now it is the sprint — the things actually committed to this
- * week — with due and overdue marks merged in wherever they came from, in that
+ * week — with due and overdue tasks merged in wherever they came from, in that
  * order. The order is the answer to "what do I do right now": the top row is it.
  */
 export function FocusList({
-  marks,
+  tasks,
   total,
   sprintId,
 }: {
-  marks: FocusMarkView[];
+  tasks: FocusTaskView[];
   total: number;
   /** Null when no sprint is running; the "pull into sprint" button hides. */
   sprintId: string | null;
@@ -31,22 +31,22 @@ export function FocusList({
   return (
     <>
       <div className="flex flex-col">
-        {marks.map((mark, index) => (
+        {tasks.map((task, index) => (
           <Row
-            key={mark.id}
-            mark={mark}
+            key={task.id}
+            task={task}
             sprintId={sprintId}
             delay={60 + Math.min(index, 8) * 32}
           />
         ))}
       </div>
 
-      {total > marks.length && (
+      {total > tasks.length && (
         <Link
           href="/board"
           className="mt-3 inline-block text-[12px] text-muted transition-colors duration-(--duration-quick) hover:text-ink"
         >
-          {total - marks.length} more in this sprint →
+          {total - tasks.length} more in this sprint →
         </Link>
       )}
     </>
@@ -61,11 +61,11 @@ const BADGE: Record<FocusReason, { label: string; className: string } | null> = 
 };
 
 function Row({
-  mark,
+  task,
   sprintId,
   delay,
 }: {
-  mark: FocusMarkView;
+  task: FocusTaskView;
   sprintId: string | null;
   delay: number;
 }) {
@@ -76,8 +76,8 @@ function Row({
   const [leaving, startDone] = useTransition();
   const [pending, startEdit] = useTransition();
   const busy = leaving || pending;
-  const badge = BADGE[mark.reason];
-  const doing = mark.status === "doing";
+  const badge = BADGE[task.reason];
+  const doing = task.status === "doing";
 
   // What actually removes a ticked row is the revalidated data arriving, so it
   // folds while the action is in flight rather than blinking out. Derived from
@@ -103,7 +103,7 @@ function Row({
             type="button"
             disabled={busy}
             aria-label="Mark as done"
-            onClick={() => startDone(() => setMarkStatus(mark.id, "done"))}
+            onClick={() => startDone(() => setMarkStatus(task.id, "done"))}
             className="grid size-5 shrink-0 place-items-center rounded-full bg-inset text-transparent transition-[background-color,color,transform] duration-(--duration-base) ease-soft hover:bg-good hover:text-white active:scale-90"
           >
             <Check className="size-3" strokeWidth={3} />
@@ -111,12 +111,12 @@ function Row({
 
           <span
             className="size-1.5 shrink-0 rounded-full"
-            style={{ background: mark.areaColor }}
+            style={{ background: task.areaColor }}
           />
 
           <div className="min-w-0 flex-1">
             <p className="truncate text-[13px] leading-snug text-ink">
-              {mark.title}
+              {task.title}
             </p>
             <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-faint">
               {badge && (
@@ -129,19 +129,19 @@ function Row({
                   {badge.label}
                 </span>
               )}
-              {mark.projectName && (
-                <span className="truncate">{mark.projectName}</span>
+              {task.projectName && (
+                <span className="truncate">{task.projectName}</span>
               )}
-              {mark.track && (
+              {task.track && (
                 <>
                   <span>·</span>
-                  <span>{mark.track}</span>
+                  <span>{task.track}</span>
                 </>
               )}
-              {mark.dueLabel && mark.reason === "sprint" && (
+              {task.dueLabel && task.reason === "sprint" && (
                 <>
                   <span>·</span>
-                  <span>{mark.dueLabel}</span>
+                  <span>{task.dueLabel}</span>
                 </>
               )}
             </p>
@@ -149,14 +149,14 @@ function Row({
 
           {/* Not in the sprint but due anyway — one tap to make it official,
               rather than a trip to the Hunt Board to fix the planning. */}
-          {!mark.inSprint && sprintId && (
+          {!task.inSprint && sprintId && (
             <button
               type="button"
               disabled={busy}
               aria-label="Add to the sprint"
               title="Add to the sprint"
               onClick={() =>
-                startEdit(() => setMarkSprint(mark.id, sprintId))
+                startEdit(() => setTaskSprint(task.id, sprintId))
               }
               className="shrink-0 text-faint transition-[color,transform] duration-(--duration-base) ease-soft hover:scale-110 hover:text-ink active:scale-100"
             >
@@ -173,7 +173,7 @@ function Row({
             title={doing ? "Stop working on this" : "Start working on this"}
             onClick={() =>
               startEdit(() =>
-                setMarkStatus(mark.id, doing ? "open" : "doing"),
+                setMarkStatus(task.id, doing ? "open" : "doing"),
               )
             }
             className={cn(
@@ -188,9 +188,9 @@ function Row({
             />
           </button>
 
-          {mark.link && (
+          {task.link && (
             <a
-              href={mark.link}
+              href={task.link}
               target="_blank"
               rel="noreferrer"
               aria-label="Open the linked post"

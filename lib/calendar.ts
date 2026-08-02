@@ -18,14 +18,14 @@ import { localDayKey } from "@/lib/utils";
 /**
  * The calendar layer: one grid, three sources.
  *
- * Only Events are *stored* for the calendar. A Mark's due date and a Drop's
+ * Only Events are *stored* for the calendar. A Task's due date and a ContentItem's
  * publish time are layered on at read time rather than copied into event rows —
- * a due date belongs to the Mark, and duplicating it into a second table gives
+ * a due date belongs to the Task, and duplicating it into a second table gives
  * it two places to be wrong and a synchronisation job nobody will write.
  *
  * The three sources keep their dates in three different conventions
- * (`Event.start` is a real timestamp, `Mark.dueDate` is a `@db.Date` at UTC
- * midnight, `Drop.publishAt` is a real timestamp), which is exactly the trap
+ * (`Event.start` is a real timestamp, `Task.dueDate` is a `@db.Date` at UTC
+ * midnight, `ContentItem.publishAt` is a real timestamp), which is exactly the trap
  * CLAUDE.md §6 warns about. Everything here therefore reduces each one to a
  * *local day key* the moment it is read, and the grid only ever sees keys. Three
  * conventions agreeing on which cell they land in is the whole trick.
@@ -34,7 +34,7 @@ import { localDayKey } from "@/lib/utils";
 const MINUTES_IN_DAY = 1440;
 
 /** Local midnight opening the day, and the last instant closing it. A window
- *  built any other way drops the evening's drops in a negative-offset zone. */
+ *  built any other way items the evening's items in a negative-offset zone. */
 function localStart(key: string): Date {
   const [year, month, day] = key.split("-").map(Number);
   return new Date(year, month - 1, day, 0, 0, 0, 0);
@@ -214,8 +214,8 @@ export type CalendarData = {
 /**
  * Everything landing on the given days, already bucketed and sorted.
  *
- * `kinds` exists for Today's Agenda card, which wants events only — the marks
- * are already the focus list two cards above it and the drops have their own
+ * `kinds` exists for Today's Agenda card, which wants events only — the tasks
+ * are already the focus list two cards above it and the items have their own
  * card between them, so replaying either there would be the same row three
  * times on one screen.
  */
@@ -223,7 +223,7 @@ export async function getCalendar(
   days: string[],
   options: { areaSlug?: string | null; kinds?: CalendarKind[] } = {},
 ): Promise<CalendarData> {
-  const kinds = options.kinds ?? ["event", "mark", "drop"];
+  const kinds = options.kinds ?? ["event", "task", "item"];
   const wanted = new Set(kinds);
 
   const first = days[0];
@@ -232,7 +232,7 @@ export async function getCalendar(
   const rangeEnd = localEnd(last);
   const areaWhere = options.areaSlug ? { area: { slug: options.areaSlug } } : {};
 
-  const [events, marks, drops] = await Promise.all([
+  const [events, tasks, items] = await Promise.all([
     wanted.has("event")
       ? db.event.findMany({
           where: {
@@ -263,8 +263,8 @@ export async function getCalendar(
         })
       : [],
 
-    wanted.has("mark")
-      ? db.mark.findMany({
+    wanted.has("task")
+      ? db.task.findMany({
           where: {
             ...areaWhere,
             dueDate: { gte: keyToUtc(first), lte: keyToUtc(last) },
@@ -281,8 +281,8 @@ export async function getCalendar(
         })
       : [],
 
-    wanted.has("drop")
-      ? db.drop.findMany({
+    wanted.has("item")
+      ? db.contentItem.findMany({
           where: {
             publishAt: { gte: rangeStart, lte: rangeEnd },
             ...(options.areaSlug
@@ -313,39 +313,39 @@ export async function getCalendar(
     for (const item of expandEvent(event, days)) push(item);
   }
 
-  for (const mark of marks) {
-    if (!mark.dueDate) continue;
+  for (const task of tasks) {
+    if (!task.dueDate) continue;
     push({
-      id: `mark:${mark.id}`,
-      sourceId: mark.id,
-      kind: "mark",
-      title: mark.title,
+      id: `task:${task.id}`,
+      sourceId: task.id,
+      kind: "task",
+      title: task.title,
       // The `@db.Date` read in UTC *is* the local day it stands for.
-      day: dateOnlyKey(mark.dueDate),
+      day: dateOnlyKey(task.dueDate),
       allDay: true,
       startMinutes: 0,
       endMinutes: 0,
       timeLabel: null,
-      color: mark.area.color,
-      meta: mark.project?.name ?? mark.track ?? null,
-      done: mark.status === "done",
+      color: task.area.color,
+      meta: task.project?.name ?? task.track ?? null,
+      done: task.status === "done",
       span: "single",
       repeats: false,
     });
   }
 
-  for (const drop of drops) {
-    if (!drop.publishAt) continue;
-    const at = drop.publishAt;
+  for (const item of items) {
+    if (!item.publishAt) continue;
+    const at = item.publishAt;
     const startMinutes = minutesOfDay(at);
     push({
-      id: `drop:${drop.id}`,
-      sourceId: drop.id,
-      kind: "drop",
+      id: `item:${item.id}`,
+      sourceId: item.id,
+      kind: "item",
       // An unfilled series slot has no title yet and still means something
       // real — "a short goes out at 18:00". Naming it after its series says
       // that; an empty row says the calendar is broken.
-      title: drop.title || `${drop.series?.name ?? drop.brand.name} slot`,
+      title: item.title || `${item.series?.name ?? item.brand.name} slot`,
       day: localDayKey(at),
       allDay: false,
       startMinutes,
@@ -353,9 +353,9 @@ export async function getCalendar(
       // the hour grid has something with height to draw.
       endMinutes: Math.min(startMinutes + 30, MINUTES_IN_DAY),
       timeLabel: timeLabel(at),
-      color: drop.brand.color,
-      meta: drop.project?.name ?? drop.brand.name,
-      done: drop.stage === "published",
+      color: item.brand.color,
+      meta: item.project?.name ?? item.brand.name,
+      done: item.stage === "published",
       span: "single",
       repeats: false,
     });
@@ -370,7 +370,7 @@ export async function getCalendar(
     );
   }
 
-  const counts: Record<CalendarKind, number> = { event: 0, mark: 0, drop: 0 };
+  const counts: Record<CalendarKind, number> = { event: 0, task: 0, item: 0 };
   for (const day of days) {
     for (const item of byDay[day]) counts[item.kind] += 1;
   }

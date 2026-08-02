@@ -10,31 +10,31 @@ import { setChannelState } from "@/lib/studio-actions";
 import { cn } from "@/lib/utils";
 
 /**
- * Section 2 of Today. Deliberately looks nothing like the marks above it — a
- * drop isn't a task, and a list where "post the thing" sits interleaved with
+ * Section 2 of Today. Deliberately looks nothing like the tasks above it — a
+ * item isn't a task, and a list where "post the thing" sits interleaved with
  * "ship the iOS build" is the exact mistake the two-entity split avoids.
  *
  * Each channel is its own tick, because one asset going to three places is
  * three separate acts of posting. Ticking the last one publishes the whole
- * drop and bumps its project — the same `setChannelState` the Studio panel
+ * item and bumps its project — the same `setChannelState` the Studio panel
  * calls, so the two screens can't drift apart.
  */
-export function GoingOut({ drops }: { drops: GoingOutView[] }) {
+export function GoingOut({ items }: { items: GoingOutView[] }) {
   return (
     <div className="flex flex-col gap-2">
-      {drops.map((drop) => (
-        <DropRow key={drop.id} drop={drop} />
+      {items.map((item) => (
+        <DropRow key={item.id} item={item} />
       ))}
     </div>
   );
 }
 
-function DropRow({ drop }: { drop: GoingOutView }) {
-  const posted = drop.channels.filter(
+function DropRow({ item }: { item: GoingOutView }) {
+  const posted = item.channels.filter(
     (channel) => channel.state === "published",
   ).length;
-  const allDone = posted === drop.channels.length && posted > 0;
-  const untitled = drop.title.trim() === "";
+  const allDone = posted === item.channels.length && posted > 0;
+  const untitled = item.title.trim() === "";
 
   return (
     <div
@@ -46,20 +46,20 @@ function DropRow({ drop }: { drop: GoingOutView }) {
       <div className="flex items-center gap-2">
         <span
           className="size-1.5 shrink-0 rounded-full"
-          style={{ background: drop.brandColor }}
+          style={{ background: item.brandColor }}
         />
         <span className="text-[11px] font-medium text-muted">
-          {drop.brandName}
+          {item.brandName}
         </span>
-        <span className="text-[11px] text-faint">{drop.timeLabel}</span>
-        {drop.channels.length > 0 && (
+        <span className="text-[11px] text-faint">{item.timeLabel}</span>
+        {item.channels.length > 0 && (
           <span
             className={cn(
               "ml-auto text-[11px] font-medium tabular-nums",
               allDone ? "text-good" : "text-faint",
             )}
           >
-            {posted}/{drop.channels.length}
+            {posted}/{item.channels.length}
           </span>
         )}
       </div>
@@ -71,19 +71,19 @@ function DropRow({ drop }: { drop: GoingOutView }) {
         )}
       >
         {untitled
-          ? drop.seriesName
-            ? `${drop.seriesName} — nothing written yet`
+          ? item.seriesName
+            ? `${item.seriesName} — nothing written yet`
             : "Untitled"
-          : drop.title}
+          : item.title}
       </p>
 
-      {drop.projectName && (
-        <p className="mt-0.5 text-[11px] text-faint">{drop.projectName}</p>
+      {item.projectName && (
+        <p className="mt-0.5 text-[11px] text-faint">{item.projectName}</p>
       )}
 
-      {drop.channels.length > 0 ? (
+      {item.channels.length > 0 ? (
         <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-          {drop.channels.map((channel) => (
+          {item.channels.map((channel) => (
             <ChannelTick key={channel.id} channel={channel} />
           ))}
         </div>
@@ -99,7 +99,7 @@ function DropRow({ drop }: { drop: GoingOutView }) {
   );
 }
 
-/** Tap the badge to mark that one channel posted. Tapping again undoes it. */
+/** Tap the badge to task that one channel posted. Tapping again undoes it. */
 function ChannelTick({ channel }: { channel: GoingOutChannelView }) {
   const [pending, startTransition] = useTransition();
   const done = channel.state === "published";
@@ -116,7 +116,7 @@ function ChannelTick({ channel }: { channel: GoingOutChannelView }) {
       type="button"
       disabled={pending}
       onClick={toggle}
-      aria-label={`${done ? "Un-mark" : "Mark"} @${channel.handle} as posted`}
+      aria-label={`${done ? "Unmark" : "Mark"} @${channel.handle} as posted`}
       className={cn(
         "flex items-center gap-1.5 rounded-chip py-1 pl-1 pr-2.5 text-[11px] transition-[background-color,color,transform] duration-(--duration-base) ease-soft active:scale-[0.97] disabled:opacity-45",
         done

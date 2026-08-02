@@ -23,7 +23,7 @@ const dayFormat = new Intl.DateTimeFormat("en-GB", {
  * time (CLAUDE.md §6, "Dates are a trap here").
  */
 export async function getRoster() {
-  const [projects, openMarks] = await Promise.all([
+  const [projects, openTasks] = await Promise.all([
     db.project.findMany({
       orderBy: [
         { priority: "asc" },
@@ -32,10 +32,10 @@ export async function getRoster() {
       ],
       include: {
         area: { select: { name: true, color: true } },
-        _count: { select: { drops: true } },
+        _count: { select: { items: true } },
       },
     }),
-    db.mark.groupBy({
+    db.task.groupBy({
       by: ["projectId"],
       where: { status: { not: "done" }, projectId: { not: null } },
       _count: { _all: true },
@@ -43,7 +43,7 @@ export async function getRoster() {
   ]);
 
   const openByProject = new Map(
-    openMarks.map((row) => [row.projectId, row._count._all]),
+    openTasks.map((row) => [row.projectId, row._count._all]),
   );
 
   return projects.map((project) => {
@@ -71,8 +71,8 @@ export async function getRoster() {
         project.status === "active" &&
         project.cadenceDays !== null &&
         idle > project.cadenceDays,
-      openMarks: openByProject.get(project.id) ?? 0,
-      drops: project._count.drops,
+      openTasks: openByProject.get(project.id) ?? 0,
+      items: project._count.items,
     };
   });
 }
@@ -90,7 +90,7 @@ export async function getRoster() {
  * instead of removing it.
  */
 export async function getMomentum() {
-  const [projects, openMarks] = await Promise.all([
+  const [projects, openTasks] = await Promise.all([
     db.project.findMany({
       where: { status: { in: ["active", "simmering"] } },
       select: {
@@ -104,7 +104,7 @@ export async function getMomentum() {
         area: { select: { name: true, color: true } },
       },
     }),
-    db.mark.groupBy({
+    db.task.groupBy({
       by: ["projectId"],
       where: { status: { not: "done" }, projectId: { not: null } },
       _count: { _all: true },
@@ -112,7 +112,7 @@ export async function getMomentum() {
   ]);
 
   const openByProject = new Map(
-    openMarks.map((row) => [row.projectId, row._count._all]),
+    openTasks.map((row) => [row.projectId, row._count._all]),
   );
 
   return projects
@@ -121,7 +121,7 @@ export async function getMomentum() {
       return {
         ...project,
         idle,
-        openMarks: openByProject.get(project.id) ?? 0,
+        openTasks: openByProject.get(project.id) ?? 0,
         // Only an *active* project can drift. Demoting to simmering is the
         // whole escape hatch — if the warning survived it, "let it simmer"
         // would relieve nothing and the nagging would be unquittable, which is

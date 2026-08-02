@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import type { MarkStatus } from "@prisma/client";
+import type { TaskStatus } from "@prisma/client";
 
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -36,16 +36,16 @@ function dateOnly(value: string | null): Date | null {
   return new Date(Date.UTC(year, month - 1, day));
 }
 
-export async function saveMark(form: FormData) {
+export async function saveTask(form: FormData) {
   await requireSession();
 
   const id = str(form, "id");
   const title = str(form, "title");
-  if (!title) throw new Error("A mark needs a title");
+  if (!title) throw new Error("A task needs a title");
 
   const projectId = str(form, "projectId");
 
-  // A mark always carries an area, even when it hangs off a project — that's
+  // A task always carries an area, even when it hangs off a project — that's
   // what a floating one-off needs, and what supplies the colour. When there is
   // a project, its area wins, so the two can never disagree.
   let areaId = str(form, "areaId");
@@ -56,10 +56,10 @@ export async function saveMark(form: FormData) {
     });
     areaId = project.areaId;
   }
-  if (!areaId) throw new Error("A mark needs a project or an area");
+  if (!areaId) throw new Error("A task needs a project or an area");
 
-  // Only written when the form actually carries the field. The mark panel
-  // always does; anything else that saves a mark must not silently pull it out
+  // Only written when the form actually carries the field. The task panel
+  // always does; anything else that saves a task must not silently pull it out
   // of the sprint just by not knowing sprints exist.
   const sprint = form.has("sprintId")
     ? { sprintId: str(form, "sprintId") }
@@ -70,41 +70,41 @@ export async function saveMark(form: FormData) {
     notes: str(form, "notes"),
     link: str(form, "link"),
     track: str(form, "track"),
-    status: (str(form, "status") ?? "open") as MarkStatus,
+    status: (str(form, "status") ?? "open") as TaskStatus,
     dueDate: dateOnly(str(form, "dueDate")),
     projectId,
     areaId,
     ...sprint,
   };
 
-  const mark = id
-    ? await db.mark.update({ where: { id }, data })
-    : await db.mark.create({ data });
+  const task = id
+    ? await db.task.update({ where: { id }, data })
+    : await db.task.create({ data });
 
   refresh();
-  return mark.id;
+  return task.id;
 }
 
 /**
- * The whole point of the board. Completing a mark bumps its project's
- * `lastTouchedAt` — the same signal publishing a Drop sends — so section 4 of
+ * The whole point of the board. Completing a task bumps its project's
+ * `lastTouchedAt` — the same signal publishing a ContentItem sends — so section 4 of
  * Today measures real movement rather than just posting volume.
  */
 export async function setMarkStatus(markId: string, status: string) {
   await requireSession();
 
   await db.$transaction(async (tx) => {
-    const mark = await tx.mark.update({
+    const task = await tx.task.update({
       where: { id: markId },
       data: {
-        status: status as MarkStatus,
+        status: status as TaskStatus,
         completedAt: status === "done" ? new Date() : null,
       },
     });
 
-    if (status === "done" && mark.projectId) {
+    if (status === "done" && task.projectId) {
       await tx.project.update({
-        where: { id: mark.projectId },
+        where: { id: task.projectId },
         data: { lastTouchedAt: new Date() },
       });
     }
@@ -113,9 +113,9 @@ export async function setMarkStatus(markId: string, status: string) {
   refresh();
 }
 
-export async function deleteMark(markId: string) {
+export async function deleteTask(markId: string) {
   await requireSession();
-  await db.mark.delete({ where: { id: markId } });
+  await db.task.delete({ where: { id: markId } });
   refresh();
 }
 
@@ -142,7 +142,7 @@ export async function captureExperiment(form: FormData) {
   const areaId = project?.areaId ?? str(form, "areaId");
   if (!areaId) throw new Error("Pick a project or an area");
 
-  await db.mark.create({
+  await db.task.create({
     data: { title, link, projectId, areaId, track: "Experiments" },
   });
 

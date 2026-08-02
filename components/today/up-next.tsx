@@ -4,8 +4,8 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { ExternalLink, Lightbulb, Plus } from "lucide-react";
 
-import type { NextGroupView, NextMarkView } from "@/components/today/types";
-import { setMarkSprint } from "@/lib/sprint-actions";
+import type { NextGroupView, NextTaskView } from "@/components/today/types";
+import { setTaskSprint } from "@/lib/sprint-actions";
 import { cn } from "@/lib/utils";
 
 /**
@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
  * The other half of the answer to the overwhelm problem. The sprint keeps the
  * top of the screen short; this keeps the bottom of it *useful*, so running out
  * of committed work leads somewhere specific instead of back to a wall of sixty
- * rows. Two shapes, because they are two different moods: the next few marks on
+ * rows. Two shapes, because they are two different moods: the next few tasks on
  * the projects that matter, and the ideas you meant to try and never did.
  *
  * Collapsed by default. It is deliberately not competing with the focus list —
@@ -27,7 +27,7 @@ export function UpNext({
   sprintId,
 }: {
   groups: NextGroupView[];
-  ideas: NextMarkView[];
+  ideas: NextTaskView[];
   backlogTotal: number;
   sprintId: string | null;
 }) {
@@ -69,8 +69,8 @@ export function UpNext({
                 </h3>
               </div>
               <div className="flex flex-col">
-                {group.marks.map((mark) => (
-                  <Row key={mark.id} mark={mark} sprintId={sprintId} />
+                {group.tasks.map((task) => (
+                  <Row key={task.id} task={task} sprintId={sprintId} />
                 ))}
               </div>
             </div>
@@ -88,8 +88,8 @@ export function UpNext({
                 </h3>
               </div>
               <div className="flex flex-col">
-                {ideas.map((mark) => (
-                  <Row key={mark.id} mark={mark} sprintId={sprintId} />
+                {ideas.map((task) => (
+                  <Row key={task.id} task={task} sprintId={sprintId} />
                 ))}
               </div>
             </div>
@@ -115,10 +115,10 @@ export function UpNext({
 }
 
 function Row({
-  mark,
+  task,
   sprintId,
 }: {
-  mark: NextMarkView;
+  task: NextTaskView;
   sprintId: string | null;
 }) {
   const [pending, startTransition] = useTransition();
@@ -131,12 +131,12 @@ function Row({
       )}
     >
       <p className="min-w-0 flex-1 truncate text-[13px] leading-snug text-muted">
-        {mark.title}
+        {task.title}
       </p>
 
-      {mark.link && (
+      {task.link && (
         <a
-          href={mark.link}
+          href={task.link}
           target="_blank"
           rel="noreferrer"
           aria-label="Open the linked post"
@@ -155,7 +155,7 @@ function Row({
           disabled={pending}
           aria-label="Pull into the sprint"
           title="Pull into the sprint"
-          onClick={() => startTransition(() => setMarkSprint(mark.id, sprintId))}
+          onClick={() => startTransition(() => setTaskSprint(task.id, sprintId))}
           className="shrink-0 rounded-chip bg-inset px-2 py-1 text-[11px] text-muted transition-[opacity,color] duration-(--duration-quick) hover:text-ink focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
         >
           <Plus className="size-3" strokeWidth={2.4} />

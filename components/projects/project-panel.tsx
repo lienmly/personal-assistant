@@ -139,7 +139,7 @@ export function ProjectPanel({
               </select>
               {project && (
                 <p className="mt-1.5 text-[12px] leading-relaxed text-faint">
-                  Moving this takes its marks with it — they carry the area too.
+                  Moving this takes its tasks with it — they carry the area too.
                 </p>
               )}
             </div>

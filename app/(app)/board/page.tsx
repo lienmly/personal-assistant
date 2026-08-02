@@ -1,9 +1,9 @@
 import { HuntBoard } from "@/components/board/hunt-board";
-import type { MarkView } from "@/components/board/types";
+import type { TaskView } from "@/components/board/types";
 import type { SprintView } from "@/components/sprint/types";
 import { SurfaceHeader } from "@/components/ui/surface-header";
 import { db } from "@/lib/db";
-import { getHuntBoard } from "@/lib/marks";
+import { getHuntBoard } from "@/lib/tasks";
 import { getActiveSprint } from "@/lib/sprints";
 import { todayKey } from "@/lib/utils";
 
@@ -20,7 +20,7 @@ const dueFormat = new Intl.DateTimeFormat("en-GB", {
 });
 
 export default async function BoardPage() {
-  const [{ marks, projects, areas }, sprint, sprintCount] = await Promise.all([
+  const [{ tasks, projects, areas }, sprint, sprintCount] = await Promise.all([
     getHuntBoard(),
     getActiveSprint(),
     db.sprint.count(),
@@ -28,33 +28,33 @@ export default async function BoardPage() {
 
   const today = todayKey();
 
-  const markViews: MarkView[] = marks.map((mark) => {
+  const taskViews: TaskView[] = tasks.map((task) => {
     // `@db.Date` comes back as UTC midnight; slicing the ISO string is the only
     // read that doesn't shift the day in a negative-offset zone.
-    const dueDate = mark.dueDate?.toISOString().slice(0, 10) ?? null;
+    const dueDate = task.dueDate?.toISOString().slice(0, 10) ?? null;
     return {
-      id: mark.id,
-      title: mark.title,
-      notes: mark.notes,
-      link: mark.link,
-      track: mark.track,
-      status: mark.status,
+      id: task.id,
+      title: task.title,
+      notes: task.notes,
+      link: task.link,
+      track: task.track,
+      status: task.status,
       dueDate,
-      dueLabel: mark.dueDate
+      dueLabel: task.dueDate
         ? dueDate === today
           ? "Today"
-          : dueFormat.format(mark.dueDate)
+          : dueFormat.format(task.dueDate)
         : null,
       overdue: dueDate !== null && dueDate < today,
-      sprintId: mark.sprintId,
-      projectId: mark.projectId,
-      areaId: mark.areaId,
+      sprintId: task.sprintId,
+      projectId: task.projectId,
+      areaId: task.areaId,
     };
   });
 
-  const open = markViews.filter((mark) => mark.status !== "done").length;
-  const committed = markViews.filter(
-    (mark) => mark.status !== "done" && mark.sprintId === (sprint?.id ?? null),
+  const open = taskViews.filter((task) => task.status !== "done").length;
+  const committed = taskViews.filter(
+    (task) => task.status !== "done" && task.sprintId === (sprint?.id ?? null),
   ).length;
 
   // Experiments are captured against whichever project is running the content
@@ -76,7 +76,7 @@ export default async function BoardPage() {
       />
 
       <HuntBoard
-        marks={markViews}
+        tasks={taskViews}
         projects={projects}
         areas={areas}
         sprint={sprintView}

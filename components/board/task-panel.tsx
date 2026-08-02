@@ -3,9 +3,9 @@
 import { useEffect, useState, useTransition } from "react";
 import { Check, ExternalLink, Trash2, X } from "lucide-react";
 
-import type { AreaView, BoardProjectView, MarkView } from "@/components/board/types";
+import type { AreaView, BoardProjectView, TaskView } from "@/components/board/types";
 import type { SprintView } from "@/components/sprint/types";
-import { deleteMark, saveMark } from "@/lib/mark-actions";
+import { deleteTask, saveTask } from "@/lib/task-actions";
 import { TRACKS } from "@/lib/tracks";
 import { cn } from "@/lib/utils";
 
@@ -14,15 +14,15 @@ const field =
 const labelCls =
   "mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.08em] text-faint";
 
-export function MarkPanel({
-  mark,
+export function TaskPanel({
+  task,
   projects,
   areas,
   sprint,
   defaults,
   onClose,
 }: {
-  mark: MarkView | null;
+  task: TaskView | null;
   projects: BoardProjectView[];
   areas: AreaView[];
   /** The running sprint, or null — the commit toggle hides without one. */
@@ -32,12 +32,12 @@ export function MarkPanel({
 }) {
   const [pending, startTransition] = useTransition();
   const [projectId, setProjectId] = useState(
-    mark?.projectId ?? defaults?.projectId ?? "",
+    task?.projectId ?? defaults?.projectId ?? "",
   );
-  // A new mark starts *out* of the sprint. Everything you write down landing
+  // A new task starts *out* of the sprint. Everything you write down landing
   // straight in this week's commitment is how the sprint stops being one.
   const [committed, setCommitted] = useState(
-    sprint !== null && mark?.sprintId === sprint.id,
+    sprint !== null && task?.sprintId === sprint.id,
   );
   const [error, setError] = useState<string | null>(null);
   const [closing, setClosing] = useState(false);
@@ -57,7 +57,7 @@ export function MarkPanel({
     setError(null);
     startTransition(async () => {
       try {
-        await saveMark(form);
+        await saveTask(form);
         dismiss();
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : "Could not save");
@@ -88,7 +88,7 @@ export function MarkPanel({
       >
         <div className="flex items-center justify-between px-5 py-4">
           <h2 className="text-[15px] font-semibold tracking-tight text-ink">
-            {mark ? "Edit mark" : "New mark"}
+            {task ? "Edit task" : "New task"}
           </h2>
           <button
             type="button"
@@ -101,17 +101,17 @@ export function MarkPanel({
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 pb-8">
-          <form id="mark-form" onSubmit={submit} className="space-y-4">
-            {mark && <input type="hidden" name="id" value={mark.id} />}
+          <form id="task-form" onSubmit={submit} className="space-y-4">
+            {task && <input type="hidden" name="id" value={task.id} />}
 
             <div>
-              <label className={labelCls} htmlFor="mark-title">
+              <label className={labelCls} htmlFor="task-title">
                 What needs doing
               </label>
               <input
-                id="mark-title"
+                id="task-title"
                 name="title"
-                defaultValue={mark?.title ?? ""}
+                defaultValue={task?.title ?? ""}
                 placeholder="Ship the iOS build to TestFlight"
                 autoFocus
                 className={field}
@@ -120,11 +120,11 @@ export function MarkPanel({
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className={labelCls} htmlFor="mark-project">
+                <label className={labelCls} htmlFor="task-project">
                   Project
                 </label>
                 <select
-                  id="mark-project"
+                  id="task-project"
                   name="projectId"
                   value={projectId}
                   onChange={(event) => setProjectId(event.target.value)}
@@ -140,18 +140,18 @@ export function MarkPanel({
               </div>
 
               <div>
-                <label className={labelCls} htmlFor="mark-track">
+                <label className={labelCls} htmlFor="task-track">
                   Track
                 </label>
                 <input
-                  id="mark-track"
+                  id="task-track"
                   name="track"
-                  list="mark-tracks"
-                  defaultValue={mark?.track ?? defaults?.track ?? ""}
+                  list="task-tracks"
+                  defaultValue={task?.track ?? defaults?.track ?? ""}
                   placeholder="Ship"
                   className={field}
                 />
-                <datalist id="mark-tracks">
+                <datalist id="task-tracks">
                   {TRACKS.map((track) => (
                     <option key={track} value={track} />
                   ))}
@@ -159,18 +159,18 @@ export function MarkPanel({
               </div>
             </div>
 
-            {/* Only asked for when there's no project to inherit from — a mark
+            {/* Only asked for when there's no project to inherit from — a task
                 with a project takes that project's area, so showing both would
                 offer a choice the server is going to overrule. */}
             {!projectId && (
               <div>
-                <label className={labelCls} htmlFor="mark-area">
+                <label className={labelCls} htmlFor="task-area">
                   Area
                 </label>
                 <select
-                  id="mark-area"
+                  id="task-area"
                   name="areaId"
-                  defaultValue={mark?.areaId ?? areas[0]?.id ?? ""}
+                  defaultValue={task?.areaId ?? areas[0]?.id ?? ""}
                   className={field}
                 >
                   {areas.map((area) => (
@@ -184,25 +184,25 @@ export function MarkPanel({
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className={labelCls} htmlFor="mark-due">
+                <label className={labelCls} htmlFor="task-due">
                   Due
                 </label>
                 <input
-                  id="mark-due"
+                  id="task-due"
                   type="date"
                   name="dueDate"
-                  defaultValue={mark?.dueDate ?? ""}
+                  defaultValue={task?.dueDate ?? ""}
                   className={field}
                 />
               </div>
               <div>
-                <label className={labelCls} htmlFor="mark-status">
+                <label className={labelCls} htmlFor="task-status">
                   Status
                 </label>
                 <select
-                  id="mark-status"
+                  id="task-status"
                   name="status"
-                  defaultValue={mark?.status ?? "open"}
+                  defaultValue={task?.status ?? "open"}
                   className={field}
                 >
                   <option value="open">Open</option>
@@ -247,22 +247,22 @@ export function MarkPanel({
             )}
 
             <div>
-              <label className={labelCls} htmlFor="mark-link">
+              <label className={labelCls} htmlFor="task-link">
                 Link
               </label>
               <div className="flex items-center gap-2">
                 <input
-                  id="mark-link"
+                  id="task-link"
                   name="link"
                   type="url"
                   inputMode="url"
-                  defaultValue={mark?.link ?? ""}
+                  defaultValue={task?.link ?? ""}
                   placeholder="https://tiktok.com/@…/video/…"
                   className={field}
                 />
-                {mark?.link && (
+                {task?.link && (
                   <a
-                    href={mark.link}
+                    href={task.link}
                     target="_blank"
                     rel="noreferrer"
                     aria-label="Open link"
@@ -279,14 +279,14 @@ export function MarkPanel({
             </div>
 
             <div>
-              <label className={labelCls} htmlFor="mark-notes">
+              <label className={labelCls} htmlFor="task-notes">
                 Notes
               </label>
               <textarea
-                id="mark-notes"
+                id="task-notes"
                 name="notes"
                 rows={4}
-                defaultValue={mark?.notes ?? ""}
+                defaultValue={task?.notes ?? ""}
                 placeholder="What makes it work, what to try, what's blocking it."
                 className={cn(field, "resize-y")}
               />
@@ -299,13 +299,13 @@ export function MarkPanel({
             )}
           </form>
 
-          {mark && (
+          {task && (
             <button
               type="button"
               disabled={pending}
               onClick={() =>
                 startTransition(async () => {
-                  await deleteMark(mark.id);
+                  await deleteTask(task.id);
                   dismiss();
                 })
               }
@@ -315,7 +315,7 @@ export function MarkPanel({
                 className="size-3.5 transition-transform duration-(--duration-base) ease-soft group-hover:-rotate-12"
                 strokeWidth={1.8}
               />
-              Delete this mark
+              Delete this task
             </button>
           )}
         </div>
@@ -330,11 +330,11 @@ export function MarkPanel({
           </button>
           <button
             type="submit"
-            form="mark-form"
+            form="task-form"
             disabled={pending}
             className="rounded-chip bg-accent px-4 py-2 text-[13px] font-medium text-white transition-[background-color,transform,opacity] duration-(--duration-base) ease-soft hover:bg-accent-hover active:scale-[0.97] disabled:opacity-50"
           >
-            {pending ? "Saving…" : "Save mark"}
+            {pending ? "Saving…" : "Save task"}
           </button>
         </div>
       </div>

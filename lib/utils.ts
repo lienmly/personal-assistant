@@ -8,7 +8,7 @@
  * so this is the string they must be compared against.
  *
  * The calendar (Phase 4) leans on this hard: every item on the grid — an event
- * occurrence, a mark's due date, a drop's publish time — is placed by reducing
+ * occurrence, a task's due date, a content item's publish time — is placed by reducing
  * it to one of these keys. Three sources with three different date conventions
  * agreeing on which *cell* they land in is the whole trick.
  */

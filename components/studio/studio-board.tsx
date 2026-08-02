@@ -5,43 +5,43 @@ import { ChevronRight, Plus } from "lucide-react";
 
 import { ChannelBadge } from "@/components/studio/channel-badge";
 import { DailyQueue } from "@/components/studio/daily-queue";
-import { DropPanel } from "@/components/studio/drop-panel";
+import { ContentPanel } from "@/components/studio/content-panel";
 import type {
   BrandView,
-  DropView,
+  ContentView,
   ProjectView,
 } from "@/components/studio/types";
 import { FORMATS, STAGES } from "@/lib/platforms";
-import { moveDrop } from "@/lib/studio-actions";
+import { moveContentItem } from "@/lib/studio-actions";
 import { cn } from "@/lib/utils";
 
 export function StudioBoard({
-  drops,
+  items,
   brands,
   projects,
   todayKey,
 }: {
-  drops: DropView[];
+  items: ContentView[];
   brands: BrandView[];
   projects: ProjectView[];
   todayKey: string;
 }) {
   const [brandFilter, setBrandFilter] = useState<string | null>(null);
   const [panel, setPanel] = useState<
-    { mode: "new" } | { mode: "edit"; drop: DropView } | null
+    { mode: "new" } | { mode: "edit"; item: ContentView } | null
   >(null);
 
   const visible = useMemo(
     () =>
-      brandFilter ? drops.filter((d) => d.brand.id === brandFilter) : drops,
-    [drops, brandFilter],
+      brandFilter ? items.filter((d) => d.brand.id === brandFilter) : items,
+    [items, brandFilter],
   );
 
   // Series slots are the daily cadence; they live in the queue strip above.
   // Leaving them in the columns would mean ~28 identical empty cards drowning
-  // the handful of drops that were actually thought up.
-  const queued = visible.filter((drop) => drop.slotDate !== null);
-  const board = visible.filter((drop) => drop.slotDate === null);
+  // the handful of items that were actually thought up.
+  const queued = visible.filter((item) => item.slotDate !== null);
+  const board = visible.filter((item) => item.slotDate === null);
 
   const goingOutToday = visible.filter(
     (d) => d.isToday && d.stage !== "published",
@@ -74,7 +74,7 @@ export function StudioBoard({
           className="ml-auto flex items-center gap-1.5 rounded-chip bg-accent px-3.5 py-2 text-[13px] font-medium text-white transition-[background-color,transform] duration-(--duration-base) ease-soft hover:bg-accent-hover active:scale-[0.97]"
         >
           <Plus className="size-3.5" strokeWidth={2.4} />
-          New drop
+          New item
         </button>
       </div>
 
@@ -86,15 +86,15 @@ export function StudioBoard({
       )}
 
       <DailyQueue
-        drops={queued}
+        items={queued}
         todayKey={todayKey}
-        onOpen={(drop) => setPanel({ mode: "edit", drop })}
+        onOpen={(item) => setPanel({ mode: "edit", item })}
       />
 
       <div className="-mx-4 overflow-x-auto px-4 pb-3 md:mx-0 md:px-0">
         <div className="flex min-w-max gap-4">
           {STAGES.map((stage, stageIndex) => {
-            const column = board.filter((drop) => drop.stage === stage.id);
+            const column = board.filter((item) => item.stage === stage.id);
             return (
               <div
                 key={stage.id}
@@ -116,15 +116,15 @@ export function StudioBoard({
                 </div>
 
                 <div className="flex min-h-[180px] flex-1 flex-col gap-2">
-                  {column.map((drop, cardIndex) => (
-                    <DropCard
-                      key={drop.id}
-                      drop={drop}
+                  {column.map((item, cardIndex) => (
+                    <ContentCard
+                      key={item.id}
+                      item={item}
                       /* Cards are keyed on id, so this replays whenever a card
                          genuinely mounts — filtering by brand, or arriving in a
                          new column after a stage move — and not on re-render. */
                       delayMs={stageIndex * 45 + cardIndex * 35}
-                      onOpen={() => setPanel({ mode: "edit", drop })}
+                      onOpen={() => setPanel({ mode: "edit", item })}
                     />
                   ))}
 
@@ -145,8 +145,8 @@ export function StudioBoard({
       </div>
 
       {panel && (
-        <DropPanel
-          drop={panel.mode === "edit" ? panel.drop : null}
+        <ContentPanel
+          item={panel.mode === "edit" ? panel.item : null}
           brands={brands}
           projects={projects}
           defaultBrandId={brandFilter ?? undefined}
@@ -193,21 +193,21 @@ function FilterChip({
   );
 }
 
-function DropCard({
-  drop,
+function ContentCard({
+  item,
   delayMs,
   onOpen,
 }: {
-  drop: DropView;
+  item: ContentView;
   delayMs: number;
   onOpen: () => void;
 }) {
   const [pending, startTransition] = useTransition();
 
-  const stageIndex = STAGES.findIndex((stage) => stage.id === drop.stage);
+  const stageIndex = STAGES.findIndex((stage) => stage.id === item.stage);
   const next = STAGES[stageIndex + 1];
-  const untitled = drop.title.trim() === "";
-  const postedCount = drop.channels.filter(
+  const untitled = item.title.trim() === "";
+  const postedCount = item.channels.filter(
     (row) => row.state === "published",
   ).length;
 
@@ -233,14 +233,14 @@ function DropCard({
         <div className="mb-1.5 flex items-center gap-1.5">
           <span
             className="size-1.5 shrink-0 rounded-full"
-            style={{ background: drop.brand.color }}
+            style={{ background: item.brand.color }}
           />
           <span className="truncate text-[11px] font-medium text-muted">
-            {drop.brand.name}
+            {item.brand.name}
           </span>
-          {drop.sourceDropId && (
+          {item.sourceItemId && (
             <span
-              title="Repurposed from another drop"
+              title="Repurposed from another piece"
               className="text-[11px] text-faint"
             >
               ↳
@@ -255,33 +255,33 @@ function DropCard({
           )}
         >
           {untitled
-            ? drop.series
-              ? `${drop.series.name} — empty slot`
+            ? item.series
+              ? `${item.series.name} — empty slot`
               : "Untitled"
-            : drop.title}
+            : item.title}
         </p>
 
         <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-faint">
-          <span>{FORMATS[drop.format].label}</span>
-          {drop.project && (
+          <span>{FORMATS[item.format].label}</span>
+          {item.project && (
             <>
               <span>·</span>
-              <span className="truncate">{drop.project.name}</span>
+              <span className="truncate">{item.project.name}</span>
             </>
           )}
-          {drop.publishLabel && (
+          {item.publishLabel && (
             <>
               <span>·</span>
-              <span className={cn(drop.isToday && "font-medium text-accent")}>
-                {drop.isToday ? "Today" : drop.publishLabel}
+              <span className={cn(item.isToday && "font-medium text-accent")}>
+                {item.isToday ? "Today" : item.publishLabel}
               </span>
             </>
           )}
         </div>
 
-        {drop.channels.length > 0 && (
+        {item.channels.length > 0 && (
           <div className="mt-2.5 flex items-center gap-1">
-            {drop.channels.map((row) => (
+            {item.channels.map((row) => (
               <ChannelBadge
                 key={row.id}
                 platform={row.channel.platform}
@@ -291,9 +291,9 @@ function DropCard({
                 skipped={row.state === "skipped"}
               />
             ))}
-            {postedCount > 0 && postedCount < drop.channels.length && (
+            {postedCount > 0 && postedCount < item.channels.length && (
               <span className="ml-0.5 text-[10px] text-faint">
-                {postedCount}/{drop.channels.length}
+                {postedCount}/{item.channels.length}
               </span>
             )}
           </div>
@@ -304,7 +304,7 @@ function DropCard({
         <button
           type="button"
           disabled={pending}
-          onClick={() => startTransition(() => moveDrop(drop.id, next.id))}
+          onClick={() => startTransition(() => moveContentItem(item.id, next.id))}
           className="group/next mt-2 flex w-full items-center justify-center gap-1 rounded-chip py-1 text-[11px] text-faint opacity-0 transition-[opacity,background-color,color] duration-(--duration-base) ease-soft hover:bg-inset hover:text-ink group-hover:opacity-100 disabled:opacity-40 max-md:opacity-100"
         >
           {next.label}

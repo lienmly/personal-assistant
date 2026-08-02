@@ -99,7 +99,7 @@ export default async function CalendarPage({
     <>
       <SurfaceHeader
         title="Calendar"
-        tagline="Events, mark due dates and drop publish times layered on one timeline."
+        tagline="Events, task due dates and content publish times layered on one timeline."
         meta={periodLabel}
       />
 

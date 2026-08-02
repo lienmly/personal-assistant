@@ -92,7 +92,7 @@ export function ProjectsRoster({
             body={
               filter
                 ? "Clear the filter to see the rest of the roster."
-                : "A project is the thing you're actually pushing forward. Every mark and every drop hangs off one, and each carries a last-touched date so the quiet ones can't hide."
+                : "A project is the thing you're actually pushing forward. Every task and every piece of content hangs off one, and each carries a last-touched date so the quiet ones can't hide."
             }
             className="py-16"
           />
@@ -133,11 +133,11 @@ export function ProjectsRoster({
 
               <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-faint">
                 <span>
-                  {project.openMarks} open{" "}
-                  {project.openMarks === 1 ? "mark" : "marks"}
+                  {project.openTasks} open{" "}
+                  {project.openTasks === 1 ? "task" : "tasks"}
                 </span>
                 <span>·</span>
-                <span>{project.drops} drops</span>
+                <span>{project.items} items</span>
                 <span>·</span>
                 <span
                   className={

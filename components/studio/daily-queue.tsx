@@ -5,36 +5,36 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
 import { ChannelBadge } from "@/components/studio/channel-badge";
-import type { DropView } from "@/components/studio/types";
+import type { ContentView } from "@/components/studio/types";
 import { cn } from "@/lib/utils";
 
 /**
  * The daily cadence, collapsed.
  *
  * Two accounts posting daily generate ~28 slots inside the board's horizon. As
- * cards they bury every one-off drop in the Idea column and make the pipeline
+ * cards they bury every one-off item in the Idea column and make the pipeline
  * unreadable — so the whole series cadence lives here instead, one dot per day,
- * and the columns are left to the drops that were actually thought up.
+ * and the columns are left to the items that were actually thought up.
  *
- * A dot is still a drop: clicking one opens the same panel a card would.
+ * A dot is still a content item: clicking one opens the same panel a card would.
  */
 export function DailyQueue({
-  drops,
+  items,
   todayKey,
   onOpen,
 }: {
-  drops: DropView[];
+  items: ContentView[];
   /** "YYYY-MM-DD", computed on the server so past/future can't hydrate wrong. */
   todayKey: string;
-  onOpen: (drop: DropView) => void;
+  onOpen: (item: ContentView) => void;
 }) {
   const lanes = useMemo(() => {
-    const bySeries = new Map<string, DropView[]>();
-    for (const drop of drops) {
-      if (!drop.series || !drop.slotDate) continue;
-      const bucket = bySeries.get(drop.series.id);
-      if (bucket) bucket.push(drop);
-      else bySeries.set(drop.series.id, [drop]);
+    const bySeries = new Map<string, ContentView[]>();
+    for (const item of items) {
+      if (!item.series || !item.slotDate) continue;
+      const bucket = bySeries.get(item.series.id);
+      if (bucket) bucket.push(item);
+      else bySeries.set(item.series.id, [item]);
     }
 
     return [...bySeries.values()]
@@ -42,15 +42,15 @@ export function DailyQueue({
         const sorted = [...rows].sort((a, b) =>
           (a.slotDate ?? "").localeCompare(b.slotDate ?? ""),
         );
-        const upcoming = sorted.filter((drop) => (drop.slotDate ?? "") >= todayKey);
-        const filled = upcoming.filter((drop) => drop.title.trim() !== "").length;
+        const upcoming = sorted.filter((item) => (item.slotDate ?? "") >= todayKey);
+        const filled = upcoming.filter((item) => item.title.trim() !== "").length;
         const missed = sorted.filter(
-          (drop) =>
-            (drop.slotDate ?? "") < todayKey &&
-            drop.title.trim() === "" &&
-            drop.stage !== "published",
+          (item) =>
+            (item.slotDate ?? "") < todayKey &&
+            item.title.trim() === "" &&
+            item.stage !== "published",
         ).length;
-        const nextGap = upcoming.find((drop) => drop.title.trim() === "");
+        const nextGap = upcoming.find((item) => item.title.trim() === "");
 
         return {
           id: sorted[0].series!.id,
@@ -65,7 +65,7 @@ export function DailyQueue({
         };
       })
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [drops, todayKey]);
+  }, [items, todayKey]);
 
   if (lanes.length === 0) return null;
 
@@ -127,7 +127,7 @@ export function DailyQueue({
               {lane.slots.map((slot) => (
                 <QueueDot
                   key={slot.id}
-                  drop={slot}
+                  item={slot}
                   todayKey={todayKey}
                   onOpen={() => onOpen(slot)}
                 />
@@ -141,23 +141,23 @@ export function DailyQueue({
 }
 
 function QueueDot({
-  drop,
+  item,
   todayKey,
   onOpen,
 }: {
-  drop: DropView;
+  item: ContentView;
   todayKey: string;
   onOpen: () => void;
 }) {
-  const slotDate = drop.slotDate ?? "";
+  const slotDate = item.slotDate ?? "";
   const day = slotDate.slice(8, 10);
   const isToday = slotDate === todayKey;
   const isPast = slotDate < todayKey;
-  const filled = drop.title.trim() !== "";
+  const filled = item.title.trim() !== "";
 
-  const tone = drop.stage === "published"
+  const tone = item.stage === "published"
     ? "bg-good text-white"
-    : drop.stage === "scheduled"
+    : item.stage === "scheduled"
       ? "bg-ink text-white"
       : filled
         ? "bg-inset text-ink"
@@ -169,8 +169,8 @@ function QueueDot({
     <button
       type="button"
       onClick={onOpen}
-      title={`${drop.publishLabel ?? slotDate} — ${
-        filled ? drop.title : "empty slot"
+      title={`${item.publishLabel ?? slotDate} — ${
+        filled ? item.title : "empty slot"
       }`}
       className={cn(
         "grid size-7 shrink-0 place-items-center rounded-chip text-[11px] font-medium tabular-nums transition-[transform,box-shadow] duration-(--duration-base) ease-soft hover:-translate-y-px hover:shadow-card active:scale-90",

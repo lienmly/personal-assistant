@@ -28,7 +28,7 @@ export type SeriesView = {
   projectId: string | null;
   projectName: string | null;
   channelIds: string[];
-  dropCount: number;
+  itemCount: number;
 };
 
 export type BrandDetail = {
@@ -408,7 +408,7 @@ function SeriesRow({
       </div>
 
       <span className="shrink-0 text-[11px] text-faint tabular-nums">
-        {series.dropCount}
+        {series.itemCount}
       </span>
       <button
         type="button"

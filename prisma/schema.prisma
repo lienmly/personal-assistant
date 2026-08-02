@@ -1,11 +1,15 @@
 // Clan Centurio — data model.
 //
-// The social layer (CLAUDE.md §6) came first: Areas and Projects (because a Drop
-// needs somewhere to hang), plus the distribution nouns — Brand, Channel,
-// Series, Drop, DropChannel. Mark followed, pulled forward from Phase 3 the
-// moment Utaitai's non-content work (ship the apps, talk to users, marketing)
-// had nowhere to live. Event arrived last, in Phase 4, and is the only noun
-// that had to be designed around *time* rather than around state.
+// The social layer (CLAUDE.md §6) came first: Areas and Projects (because a
+// piece of content needs somewhere to hang), plus the distribution nouns —
+// Brand, Channel, Series, ContentItem, ContentItemChannel. Task followed,
+// pulled forward from Phase 3 the moment Utaitai's non-content work (ship the
+// apps, talk to users, marketing) had nowhere to live. Event arrived last, in
+// Phase 4, and is the only noun designed around *time* rather than state.
+//
+// Renamed 2026-08-01: Mark → Task and Drop → ContentItem. Two task-shaped
+// nouns, neither of which said which one you actually *do*. See the
+// `20260801120000_plain_names` migration — every statement in it is a RENAME.
 //
 // Ownership is deliberately absent. The app is single-tenant behind an e-mail
 // allowlist, and there is no User table because Auth.js runs on JWT sessions
@@ -75,9 +79,9 @@ enum ChannelState {
   paused
 }
 
-/// The shape of the asset, which decides how a Drop moves through the stages
+/// The shape of the asset, which decides how a ContentItem moves through the stages
 /// and what "produce" means for it.
-enum DropFormat {
+enum ContentFormat {
   short_video
   article
   text_post
@@ -86,7 +90,7 @@ enum DropFormat {
 
 /// Format-neutral on purpose. `produce` is filming+editing for a video and
 /// writing for an article — one column, no per-format board.
-enum DropStage {
+enum ContentStage {
   idea
   script
   produce
@@ -108,9 +112,9 @@ enum Cadence {
   custom
 }
 
-/// Binary in spirit — a Mark is open or it isn't. `doing` exists only so the
+/// Binary in spirit — a Task is open or it isn't. `doing` exists only so the
 /// one or two things actually in flight can be told apart from the backlog.
-enum MarkStatus {
+enum TaskStatus {
   open
   doing
   done
@@ -146,7 +150,7 @@ model Area {
   createdAt DateTime @default(now())
 
   projects Project[]
-  marks    Mark[]
+  tasks    Task[]
   events   Event[]
 
   @@index([sortOrder])
@@ -164,8 +168,8 @@ model Project {
   priority      ProjectPriority @default(side)
   /// Expected days between touches; drives the drift warning on Today.
   cadenceDays   Int?
-  /// Bumped whenever one of this project's Drops publishes (or Marks complete,
-  /// once Marks exist). Section 4 of Today sorts on this.
+  /// Bumped whenever one of this project's content items publishes or one of its
+  /// tasks completes. Section 4 of Today sorts on this.
   lastTouchedAt DateTime        @default(now())
   sortOrder     Int             @default(0)
   createdAt     DateTime        @default(now())
@@ -174,9 +178,9 @@ model Project {
   areaId String
   area   Area   @relation(fields: [areaId], references: [id], onDelete: Cascade)
 
-  drops  Drop[]
+  items  ContentItem[]
   series Series[]
-  marks  Mark[]
+  tasks  Task[]
   events Event[]
 
   @@index([areaId, sortOrder])
@@ -188,7 +192,7 @@ model Project {
 // Sprints
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// A short, dated, deliberately small set of Marks: "these, this week".
+/// A short, dated, deliberately small set of Tasks: "these, this week".
 ///
 /// The Hunt Board answers "what *could* I do" and that list is sixty rows long,
 /// which is not a question anyone can answer at 7am. A sprint is the committed
@@ -196,14 +200,14 @@ model Project {
 /// sixty. Everything not in the sprint is backlog, and backlog is somewhere you
 /// go on purpose rather than something that greets you.
 ///
-/// Closing a sprint returns its unfinished Marks to the backlog rather than
+/// Closing a sprint returns its unfinished Tasks to the backlog rather than
 /// dragging them into the next one. A sprint that inherits last week's guilt
 /// stops being a commitment and becomes a second to-do list.
 model Sprint {
   id       String       @id @default(cuid())
   name     String
   /// The one sentence that says what this week is *for*. Optional, but a sprint
-  /// without one is usually just a batch of unrelated marks.
+  /// without one is usually just a batch of unrelated tasks.
   goal     String?
   startsOn DateTime     @db.Date
   endsOn   DateTime     @db.Date
@@ -213,7 +217,7 @@ model Sprint {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
-  marks Mark[]
+  tasks Task[]
 
   @@index([status, startsOn])
 }
@@ -236,7 +240,7 @@ model Brand {
   updatedAt DateTime @updatedAt
 
   channels Channel[]
-  drops    Drop[]
+  items    ContentItem[]
   series   Series[]
 
   @@index([sortOrder])
@@ -259,7 +263,7 @@ model Channel {
   brandId String
   brand   Brand  @relation(fields: [brandId], references: [id], onDelete: Cascade)
 
-  posts         DropChannel[]
+  posts         ContentItemChannel[]
   seriesTargets SeriesChannel[]
 
   @@unique([platform, handle])
@@ -267,12 +271,12 @@ model Channel {
 }
 
 /// A standing commitment — "a short video every day on both Utaitai TikToks".
-/// Generates dated Drop slots so the daily cadence isn't 730 rows of manual
+/// Generates dated ContentItem slots so the daily cadence isn't 730 rows of manual
 /// data entry a year. Without this the Studio dies in a week.
 model Series {
   id          String     @id @default(cuid())
   name        String
-  format      DropFormat
+  format      ContentFormat
   cadence     Cadence
   /// For `weekly` / `custom`: ISO weekdays, 1 = Monday … 7 = Sunday.
   daysOfWeek  Int[]      @default([])
@@ -294,7 +298,7 @@ model Series {
 
   /// The channels each generated slot fans out to by default.
   channels SeriesChannel[]
-  drops    Drop[]
+  items    ContentItem[]
 
   @@unique([brandId, name])
   @@index([isActive])
@@ -314,14 +318,14 @@ model SeriesChannel {
 /// A unit of content going out. Carries both axes: `projectId` is what it's
 /// about (nullable — pure brand-building posts belong to no project) and
 /// `brandId` is who publishes it.
-model Drop {
+model ContentItem {
   id          String     @id @default(cuid())
   title       String
   notes       String?
   /// The script / caption / article body — whatever "the words" are.
   body        String?
-  format      DropFormat
-  stage       DropStage  @default(idea)
+  format      ContentFormat
+  stage       ContentStage  @default(idea)
   publishAt   DateTime?
   publishedAt DateTime?
   createdAt   DateTime   @default(now())
@@ -340,18 +344,18 @@ model Drop {
   slotDate DateTime? @db.Date
 
   /// The thing this is *based on* — for Utaitai's dailies, the viral TikTok
-  /// whose song is being screen-recorded. Distinct from DropChannel.publishedUrl,
+  /// whose song is being screen-recorded. Distinct from ContentItemChannel.publishedUrl,
   /// which is where this drop itself ended up.
   refUrl String?
 
   /// Repurposing, kind 2: same idea, different form (a Medium post becoming a
   /// Threads thread). Kind 1 — same asset, more places — is just extra rows in
   /// `channels` below, and costs nothing.
-  sourceDropId String?
-  source       Drop?   @relation("DropDerivation", fields: [sourceDropId], references: [id], onDelete: SetNull)
-  derivatives  Drop[]  @relation("DropDerivation")
+  sourceItemId String?
+  source       ContentItem?   @relation("ContentDerivation", fields: [sourceItemId], references: [id], onDelete: SetNull)
+  derivatives  ContentItem[]  @relation("ContentDerivation")
 
-  channels DropChannel[]
+  channels ContentItemChannel[]
 
   @@unique([seriesId, slotDate])
   @@index([stage, publishAt])
@@ -362,7 +366,7 @@ model Drop {
 /// One drop landing on one channel. Per-channel because the caption, the
 /// timing and the resulting URL all differ — a YouTube Short and a TikTok are
 /// the same file and not the same post.
-model DropChannel {
+model ContentItemChannel {
   id           String           @id @default(cuid())
   state        ChannelPostState @default(pending)
   /// Overrides the drop's body for this platform when it needs its own copy.
@@ -373,26 +377,26 @@ model DropChannel {
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
 
-  dropId String
-  drop   Drop   @relation(fields: [dropId], references: [id], onDelete: Cascade)
+  itemId String
+  item   ContentItem   @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
   channelId String
   channel   Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
 
-  @@unique([dropId, channelId])
+  @@unique([itemId, channelId])
   @@index([channelId, state])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Marks
+// Tasks
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// A task. Hangs off a Project, or floats in an Area for one-offs.
 ///
-/// Deliberately not a Drop: a Mark is binary, has a *due* date rather than a
+/// Deliberately not a ContentItem: a Task is binary, has a *due* date rather than a
 /// publish datetime, and never fans out to channels. Merging them would bury
 /// "ship the iOS app" under a hundred rows reading "post the thing".
-model Mark {
+model Task {
   id    String  @id @default(cuid())
   title String
   notes String?
@@ -409,7 +413,7 @@ model Mark {
   /// is a flat wall of a dozen unrelated rows.
   track String?
 
-  status      MarkStatus @default(open)
+  status      TaskStatus @default(open)
   dueDate     DateTime?  @db.Date
   sortOrder   Int        @default(0)
   completedAt DateTime?
@@ -442,10 +446,10 @@ model Mark {
 
 /// Something that happens *at a time*, as opposed to something that needs doing.
 ///
-/// The third citizen of the calendar and the only one stored for it. Mark due
-/// dates and Drop publish times are layered onto the same grid at read time
+/// The third citizen of the calendar and the only one stored for it. Task due
+/// dates and ContentItem publish times are layered onto the same grid at read time
 /// (`lib/calendar.ts`) rather than copied into rows here — a due date belongs to
-/// the Mark, and duplicating it would give it two places to be wrong.
+/// the Task, and duplicating it would give it two places to be wrong.
 ///
 /// There is no separate Calendar entity: §8 resolved that **Area is the calendar
 /// grouping**, so an Event carries an `areaId` and inherits its colour. The

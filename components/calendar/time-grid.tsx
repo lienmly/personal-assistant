@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 const HOUR_PX = 54;
 const PX_PER_MINUTE = HOUR_PX / 60;
 /** The hours shown when nothing forces a wider range. Early enough for a 7am
- *  feed, late enough for an 18:00 drop and an evening one after it. */
+ *  feed, late enough for an 18:00 item and an evening one after it. */
 const DEFAULT_FROM = 7;
 const DEFAULT_TO = 22;
 
@@ -70,7 +70,7 @@ function laneOut(items: CalendarItem[]) {
  * rather than a table.
  *
  * All-day items sit in a band *above* the hours rather than as 24-hour blocks
- * inside it. A mark due today has no time; giving it one would fill the column
+ * inside it. A task due today has no time; giving it one would fill the column
  * and bury everything that does.
  */
 export function TimeGrid({

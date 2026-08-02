@@ -40,7 +40,7 @@ function dateOnly(value: string | null): Date | null {
  *
  * One active sprint at a time is the entire point — two would put Today back in
  * the business of merging lists, which is the thing the sprint exists to stop.
- * Closing the outgoing one returns its unfinished marks to the backlog: see
+ * Closing the outgoing one returns its unfinished tasks to the backlog: see
  * `closeSprint`.
  */
 export async function startSprint(form: FormData) {
@@ -57,7 +57,7 @@ export async function startSprint(form: FormData) {
   const id = str(form, "id");
 
   // Editing the running sprint is a different job from starting a new one, and
-  // it must not close anything or move any marks.
+  // it must not close anything or move any tasks.
   if (id) {
     await db.sprint.update({
       where: { id },
@@ -75,7 +75,7 @@ export async function startSprint(form: FormData) {
 
     if (outgoing.length > 0) {
       const ids = outgoing.map((row) => row.id);
-      await tx.mark.updateMany({
+      await tx.task.updateMany({
         where: { sprintId: { in: ids }, status: { not: "done" } },
         data: { sprintId: null },
       });
@@ -106,14 +106,14 @@ export async function startSprint(form: FormData) {
  * Rolling the leftovers into the next sprint is the obvious alternative and it
  * is how a sprint quietly becomes a second, permanent to-do list: the unfinished
  * things accumulate, next week starts full, and the commitment stops meaning
- * anything. Finished marks keep their `sprintId` — that's the record of what the
+ * anything. Finished tasks keep their `sprintId` — that's the record of what the
  * week actually produced.
  */
 export async function closeSprint(sprintId: string) {
   await requireSession();
 
   await db.$transaction(async (tx) => {
-    await tx.mark.updateMany({
+    await tx.task.updateMany({
       where: { sprintId, status: { not: "done" } },
       data: { sprintId: null },
     });
@@ -126,20 +126,20 @@ export async function closeSprint(sprintId: string) {
   refresh();
 }
 
-/** Pull a mark into the running sprint, or push it back to the backlog.
+/** Pull a task into the running sprint, or push it back to the backlog.
  *  `sprintId: null` is the push. */
-export async function setMarkSprint(markId: string, sprintId: string | null) {
+export async function setTaskSprint(markId: string, sprintId: string | null) {
   await requireSession();
-  await db.mark.update({ where: { id: markId }, data: { sprintId } });
+  await db.task.update({ where: { id: markId }, data: { sprintId } });
   refresh();
 }
 
-/** Sprint planning in bulk — ticking eight marks one round-trip at a time is
+/** Sprint planning in bulk — ticking eight tasks one round-trip at a time is
  *  how planning stops happening. */
-export async function addMarksToSprint(markIds: string[], sprintId: string) {
+export async function addTasksToSprint(markIds: string[], sprintId: string) {
   await requireSession();
   if (markIds.length === 0) return;
-  await db.mark.updateMany({
+  await db.task.updateMany({
     where: { id: { in: markIds } },
     data: { sprintId },
   });

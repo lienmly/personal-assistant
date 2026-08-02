@@ -24,6 +24,6 @@ export type ProjectRowView = {
    *  browser's zone and disagree with the server's first paint. */
   touchedLabel: string;
   drifting: boolean;
-  openMarks: number;
-  drops: number;
+  openTasks: number;
+  items: number;
 };

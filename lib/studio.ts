@@ -20,7 +20,7 @@ function isoDay(date: Date): number {
 }
 
 /**
- * Turns a slot day + `Series.timeOfDay` into the instant the drop publishes.
+ * Turns a slot day + `Series.timeOfDay` into the instant the item publishes.
  *
  * `slotDate` is UTC midnight standing in for a *local* calendar day, and
  * `timeOfDay` is documented as a *local* wall-clock time — so the two have to
@@ -60,7 +60,7 @@ function matchesCadence(
 }
 
 /**
- * Materialises the next `horizonDays` of every active Series as real Drops.
+ * Materialises the next `horizonDays` of every active Series as real Content.
  *
  * Called on Studio load rather than from a cron: it's idempotent (the
  * [seriesId, slotDate] unique constraint guarantees that), it's a handful of
@@ -94,7 +94,7 @@ export async function ensureSeriesSlots(): Promise<number> {
     }
     if (wanted.length === 0) continue;
 
-    const existing = await db.drop.findMany({
+    const existing = await db.contentItem.findMany({
       where: { seriesId: s.id, slotDate: { in: wanted } },
       select: { slotDate: true },
     });
@@ -109,7 +109,7 @@ export async function ensureSeriesSlots(): Promise<number> {
 
       const publishAt = slotPublishAt(day, hours, minutes);
 
-      await db.drop.create({
+      await db.contentItem.create({
         data: {
           title: "",
           format: s.format,
@@ -132,18 +132,18 @@ export async function ensureSeriesSlots(): Promise<number> {
 }
 
 export type StudioBoard = Awaited<ReturnType<typeof getStudioBoard>>;
-export type StudioDrop = StudioBoard["drops"][number];
+export type StudioDrop = StudioBoard["items"][number];
 
 /**
- * Everything the board needs in one round trip. Published drops are capped —
+ * Everything the board needs in one round trip. Published items are capped —
  * the column is a receipt, not an archive, and an unbounded one would grow by
  * two rows a day forever.
  */
 export async function getStudioBoard(brandSlug?: string) {
   const brandFilter = brandSlug ? { brand: { slug: brandSlug } } : {};
 
-  const [drops, brands, projects] = await Promise.all([
-    db.drop.findMany({
+  const [items, brands, projects] = await Promise.all([
+    db.contentItem.findMany({
       where: {
         ...brandFilter,
         OR: [
@@ -170,7 +170,7 @@ export async function getStudioBoard(brandSlug?: string) {
       orderBy: { sortOrder: "asc" },
       include: {
         channels: { orderBy: { sortOrder: "asc" } },
-        _count: { select: { drops: true } },
+        _count: { select: { items: true } },
       },
     }),
     db.project.findMany({
@@ -180,7 +180,7 @@ export async function getStudioBoard(brandSlug?: string) {
     }),
   ]);
 
-  return { drops, brands, projects };
+  return { items, brands, projects };
 }
 
 /**
@@ -193,7 +193,7 @@ export async function getStudioBoard(brandSlug?: string) {
 export async function getBatchSlots() {
   const from = addDays(dateKey(new Date()), -2);
 
-  return db.drop.findMany({
+  return db.contentItem.findMany({
     where: {
       seriesId: { not: null },
       slotDate: { gte: from },
@@ -223,7 +223,7 @@ export async function getBatchSlots() {
  * slotDate columns use. Getting those two mixed up is the bug this comment
  * exists to prevent.
  *
- * Already-published drops stay in the list on purpose — seeing "3 of 4 done"
+ * Already-published items stay in the list on purpose — seeing "3 of 4 done"
  * is the point of the section, and hiding the finished ones would make the
  * list shrink as you work instead of filling in.
  */
@@ -233,7 +233,7 @@ export async function getGoingOutToday() {
   const end = new Date(start);
   end.setDate(end.getDate() + 1);
 
-  return db.drop.findMany({
+  return db.contentItem.findMany({
     where: { publishAt: { gte: start, lt: end } },
     include: {
       brand: { select: { id: true, name: true, color: true } },
@@ -265,7 +265,7 @@ export async function getChannelRoster() {
         include: {
           channels: { include: { channel: true } },
           project: { select: { name: true } },
-          _count: { select: { drops: true } },
+          _count: { select: { items: true } },
         },
       },
     },

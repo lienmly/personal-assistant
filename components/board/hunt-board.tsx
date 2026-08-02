@@ -11,21 +11,21 @@ import {
   Sparkles,
 } from "lucide-react";
 
-import { MarkPanel } from "@/components/board/mark-panel";
+import { TaskPanel } from "@/components/board/task-panel";
 import type {
   AreaView,
   BoardProjectView,
-  MarkView,
+  TaskView,
 } from "@/components/board/types";
 import { SprintBar } from "@/components/sprint/sprint-bar";
 import type { SprintView } from "@/components/sprint/types";
-import { captureExperiment, setMarkStatus } from "@/lib/mark-actions";
-import { setMarkSprint } from "@/lib/sprint-actions";
+import { captureExperiment, setMarkStatus } from "@/lib/task-actions";
+import { setTaskSprint } from "@/lib/sprint-actions";
 import { trackRank } from "@/lib/tracks";
 import { cn } from "@/lib/utils";
 
 type PanelState =
-  | { mode: "edit"; mark: MarkView }
+  | { mode: "edit"; task: TaskView }
   | { mode: "new"; projectId: string | null; track: string | null };
 
 /** "Main projects" or "everything". Deliberately two options and not four: a
@@ -33,14 +33,14 @@ type PanelState =
 type Scope = "main" | "all";
 
 export function HuntBoard({
-  marks,
+  tasks,
   projects,
   areas,
   sprint,
   suggestedSprintName,
   experimentProjectId,
 }: {
-  marks: MarkView[];
+  tasks: TaskView[];
   projects: BoardProjectView[];
   areas: AreaView[];
   sprint: SprintView | null;
@@ -60,12 +60,12 @@ export function HuntBoard({
     () =>
       sprint === null
         ? []
-        : marks.filter(
-            (mark) =>
-              mark.sprintId === sprint.id &&
-              (showDone || mark.status !== "done"),
+        : tasks.filter(
+            (task) =>
+              task.sprintId === sprint.id &&
+              (showDone || task.status !== "done"),
           ),
-    [marks, sprint, showDone],
+    [tasks, sprint, showDone],
   );
 
   /** The backlog: everything the sprint hasn't claimed, after the filters. */
@@ -73,28 +73,28 @@ export function HuntBoard({
     const mainProjects = new Set(
       projects.filter((p) => p.priority === "main").map((p) => p.id),
     );
-    return marks.filter(
-      (mark) =>
-        !(sprint !== null && mark.sprintId === sprint.id) &&
-        (areaFilter === null || mark.areaId === areaFilter) &&
-        (showDone || mark.status !== "done") &&
+    return tasks.filter(
+      (task) =>
+        !(sprint !== null && task.sprintId === sprint.id) &&
+        (areaFilter === null || task.areaId === areaFilter) &&
+        (showDone || task.status !== "done") &&
         (scope === "all" ||
-          (mark.projectId !== null && mainProjects.has(mark.projectId))),
+          (task.projectId !== null && mainProjects.has(task.projectId))),
     );
-  }, [marks, projects, sprint, areaFilter, showDone, scope]);
+  }, [tasks, projects, sprint, areaFilter, showDone, scope]);
 
   /**
-   * Project → track → marks. Two levels because a project like Sleepy Cat runs
+   * Project → track → tasks. Two levels because a project like Sleepy Cat runs
    * "build the game", "make the art" and "get it on Steam" concurrently, and a
    * flat twenty rows under one heading reads as noise.
    */
   const groups = useMemo(() => {
-    const byProject = new Map<string, MarkView[]>();
-    for (const mark of visible) {
-      const key = mark.projectId ?? `area:${mark.areaId}`;
+    const byProject = new Map<string, TaskView[]>();
+    for (const task of visible) {
+      const key = task.projectId ?? `area:${task.areaId}`;
       const bucket = byProject.get(key);
-      if (bucket) bucket.push(mark);
-      else byProject.set(key, [mark]);
+      if (bucket) bucket.push(task);
+      else byProject.set(key, [task]);
     }
 
     const headings = [
@@ -123,16 +123,16 @@ export function HuntBoard({
     return headings
       .map((heading) => {
         const rows = byProject.get(heading.key) ?? [];
-        const tracks = new Map<string, MarkView[]>();
-        for (const mark of rows) {
-          const name = mark.track ?? "";
+        const tracks = new Map<string, TaskView[]>();
+        for (const task of rows) {
+          const name = task.track ?? "";
           const bucket = tracks.get(name);
-          if (bucket) bucket.push(mark);
-          else tracks.set(name, [mark]);
+          if (bucket) bucket.push(task);
+          else tracks.set(name, [task]);
         }
         return {
           ...heading,
-          openCount: rows.filter((mark) => mark.status !== "done").length,
+          openCount: rows.filter((task) => task.status !== "done").length,
           tracks: [...tracks.entries()]
             .map(([name, rows]) => ({ name, rows }))
             .sort(
@@ -168,10 +168,10 @@ export function HuntBoard({
   const usedAreas = useMemo(() => {
     const live = new Set([
       ...projects.map((project) => project.areaId),
-      ...marks.filter((mark) => mark.projectId === null).map((m) => m.areaId),
+      ...tasks.filter((task) => task.projectId === null).map((m) => m.areaId),
     ]);
     return areas.filter((area) => live.has(area.id));
-  }, [areas, projects, marks]);
+  }, [areas, projects, tasks]);
 
   return (
     <>
@@ -190,25 +190,25 @@ export function HuntBoard({
               This week&apos;s commitment
             </span>
             <span className="ml-auto rounded-full bg-inset px-2.5 py-1 text-xs font-medium text-muted">
-              {inSprint.filter((mark) => mark.status !== "done").length} open
+              {inSprint.filter((task) => task.status !== "done").length} open
             </span>
           </div>
 
           {inSprint.length === 0 ? (
             <p className="rounded-tile border border-dashed border-line py-4 text-center text-[13px] text-faint">
-              Nothing committed yet — use the + on any mark below.
+              Nothing committed yet — use the + on any task below.
             </p>
           ) : (
             <div className="flex flex-col">
-              {inSprint.map((mark, index) => (
-                <MarkRow
-                  key={mark.id}
-                  mark={mark}
+              {inSprint.map((task, index) => (
+                <TaskRow
+                  key={task.id}
+                  task={task}
                   delay={60 + Math.min(index, 8) * 28}
                   collapseOnDone={!showDone}
                   sprintId={sprint.id}
                   committed
-                  onOpen={() => setPanel({ mode: "edit", mark })}
+                  onOpen={() => setPanel({ mode: "edit", task })}
                 />
               ))}
             </div>
@@ -266,7 +266,7 @@ export function HuntBoard({
             className="size-3.5 transition-transform duration-(--duration-base) ease-soft group-hover:rotate-90"
             strokeWidth={2.4}
           />
-          New mark
+          New task
         </button>
       </div>
 
@@ -334,7 +334,7 @@ export function HuntBoard({
                     className="mt-4 w-full rounded-tile border border-dashed border-line py-4 text-[13px] text-faint transition-[border-color,color,transform] duration-(--duration-base) ease-soft hover:border-muted hover:text-muted active:scale-[0.985]"
                   >
                     {group.openCount === 0
-                      ? "Nothing left on this project — add the next mark"
+                      ? "Nothing left on this project — add the next task"
                       : "Everything here is in the sprint"}
                   </button>
                 ) : (
@@ -347,7 +347,7 @@ export function HuntBoard({
                           </h3>
                           <button
                             type="button"
-                            aria-label={`Add a mark to ${track.name || "this project"}`}
+                            aria-label={`Add a task to ${track.name || "this project"}`}
                             onClick={() =>
                               setPanel({
                                 mode: "new",
@@ -361,15 +361,15 @@ export function HuntBoard({
                           </button>
                         </div>
                         <div className="flex flex-col">
-                          {track.rows.map((mark) => (
-                            <MarkRow
-                              key={mark.id}
-                              mark={mark}
+                          {track.rows.map((task) => (
+                            <TaskRow
+                              key={task.id}
+                              task={task}
                               delay={60 + Math.min(rowIndex++, 8) * 28}
                               collapseOnDone={!showDone}
                               sprintId={sprint?.id ?? null}
                               committed={false}
-                              onOpen={() => setPanel({ mode: "edit", mark })}
+                              onOpen={() => setPanel({ mode: "edit", task })}
                             />
                           ))}
                         </div>
@@ -390,8 +390,8 @@ export function HuntBoard({
       </div>
 
       {panel && (
-        <MarkPanel
-          mark={panel.mode === "edit" ? panel.mark : null}
+        <TaskPanel
+          task={panel.mode === "edit" ? panel.task : null}
           projects={projects}
           areas={areas}
           sprint={sprint}
@@ -408,7 +408,7 @@ export function HuntBoard({
 }
 
 /**
- * Paste a link, get a mark. This exists because the moment you find a format
+ * Paste a link, get a task. This exists because the moment you find a format
  * worth stealing you are scrolling on a phone — anything longer than one paste
  * and one tap doesn't get done, and the idea is gone by evening.
  */
@@ -425,7 +425,7 @@ function ExperimentCapture({
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
-  // The captured mark lands in a card further down the page, which is easy to
+  // The captured task lands in a card further down the page, which is easy to
   // miss on a phone — so the button itself confirms, then quietly reverts.
   useEffect(() => {
     if (!saved) return;
@@ -508,15 +508,15 @@ function ExperimentCapture({
   );
 }
 
-function MarkRow({
-  mark,
+function TaskRow({
+  task,
   onOpen,
   delay,
   collapseOnDone,
   sprintId,
   committed,
 }: {
-  mark: MarkView;
+  task: TaskView;
   onOpen: () => void;
   delay: number;
   /** True when "show done" is off, so ticking this row will remove it. */
@@ -531,7 +531,7 @@ function MarkRow({
   // first should collapse in place — see CLAUDE.md §10.
   const [pending, startTransition] = useTransition();
   const [moving, startMove] = useTransition();
-  const done = mark.status === "done";
+  const done = task.status === "done";
   const busy = pending || moving;
 
   // The row folds away while the tick is in flight, because the server
@@ -561,10 +561,10 @@ function MarkRow({
           <button
             type="button"
             disabled={busy}
-            aria-label={done ? "Reopen this mark" : "Mark as done"}
+            aria-label={done ? "Reopen this task" : "Mark as done"}
             onClick={() =>
               startTransition(() =>
-                setMarkStatus(mark.id, done ? "open" : "done"),
+                setMarkStatus(task.id, done ? "open" : "done"),
               )
             }
             className={cn(
@@ -592,24 +592,24 @@ function MarkRow({
                 done ? "text-faint line-through" : "text-ink",
               )}
             >
-              {mark.title}
+              {task.title}
             </p>
-            {(mark.dueLabel || mark.notes) && (
+            {(task.dueLabel || task.notes) && (
               <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-faint">
-                {mark.dueLabel && (
+                {task.dueLabel && (
                   <span
-                    className={cn(mark.overdue && !done && "font-medium text-accent")}
+                    className={cn(task.overdue && !done && "font-medium text-accent")}
                   >
-                    {mark.dueLabel}
+                    {task.dueLabel}
                   </span>
                 )}
-                {mark.dueLabel && mark.notes && <span>·</span>}
-                {mark.notes && <span className="truncate">{mark.notes}</span>}
+                {task.dueLabel && task.notes && <span>·</span>}
+                {task.notes && <span className="truncate">{task.notes}</span>}
               </p>
             )}
           </button>
 
-          {mark.status === "doing" && (
+          {task.status === "doing" && (
             <span className="shrink-0 animate-rise rounded-full bg-warn-soft px-2 py-0.5 text-[10px] font-medium text-warn">
               doing
             </span>
@@ -628,7 +628,7 @@ function MarkRow({
               title={committed ? "Take out of the sprint" : "Add to the sprint"}
               onClick={() =>
                 startMove(() =>
-                  setMarkSprint(mark.id, committed ? null : sprintId),
+                  setTaskSprint(task.id, committed ? null : sprintId),
                 )
               }
               className="shrink-0 rounded-full bg-inset p-1 text-muted transition-[opacity,background-color,color] duration-(--duration-quick) hover:bg-line hover:text-ink focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
@@ -641,9 +641,9 @@ function MarkRow({
             </button>
           )}
 
-          {mark.link && (
+          {task.link && (
             <a
-              href={mark.link}
+              href={task.link}
               target="_blank"
               rel="noreferrer"
               aria-label="Open the linked post"

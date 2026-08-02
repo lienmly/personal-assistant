@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 /**
  * Section 3 of Today: what's on the clock, as opposed to what's on the list.
  *
- * Events only. The marks are the focus list two cards up and the drops have
+ * Events only. The tasks are the focus list two cards up and the items have
  * their own card in between, so replaying either here would put the same row on
  * one screen three times — which is how a dashboard stops being read.
  *

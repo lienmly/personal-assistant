@@ -4,12 +4,12 @@ import { useEffect, useState, useTransition } from "react";
 import { Check, ExternalLink, Trash2, X } from "lucide-react";
 
 import { ChannelBadge } from "@/components/studio/channel-badge";
-import type { BrandView, DropView, ProjectView } from "@/components/studio/types";
+import type { BrandView, ContentView, ProjectView } from "@/components/studio/types";
 import { FORMATS, PLATFORMS, STAGES } from "@/lib/platforms";
 import {
-  deleteDrop,
-  deriveDrop,
-  saveDrop,
+  deleteContentItem,
+  deriveContentItem,
+  saveContentItem,
   setChannelState,
 } from "@/lib/studio-actions";
 import { cn } from "@/lib/utils";
@@ -29,14 +29,14 @@ function toLocalInput(value: string | null): string {
   )}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-export function DropPanel({
-  drop,
+export function ContentPanel({
+  item,
   brands,
   projects,
   defaultBrandId,
   onClose,
 }: {
-  drop: DropView | null;
+  item: ContentView | null;
   brands: BrandView[];
   projects: ProjectView[];
   defaultBrandId?: string;
@@ -44,7 +44,7 @@ export function DropPanel({
 }) {
   const [pending, startTransition] = useTransition();
   const [brandId, setBrandId] = useState(
-    drop?.brand.id ?? defaultBrandId ?? brands[0]?.id ?? "",
+    item?.brand.id ?? defaultBrandId ?? brands[0]?.id ?? "",
   );
   const [error, setError] = useState<string | null>(null);
   // The panel unmounts itself only once its exit animation has finished, so
@@ -62,7 +62,7 @@ export function DropPanel({
   }, []);
 
   const brand = brands.find((b) => b.id === brandId);
-  const attached = new Set(drop?.channels.map((row) => row.channel.id) ?? []);
+  const attached = new Set(item?.channels.map((row) => row.channel.id) ?? []);
 
   function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -70,7 +70,7 @@ export function DropPanel({
     setError(null);
     startTransition(async () => {
       try {
-        await saveDrop(form);
+        await saveContentItem(form);
         dismiss();
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : "Could not save");
@@ -104,11 +104,11 @@ export function DropPanel({
         <div className="flex items-center justify-between px-5 py-4">
           <div>
             <h2 className="text-[15px] font-semibold tracking-tight text-ink">
-              {drop ? "Edit drop" : "New drop"}
+              {item ? "Edit content" : "New content"}
             </h2>
-            {drop?.series && (
+            {item?.series && (
               <p className="mt-0.5 text-[12px] text-muted">
-                Slot from &ldquo;{drop.series.name}&rdquo;
+                Slot from &ldquo;{item.series.name}&rdquo;
               </p>
             )}
           </div>
@@ -123,17 +123,17 @@ export function DropPanel({
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 pb-8">
-          <form id="drop-form" onSubmit={submit} className="space-y-4">
-            {drop && <input type="hidden" name="id" value={drop.id} />}
+          <form id="item-form" onSubmit={submit} className="space-y-4">
+            {item && <input type="hidden" name="id" value={item.id} />}
 
             <div>
-              <label className={labelCls} htmlFor="drop-title">
+              <label className={labelCls} htmlFor="item-title">
                 Title
               </label>
               <input
-                id="drop-title"
+                id="item-title"
                 name="title"
-                defaultValue={drop?.title ?? ""}
+                defaultValue={item?.title ?? ""}
                 placeholder="What is this one about?"
                 autoFocus
                 className={field}
@@ -142,11 +142,11 @@ export function DropPanel({
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className={labelCls} htmlFor="drop-brand">
+                <label className={labelCls} htmlFor="item-brand">
                   Brand — who says it
                 </label>
                 <select
-                  id="drop-brand"
+                  id="item-brand"
                   name="brandId"
                   value={brandId}
                   onChange={(event) => setBrandId(event.target.value)}
@@ -160,13 +160,13 @@ export function DropPanel({
                 </select>
               </div>
               <div>
-                <label className={labelCls} htmlFor="drop-project">
+                <label className={labelCls} htmlFor="item-project">
                   Project — what it&rsquo;s about
                 </label>
                 <select
-                  id="drop-project"
+                  id="item-project"
                   name="projectId"
-                  defaultValue={drop?.project?.id ?? ""}
+                  defaultValue={item?.project?.id ?? ""}
                   className={field}
                 >
                   <option value="">None — brand building</option>
@@ -181,13 +181,13 @@ export function DropPanel({
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className={labelCls} htmlFor="drop-format">
+                <label className={labelCls} htmlFor="item-format">
                   Format
                 </label>
                 <select
-                  id="drop-format"
+                  id="item-format"
                   name="format"
-                  defaultValue={drop?.format ?? "short_video"}
+                  defaultValue={item?.format ?? "short_video"}
                   className={field}
                 >
                   {Object.entries(FORMATS).map(([value, meta]) => (
@@ -198,13 +198,13 @@ export function DropPanel({
                 </select>
               </div>
               <div>
-                <label className={labelCls} htmlFor="drop-stage">
+                <label className={labelCls} htmlFor="item-stage">
                   Stage
                 </label>
                 <select
-                  id="drop-stage"
+                  id="item-stage"
                   name="stage"
-                  defaultValue={drop?.stage ?? "idea"}
+                  defaultValue={item?.stage ?? "idea"}
                   className={field}
                 >
                   {STAGES.map((stage) => (
@@ -217,14 +217,14 @@ export function DropPanel({
             </div>
 
             <div>
-              <label className={labelCls} htmlFor="drop-publish">
+              <label className={labelCls} htmlFor="item-publish">
                 Publish at
               </label>
               <input
-                id="drop-publish"
+                id="item-publish"
                 type="datetime-local"
                 name="publishAt"
-                defaultValue={toLocalInput(drop?.publishAt ?? null)}
+                defaultValue={toLocalInput(item?.publishAt ?? null)}
                 className={field}
               />
             </div>
@@ -276,36 +276,36 @@ export function DropPanel({
             </div>
 
             <div>
-              <label className={labelCls} htmlFor="drop-body">
+              <label className={labelCls} htmlFor="item-body">
                 Script / caption
               </label>
               <textarea
-                id="drop-body"
+                id="item-body"
                 name="body"
                 rows={5}
-                defaultValue={drop?.body ?? ""}
+                defaultValue={item?.body ?? ""}
                 placeholder="The words."
                 className={cn(field, "resize-y")}
               />
             </div>
 
             <div>
-              <label className={labelCls} htmlFor="drop-ref">
+              <label className={labelCls} htmlFor="item-ref">
                 Based on
               </label>
               <div className="flex items-center gap-2">
                 <input
-                  id="drop-ref"
+                  id="item-ref"
                   name="refUrl"
                   type="url"
                   inputMode="url"
-                  defaultValue={drop?.refUrl ?? ""}
+                  defaultValue={item?.refUrl ?? ""}
                   placeholder="https://tiktok.com/@…/video/…"
                   className={field}
                 />
-                {drop?.refUrl && (
+                {item?.refUrl && (
                   <a
-                    href={drop.refUrl}
+                    href={item.refUrl}
                     target="_blank"
                     rel="noreferrer"
                     aria-label="Open the source post"
@@ -321,14 +321,14 @@ export function DropPanel({
             </div>
 
             <div>
-              <label className={labelCls} htmlFor="drop-notes">
+              <label className={labelCls} htmlFor="item-notes">
                 Notes
               </label>
               <textarea
-                id="drop-notes"
+                id="item-notes"
                 name="notes"
                 rows={2}
-                defaultValue={drop?.notes ?? ""}
+                defaultValue={item?.notes ?? ""}
                 className={cn(field, "resize-y")}
               />
             </div>
@@ -340,26 +340,26 @@ export function DropPanel({
             )}
           </form>
 
-          {drop && drop.channels.length > 0 && (
-            <PublishChecklist drop={drop} />
+          {item && item.channels.length > 0 && (
+            <PublishChecklist item={item} />
           )}
 
-          {drop && <RepurposeRow drop={drop} brands={brands} />}
+          {item && <RepurposeRow item={item} brands={brands} />}
 
-          {drop && (
+          {item && (
             <button
               type="button"
               disabled={pending}
               onClick={() =>
                 startTransition(async () => {
-                  await deleteDrop(drop.id);
+                  await deleteContentItem(item.id);
                   dismiss();
                 })
               }
               className="mt-6 flex items-center gap-2 text-[13px] text-muted hover:text-accent"
             >
               <Trash2 className="size-3.5" strokeWidth={1.8} />
-              Delete this drop
+              Delete this item
             </button>
           )}
         </div>
@@ -374,11 +374,11 @@ export function DropPanel({
           </button>
           <button
             type="submit"
-            form="drop-form"
+            form="item-form"
             disabled={pending}
             className="rounded-chip bg-accent px-4 py-2 text-[13px] font-medium text-white transition-[background-color,transform,opacity] duration-(--duration-base) ease-soft hover:bg-accent-hover active:scale-[0.97] disabled:opacity-50"
           >
-            {pending ? "Saving…" : "Save drop"}
+            {pending ? "Saving…" : "Save"}
           </button>
         </div>
       </div>
@@ -387,11 +387,11 @@ export function DropPanel({
 }
 
 /**
- * The fan-out as a checklist. Ticking the last one publishes the whole drop —
+ * The fan-out as a checklist. Ticking the last one publishes the whole item —
  * see `setChannelState`. Paste the URL and it becomes the permanent record of
  * where this went.
  */
-function PublishChecklist({ drop }: { drop: DropView }) {
+function PublishChecklist({ item }: { item: ContentView }) {
   const [pending, startTransition] = useTransition();
 
   function update(dropChannelId: string, state: string, publishedUrl: string) {
@@ -406,7 +406,7 @@ function PublishChecklist({ drop }: { drop: DropView }) {
     <div className="mt-7">
       <h3 className={labelCls}>Posted where</h3>
       <div className="space-y-2 rounded-tile bg-card p-3 shadow-card">
-        {drop.channels.map((row) => {
+        {item.channels.map((row) => {
           const done = row.state === "published";
           return (
             <div key={row.id} className="flex items-center gap-2.5">
@@ -476,17 +476,17 @@ function PublishChecklist({ drop }: { drop: DropView }) {
   );
 }
 
-/** Repurposing, kind 2 — spawn a derived drop in a different form. */
+/** Repurposing, kind 2 — spawn a derived item in a different form. */
 function RepurposeRow({
-  drop,
+  item,
   brands,
 }: {
-  drop: DropView;
+  item: ContentView;
   brands: BrandView[];
 }) {
   const [pending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
-  const [brandId, setBrandId] = useState(drop.brand.id);
+  const [brandId, setBrandId] = useState(item.brand.id);
   const brand = brands.find((b) => b.id === brandId);
 
   if (!open) {
@@ -507,15 +507,15 @@ function RepurposeRow({
         event.preventDefault();
         const form = new FormData(event.currentTarget);
         startTransition(async () => {
-          await deriveDrop(form);
+          await deriveContentItem(form);
           setOpen(false);
         });
       }}
       className="mt-7 space-y-3 rounded-tile bg-card p-3 shadow-card"
     >
-      <input type="hidden" name="sourceDropId" value={drop.id} />
+      <input type="hidden" name="sourceItemId" value={item.id} />
       <p className="text-[12px] leading-relaxed text-muted">
-        Creates a linked drop with its own stages — for when the idea has to be
+        Creates a linked piece with its own stages — for when the idea has to be
         rewritten, not just re-uploaded.
       </p>
 

@@ -87,14 +87,14 @@ export async function saveProject(form: FormData) {
   };
 
   if (id) {
-    // Moving a project between areas has to take its marks with it. A Mark
+    // Moving a project between areas has to take its tasks with it. A Task
     // carries its own `areaId` — it's what a project-less one-off hangs off,
-    // and what supplies the colour — and `saveMark` keeps the two in step. So
-    // without this the project moves and its marks stay behind, filed and
+    // and what supplies the colour — and `saveTask` keeps the two in step. So
+    // without this the project moves and its tasks stay behind, filed and
     // coloured for an area they're no longer in.
     await db.$transaction([
       db.project.update({ where: { id }, data }),
-      db.mark.updateMany({ where: { projectId: id }, data: { areaId } }),
+      db.task.updateMany({ where: { projectId: id }, data: { areaId } }),
     ]);
     refresh();
     return id;
@@ -143,7 +143,7 @@ export async function setProjectStatus(projectId: string, status: string) {
  *
  * Every relation pointing at a Project is `SetNull`, which is right for a
  * one-off failure and disastrous in bulk: deleting a project with work on it
- * doesn't delete the work, it *orphans* it — nineteen marks quietly lose their
+ * doesn't delete the work, it *orphans* it — nineteen tasks quietly lose their
  * project and reappear on the Hunt Board as unfiled rows with no way to tell
  * where they came from. Archiving is the answer for anything with history;
  * delete exists for the one you named wrong two minutes ago.
@@ -153,18 +153,18 @@ export async function deleteProject(projectId: string) {
 
   const project = await db.project.findUniqueOrThrow({
     where: { id: projectId },
-    select: { _count: { select: { marks: true, drops: true, series: true } } },
+    select: { _count: { select: { tasks: true, items: true, series: true } } },
   });
 
-  const { marks, drops, series } = project._count;
+  const { tasks, items, series } = project._count;
   const held = [
-    marks && `${marks} mark${marks === 1 ? "" : "s"}`,
-    drops && `${drops} drop${drops === 1 ? "" : "s"}`,
+    tasks && `${tasks} task${tasks === 1 ? "" : "s"}`,
+    items && `${items} item${items === 1 ? "" : "s"}`,
     series && `${series} series`,
   ].filter(Boolean);
 
   if (held.length > 0) {
-    // "13 marks, 2 drops and 2 series" — a plain join gives "and … and …".
+    // "13 tasks, 2 items and 2 series" — a plain join gives "and … and …".
     const list =
       held.length === 1
         ? held[0]

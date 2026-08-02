@@ -5,8 +5,8 @@ import type {
   Cadence,
   ChannelPostState,
   ChannelState,
-  DropFormat,
-  DropStage,
+  ContentFormat,
+  ContentStage,
   Platform,
   Prisma,
 } from "@prisma/client";
@@ -56,10 +56,10 @@ async function touchProject(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Drops
+// Content
 // ─────────────────────────────────────────────────────────────────────────────
 
-export async function saveDrop(form: FormData) {
+export async function saveContentItem(form: FormData) {
   await requireSession();
 
   const id = str(form, "id");
@@ -70,7 +70,7 @@ export async function saveDrop(form: FormData) {
     (value): value is string => typeof value === "string" && value !== "",
   );
 
-  if (!brandId) throw new Error("A drop needs a brand — who is publishing it?");
+  if (!brandId) throw new Error("A content item needs a brand — who is publishing it?");
 
   const data = {
     title,
@@ -79,25 +79,25 @@ export async function saveDrop(form: FormData) {
     refUrl: str(form, "refUrl"),
     brandId,
     projectId: str(form, "projectId"),
-    format: (str(form, "format") ?? "short_video") as DropFormat,
-    stage: (str(form, "stage") ?? "idea") as DropStage,
+    format: (str(form, "format") ?? "short_video") as ContentFormat,
+    stage: (str(form, "stage") ?? "idea") as ContentStage,
     publishAt: publishAtRaw ? new Date(publishAtRaw) : null,
   };
 
-  const drop = id
-    ? await db.drop.update({ where: { id }, data })
-    : await db.drop.create({ data });
+  const item = id
+    ? await db.contentItem.update({ where: { id }, data })
+    : await db.contentItem.create({ data });
 
   // Reconcile the channel fan-out. Rows already published are kept even if the
   // box was unticked — deleting them would throw away the URL.
-  const existing = await db.dropChannel.findMany({ where: { dropId: drop.id } });
+  const existing = await db.contentItemChannel.findMany({ where: { itemId: item.id } });
   const keep = new Set(channelIds);
 
   const removable = existing.filter(
     (row) => !keep.has(row.channelId) && row.state !== "published",
   );
   if (removable.length > 0) {
-    await db.dropChannel.deleteMany({
+    await db.contentItemChannel.deleteMany({
       where: { id: { in: removable.map((row) => row.id) } },
     });
   }
@@ -105,14 +105,14 @@ export async function saveDrop(form: FormData) {
   const have = new Set(existing.map((row) => row.channelId));
   const additions = channelIds.filter((channelId) => !have.has(channelId));
   if (additions.length > 0) {
-    await db.dropChannel.createMany({
-      data: additions.map((channelId) => ({ dropId: drop.id, channelId })),
+    await db.contentItemChannel.createMany({
+      data: additions.map((channelId) => ({ itemId: item.id, channelId })),
       skipDuplicates: true,
     });
   }
 
   refresh();
-  return drop.id;
+  return item.id;
 }
 
 /**
@@ -120,7 +120,7 @@ export async function saveDrop(form: FormData) {
  * they're produced in one sitting — so the composer submits all fourteen at
  * once rather than making you open fourteen panels.
  *
- * Fields arrive as `title:<dropId>` / `ref:<dropId>`. `advanceTo` comes from
+ * Fields arrive as `title:<itemId>` / `ref:<itemId>`. `advanceTo` comes from
  * whichever button was pressed and only ever moves a row *forward*: a slot you
  * already scheduled must not be dragged back to `produce` because it happened
  * to be on screen.
@@ -128,7 +128,7 @@ export async function saveDrop(form: FormData) {
 export async function saveBatch(form: FormData) {
   await requireSession();
 
-  const advanceTo = str(form, "advanceTo") as DropStage | null;
+  const advanceTo = str(form, "advanceTo") as ContentStage | null;
   const edits = new Map<string, { title?: string; refUrl?: string | null }>();
 
   for (const [key, value] of form.entries()) {
@@ -149,35 +149,35 @@ export async function saveBatch(form: FormData) {
 
   if (edits.size === 0) return 0;
 
-  const current = await db.drop.findMany({
+  const current = await db.contentItem.findMany({
     where: { id: { in: [...edits.keys()] } },
     select: { id: true, title: true, refUrl: true, stage: true },
   });
 
-  const rank = (stage: DropStage) => STAGE_ORDER.indexOf(stage as StageId);
+  const rank = (stage: ContentStage) => STAGE_ORDER.indexOf(stage as StageId);
 
-  const writes = current.flatMap((drop) => {
-    const edit = edits.get(drop.id);
+  const writes = current.flatMap((item) => {
+    const edit = edits.get(item.id);
     if (!edit) return [];
 
-    const title = edit.title ?? drop.title;
-    const refUrl = edit.refUrl !== undefined ? edit.refUrl : drop.refUrl;
+    const title = edit.title ?? item.title;
+    const refUrl = edit.refUrl !== undefined ? edit.refUrl : item.refUrl;
 
     // A row is only worth advancing once it actually says something — an empty
     // slot marked "produced" is a lie the board would then hide from you.
     const filled = title.trim() !== "";
     const stage =
-      advanceTo && filled && rank(advanceTo) > rank(drop.stage)
+      advanceTo && filled && rank(advanceTo) > rank(item.stage)
         ? advanceTo
-        : drop.stage;
+        : item.stage;
 
-    if (title === drop.title && refUrl === drop.refUrl && stage === drop.stage) {
+    if (title === item.title && refUrl === item.refUrl && stage === item.stage) {
       return [];
     }
 
     return [
-      db.drop.update({
-        where: { id: drop.id },
+      db.contentItem.update({
+        where: { id: item.id },
         data: { title, refUrl, stage },
       }),
     ];
@@ -189,66 +189,66 @@ export async function saveBatch(form: FormData) {
   return writes.length;
 }
 
-export async function moveDrop(dropId: string, stage: string) {
+export async function moveContentItem(itemId: string, stage: string) {
   await requireSession();
 
   await db.$transaction(async (tx) => {
-    const drop = await tx.drop.update({
-      where: { id: dropId },
+    const item = await tx.contentItem.update({
+      where: { id: itemId },
       data: {
-        stage: stage as DropStage,
+        stage: stage as ContentStage,
         publishedAt: stage === "published" ? new Date() : null,
       },
     });
 
     if (stage === "published") {
-      await tx.dropChannel.updateMany({
-        where: { dropId, state: { in: ["pending", "scheduled"] } },
+      await tx.contentItemChannel.updateMany({
+        where: { itemId, state: { in: ["pending", "scheduled"] } },
         data: { state: "published", publishedAt: new Date() },
       });
-      await touchProject(tx, drop.projectId);
+      await touchProject(tx, item.projectId);
     }
   });
 
   refresh();
 }
 
-export async function deleteDrop(dropId: string) {
+export async function deleteContentItem(itemId: string) {
   await requireSession();
-  await db.drop.delete({ where: { id: dropId } });
+  await db.contentItem.delete({ where: { id: itemId } });
   refresh();
 }
 
 /**
  * Repurposing, kind 2: same idea, different form — a Medium essay becoming a
  * Threads post. Kind 1 (same asset, more places) needs none of this; it's just
- * another ticked channel box on the original drop.
+ * another ticked channel box on the original item.
  */
-export async function deriveDrop(form: FormData) {
+export async function deriveContentItem(form: FormData) {
   await requireSession();
 
-  const sourceDropId = str(form, "sourceDropId");
+  const sourceItemId = str(form, "sourceItemId");
   const brandId = str(form, "brandId");
   const format = str(form, "format") ?? "text_post";
   const channelIds = form.getAll("channelIds").filter(
     (value): value is string => typeof value === "string" && value !== "",
   );
-  if (!sourceDropId || !brandId) throw new Error("Missing source or brand");
+  if (!sourceItemId || !brandId) throw new Error("Missing source or brand");
 
-  const source = await db.drop.findUniqueOrThrow({ where: { id: sourceDropId } });
+  const source = await db.contentItem.findUniqueOrThrow({ where: { id: sourceItemId } });
 
-  const derived = await db.drop.create({
+  const derived = await db.contentItem.create({
     data: {
       title: source.title,
       notes: source.notes,
       // The body is carried over as a starting point — it will need rewriting
-      // for the new form, which is the whole reason this is a separate drop.
+      // for the new form, which is the whole reason this is a separate item.
       body: source.body,
-      format: format as DropFormat,
+      format: format as ContentFormat,
       stage: "script",
       brandId,
       projectId: source.projectId,
-      sourceDropId: source.id,
+      sourceItemId: source.id,
       channels: { create: channelIds.map((channelId) => ({ channelId })) },
     },
   });
@@ -262,9 +262,9 @@ export async function deriveDrop(form: FormData) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * The checklist. Ticking the last outstanding channel moves the whole drop to
+ * The checklist. Ticking the last outstanding channel moves the whole item to
  * `published` and bumps its project — so the common case (post it everywhere,
- * paste the links) never needs a separate "mark done" step.
+ * paste the links) never needs a separate "task done" step.
  */
 export async function setChannelState(form: FormData) {
   await requireSession();
@@ -275,7 +275,7 @@ export async function setChannelState(form: FormData) {
   if (!id) throw new Error("Missing channel row");
 
   await db.$transaction(async (tx) => {
-    const row = await tx.dropChannel.update({
+    const row = await tx.contentItemChannel.update({
       where: { id },
       data: {
         state: state as ChannelPostState,
@@ -284,19 +284,19 @@ export async function setChannelState(form: FormData) {
       },
     });
 
-    const siblings = await tx.dropChannel.findMany({
-      where: { dropId: row.dropId },
+    const siblings = await tx.contentItemChannel.findMany({
+      where: { itemId: row.itemId },
     });
     const outstanding = siblings.filter(
       (sibling) => sibling.state !== "published" && sibling.state !== "skipped",
     );
 
     if (outstanding.length === 0 && siblings.some((s) => s.state === "published")) {
-      const drop = await tx.drop.update({
-        where: { id: row.dropId },
+      const item = await tx.contentItem.update({
+        where: { id: row.itemId },
         data: { stage: "published", publishedAt: new Date() },
       });
-      await touchProject(tx, drop.projectId);
+      await touchProject(tx, item.projectId);
     }
   });
 
@@ -388,7 +388,7 @@ export async function saveSeries(form: FormData) {
     name,
     brandId,
     projectId: str(form, "projectId"),
-    format: (str(form, "format") ?? "short_video") as DropFormat,
+    format: (str(form, "format") ?? "short_video") as ContentFormat,
     cadence: (str(form, "cadence") ?? "daily") as Cadence,
     daysOfWeek,
     timeOfDay: str(form, "timeOfDay"),

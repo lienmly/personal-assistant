@@ -1,7 +1,7 @@
-import type { DropFormat, Platform } from "@prisma/client";
+import type { ContentFormat, Platform } from "@prisma/client";
 
 /**
- * Lucide dropped brand marks, so channels are identified by a short lettermark
+ * Lucide dropped brand tasks, so channels are identified by a short lettermark
  * on the platform's own colour. Reads fine at 20px, which is the size the
  * channel row needs on a phone.
  */
@@ -65,7 +65,7 @@ export const PLATFORMS: Record<
   },
 };
 
-export const FORMATS: Record<DropFormat, { label: string; verb: string }> = {
+export const FORMATS: Record<ContentFormat, { label: string; verb: string }> = {
   short_video: { label: "Short video", verb: "Film & edit" },
   article: { label: "Article", verb: "Write" },
   text_post: { label: "Text post", verb: "Draft" },

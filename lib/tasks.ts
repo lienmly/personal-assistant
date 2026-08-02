@@ -15,10 +15,10 @@ const markSelect = {
   areaId: true,
 } as const;
 
-export type MarkRow = Awaited<ReturnType<typeof getHuntBoard>>["marks"][number];
+export type TaskRow = Awaited<ReturnType<typeof getHuntBoard>>["tasks"][number];
 
 /**
- * Everything the Hunt Board needs. Done marks are capped to the recent past —
+ * Everything the Hunt Board needs. Done tasks are capped to the recent past —
  * the board is for planning, and an unbounded completed list would bury it.
  *
  * Projects come back ordered by `priority` first: Postgres sorts an enum by its
@@ -30,8 +30,8 @@ export async function getHuntBoard() {
   const since = new Date();
   since.setDate(since.getDate() - 14);
 
-  const [marks, projects, areas] = await Promise.all([
-    db.mark.findMany({
+  const [tasks, projects, areas] = await Promise.all([
+    db.task.findMany({
       where: {
         OR: [
           { status: { not: "done" } },
@@ -60,5 +60,5 @@ export async function getHuntBoard() {
     }),
   ]);
 
-  return { marks, projects, areas };
+  return { tasks, projects, areas };
 }

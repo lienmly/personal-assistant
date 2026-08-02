@@ -41,7 +41,7 @@ export function Topbar({
       >
         <Search className="size-4 shrink-0 text-faint" strokeWidth={2} />
         <span className="truncate text-sm text-faint">
-          Try searching &ldquo;marks&rdquo;
+          Try searching &ldquo;tasks&rdquo;
         </span>
       </button>
 

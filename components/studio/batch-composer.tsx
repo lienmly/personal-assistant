@@ -197,7 +197,7 @@ export function BatchComposer({
       </div>
 
       <p className="mt-3 text-[12px] leading-relaxed text-faint">
-        &ldquo;Mark produced&rdquo; only moves rows that have a title, and never
+        &ldquo;Task produced&rdquo; only moves rows that have a title, and never
         drags a slot backwards — anything already scheduled stays scheduled.
       </p>
     </form>

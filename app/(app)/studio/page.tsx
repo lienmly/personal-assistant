@@ -2,7 +2,7 @@ import Link from "next/link";
 import { LayoutList, Settings2 } from "lucide-react";
 
 import { StudioBoard } from "@/components/studio/studio-board";
-import type { BrandView, DropView } from "@/components/studio/types";
+import type { BrandView, ContentView } from "@/components/studio/types";
 import { SurfaceHeader } from "@/components/ui/surface-header";
 import { ensureSeriesSlots, getStudioBoard } from "@/lib/studio";
 import { todayKey } from "@/lib/utils";
@@ -22,30 +22,30 @@ export default async function StudioPage() {
   // Idempotent, cheap, and keeps the daily cadence alive without a cron.
   await ensureSeriesSlots();
 
-  const { drops, brands, projects } = await getStudioBoard();
+  const { items, brands, projects } = await getStudioBoard();
   const now = new Date();
   const todayLabel = now.toDateString();
   // ISO form, for the queue strip — comparing "YYYY-MM-DD" strings is the only
   // past/future test that survives being shipped to the client.
   const todayIso = todayKey(now);
 
-  const dropViews: DropView[] = drops.map((drop) => ({
-    id: drop.id,
-    title: drop.title,
-    notes: drop.notes,
-    body: drop.body,
-    refUrl: drop.refUrl,
-    format: drop.format,
-    stage: drop.stage,
-    publishAt: drop.publishAt?.toISOString() ?? null,
-    slotDate: drop.slotDate?.toISOString().slice(0, 10) ?? null,
-    publishLabel: drop.publishAt ? dayFormat.format(drop.publishAt) : null,
-    isToday: drop.publishAt?.toDateString() === todayLabel,
-    brand: drop.brand,
-    project: drop.project,
-    series: drop.series,
-    sourceDropId: drop.sourceDropId,
-    channels: drop.channels.map((row) => ({
+  const contentViews: ContentView[] = items.map((item) => ({
+    id: item.id,
+    title: item.title,
+    notes: item.notes,
+    body: item.body,
+    refUrl: item.refUrl,
+    format: item.format,
+    stage: item.stage,
+    publishAt: item.publishAt?.toISOString() ?? null,
+    slotDate: item.slotDate?.toISOString().slice(0, 10) ?? null,
+    publishLabel: item.publishAt ? dayFormat.format(item.publishAt) : null,
+    isToday: item.publishAt?.toDateString() === todayLabel,
+    brand: item.brand,
+    project: item.project,
+    series: item.series,
+    sourceItemId: item.sourceItemId,
+    channels: item.channels.map((row) => ({
       id: row.id,
       state: row.state,
       publishedUrl: row.publishedUrl,
@@ -67,18 +67,18 @@ export default async function StudioPage() {
     })),
   }));
 
-  const open = dropViews.filter((drop) => drop.stage !== "published").length;
+  const open = contentViews.filter((item) => item.stage !== "published").length;
 
   return (
     <>
       <SurfaceHeader
-        title="Studio"
+        title="Content Studio"
         tagline="One asset, many destinations. Every brand's pipeline in one place."
         meta={`${open} in flight`}
       />
 
       <StudioBoard
-        drops={dropViews}
+        items={contentViews}
         brands={brandViews}
         projects={projects}
         todayKey={todayIso}
@@ -100,7 +100,7 @@ export default async function StudioPage() {
           Brands, channels & series
         </Link>
         <p className="max-w-md text-[12px] leading-relaxed text-faint">
-          A drop carries two axes: the <strong className="font-medium">brand</strong>{" "}
+          A content item carries two axes: the <strong className="font-medium">brand</strong>{" "}
           publishing it and the <strong className="font-medium">project</strong>{" "}
           it&rsquo;s about. That&rsquo;s what lets a Sleepy Cat devlog go out as
           Coding Mom without inventing a second project for it.

@@ -38,7 +38,7 @@ export function MonthGrid({
   today: string;
   onOpen: (eventId: string) => void;
   onCreate: (day: string) => void;
-  /** Clicking the overflow count drops into that single day. */
+  /** Clicking the overflow count items into that single day. */
   onZoom: (day: string) => void;
 }) {
   const current = monthKey(cursor);

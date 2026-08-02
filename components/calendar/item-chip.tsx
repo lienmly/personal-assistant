@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
  * One row on the grid, whichever of the three sources it came from.
  *
  * The glyph is the whole legend: a **bar** is an event (it occupies time), a
- * **square** is a mark due (a thing to finish), a **dot** is a drop going out
+ * **square** is a task due (a thing to finish), a **dot** is a content item going out
  * (an instant). Three shapes rather than three colours, because colour is
  * already spoken for — it carries the *area* (or the brand), which is the other
  * thing you need to read off a cell at a glance. Encoding both in colour would
@@ -32,7 +32,7 @@ export function ItemGlyph({
         "shrink-0",
         kind === "event"
           ? "h-2.5 w-[3px] rounded-full"
-          : kind === "mark"
+          : kind === "task"
             ? "size-1.5 rounded-[2px]"
             : "size-1.5 rounded-full",
         className,
@@ -43,10 +43,10 @@ export function ItemGlyph({
 }
 
 /**
- * Events open the panel; marks and drops link to the surface that owns them.
+ * Events open the panel; tasks and items link to the surface that owns them.
  *
- * The calendar deliberately isn't an editor for the other two. A mark's real
- * context is its project and its track on the Hunt Board, and a drop's is its
+ * The calendar deliberately isn't an editor for the other two. A task's real
+ * context is its project and its track on the Hunt Board, and a content item's is its
  * channel checklist in Studio — reproducing either here would be a second,
  * worse version of a screen that already exists.
  */
@@ -102,7 +102,7 @@ export function ItemChip({
   }
 
   return (
-    <Link href={item.kind === "mark" ? "/board" : "/studio"} className={className}>
+    <Link href={item.kind === "task" ? "/board" : "/studio"} className={className}>
       {body}
     </Link>
   );
@@ -112,8 +112,8 @@ export function ItemChip({
 export function Legend({ counts }: { counts: Record<string, number> }) {
   const entries: Array<[CalendarItem["kind"], string]> = [
     ["event", "events"],
-    ["mark", "marks due"],
-    ["drop", "drops going out"],
+    ["task", "tasks due"],
+    ["item", "items going out"],
   ];
 
   return (
@@ -126,7 +126,7 @@ export function Legend({ counts }: { counts: Record<string, number> }) {
         </span>
       ))}
       <span className="ml-auto hidden sm:block">
-        Colour is the area · marks and drops open their own surface
+        Colour is the area · tasks and items open their own surface
       </span>
     </div>
   );

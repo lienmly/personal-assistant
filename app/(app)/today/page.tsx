@@ -6,10 +6,10 @@ import { FocusList } from "@/components/today/focus-list";
 import { GoingOut } from "@/components/today/going-out";
 import { Momentum, type MomentumView } from "@/components/today/momentum";
 import type {
-  FocusMarkView,
+  FocusTaskView,
   GoingOutView,
   NextGroupView,
-  NextMarkView,
+  NextTaskView,
 } from "@/components/today/types";
 import { UpNext } from "@/components/today/up-next";
 import { Card, CardHeader, StatTile } from "@/components/ui/card";
@@ -43,7 +43,7 @@ const timeFormat = new Intl.DateTimeFormat("en-GB", {
  * Today: what needs you right now, and nothing else.
  *
  * The screen is built around the sprint (CLAUDE.md §6). Before it existed, the
- * top card was "every mark with a due date" — which meant it was either empty
+ * top card was "every task with a due date" — which meant it was either empty
  * or the one project that happened to have due dates, and the *real* answer to
  * "what am I doing today" was sixty rows away on the Hunt Board. Now the top
  * card is the week's commitment, ordered so the first row is the answer, and
@@ -57,7 +57,7 @@ export default async function TodayPage() {
   const sprint = await getActiveSprint();
   const today = todayKey();
 
-  const [focus, upNext, drops, momentum, agenda] = await Promise.all([
+  const [focus, upNext, items, momentum, agenda] = await Promise.all([
     getFocus(sprint?.id ?? null),
     getUpNext(sprint?.id ?? null),
     getGoingOutToday(),
@@ -71,51 +71,51 @@ export default async function TodayPage() {
     month: "long",
   }).format(new Date());
 
-  const focusViews: FocusMarkView[] = focus.marks.map((mark) => ({
-    id: mark.id,
-    title: mark.title,
-    link: mark.link,
-    track: mark.track,
-    status: mark.status,
-    dueLabel: mark.dueDate
-      ? dayKey(mark.dueDate) === today
+  const focusViews: FocusTaskView[] = focus.tasks.map((task) => ({
+    id: task.id,
+    title: task.title,
+    link: task.link,
+    track: task.track,
+    status: task.status,
+    dueLabel: task.dueDate
+      ? dayKey(task.dueDate) === today
         ? "Today"
-        : dueFormat.format(mark.dueDate)
+        : dueFormat.format(task.dueDate)
       : null,
-    reason: mark.reason,
-    inSprint: sprint !== null && mark.sprintId === sprint.id,
-    projectName: mark.project?.name ?? null,
-    areaColor: mark.area.color,
+    reason: task.reason,
+    inSprint: sprint !== null && task.sprintId === sprint.id,
+    projectName: task.project?.name ?? null,
+    areaColor: task.area.color,
   }));
 
-  const toNextView = (mark: {
+  const toNextView = (task: {
     id: string;
     title: string;
     track: string | null;
     link: string | null;
-  }): NextMarkView => ({
-    id: mark.id,
-    title: mark.title,
-    track: mark.track,
-    link: mark.link,
+  }): NextTaskView => ({
+    id: task.id,
+    title: task.title,
+    track: task.track,
+    link: task.link,
   });
 
   const nextGroups: NextGroupView[] = upNext.groups.map((group) => ({
     projectName: group.projectName,
     color: group.color,
-    marks: group.marks.map(toNextView),
+    tasks: group.tasks.map(toNextView),
   }));
 
-  const dropViews: GoingOutView[] = drops.map((drop) => ({
-    id: drop.id,
-    title: drop.title,
-    stage: drop.stage,
-    timeLabel: drop.publishAt ? timeFormat.format(drop.publishAt) : "",
-    brandName: drop.brand.name,
-    brandColor: drop.brand.color,
-    projectName: drop.project?.name ?? null,
-    seriesName: drop.series?.name ?? null,
-    channels: drop.channels.map((row) => ({
+  const contentViews: GoingOutView[] = items.map((item) => ({
+    id: item.id,
+    title: item.title,
+    stage: item.stage,
+    timeLabel: item.publishAt ? timeFormat.format(item.publishAt) : "",
+    brandName: item.brand.name,
+    brandColor: item.brand.color,
+    projectName: item.project?.name ?? null,
+    seriesName: item.series?.name ?? null,
+    channels: item.channels.map((row) => ({
       id: row.id,
       state: row.state,
       platform: row.channel.platform,
@@ -138,15 +138,15 @@ export default async function TodayPage() {
           ? "Yesterday"
           : `${project.idle}d ago`,
     idle: project.idle,
-    openMarks: project.openMarks,
+    openTasks: project.openTasks,
     cadenceDays: project.cadenceDays,
     drifting: project.drifting,
   }));
 
   const drifting = momentumViews.filter((project) => project.drifting).length;
-  const late = focusViews.filter((mark) => mark.reason === "overdue").length;
-  const outstanding = dropViews.filter((drop) =>
-    drop.channels.some((channel) => channel.state !== "published"),
+  const late = focusViews.filter((task) => task.reason === "overdue").length;
+  const outstanding = contentViews.filter((item) =>
+    item.channels.some((channel) => channel.state !== "published"),
   ).length;
 
   return (
@@ -188,10 +188,10 @@ export default async function TodayPage() {
           }
         />
         <StatTile
-          label="Drops going out"
-          value={String(dropViews.length)}
+          label="Content going out"
+          value={String(contentViews.length)}
           note={
-            dropViews.length === 0
+            contentViews.length === 0
               ? "No content scheduled"
               : outstanding === 0
                 ? "All posted"
@@ -223,7 +223,7 @@ export default async function TodayPage() {
             )}
             {focusViews.length > 0 ? (
               <FocusList
-                marks={focusViews}
+                tasks={focusViews}
                 total={focus.total}
                 sprintId={sprint?.id ?? null}
               />
@@ -234,7 +234,7 @@ export default async function TodayPage() {
                 body={
                   sprint
                     ? "Everything you committed to this week is done. Have a look at what's next below, or close the sprint out and plan the next one."
-                    : "A sprint is the handful of marks that are actually this week's work. Start one on the Hunt Board and this becomes the only list you need to read."
+                    : "A sprint is the handful of tasks that are actually this week's work. Start one on the Hunt Board and this becomes the only list you need to read."
                 }
               />
             )}
@@ -251,15 +251,15 @@ export default async function TodayPage() {
           <Card>
             <CardHeader
               title="Going out today"
-              count={`${dropViews.length} ${dropViews.length === 1 ? "drop" : "drops"}`}
+              count={`${contentViews.length} ${contentViews.length === 1 ? "item" : "items"}`}
             />
-            {dropViews.length > 0 ? (
-              <GoingOut drops={dropViews} />
+            {contentViews.length > 0 ? (
+              <GoingOut items={contentViews} />
             ) : (
               <EmptyState
                 icon={Radio}
                 title="Nothing publishing today"
-                body="Drops with today's publish time show up here with their channels. Tap a channel to mark it posted."
+                body="Content publishing today shows up here with its channels. Tap a channel to mark it posted."
               />
             )}
             <Link

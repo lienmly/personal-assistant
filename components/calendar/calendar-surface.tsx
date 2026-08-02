@@ -81,7 +81,7 @@ export function CalendarSurface({
     if (event) setPanel({ event, day: event.startDay });
   };
 
-  const total = counts.event + counts.mark + counts.drop;
+  const total = counts.event + counts.task + counts.item;
 
   return (
     <>
@@ -208,7 +208,7 @@ export function CalendarSurface({
           <EmptyState
             icon={CalendarDays}
             title="Nothing on"
-            body="Events you add land here alongside mark due dates and the drops going out that day."
+            body="Events you add land here alongside task due dates and the content going out that day."
             className="mt-4 py-10"
           />
         )}

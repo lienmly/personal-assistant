@@ -31,7 +31,7 @@ function str(form: FormData, key: string): string | null {
  *
  * `Event.start` and `Event.end` are real timestamps, and both halves of the
  * form mean local wall-clock. Building them with `Date.UTC` — which is right
- * for `Mark.dueDate` two files over — would shift every event by the machine's
+ * for `Task.dueDate` two files over — would shift every event by the machine's
  * offset, which is the same bug `slotPublishAt` had (CLAUDE.md §6).
  */
 function localAt(day: string, time: string): Date {
@@ -111,7 +111,7 @@ export async function saveEvent(form: FormData) {
 
   const projectId = str(form, "projectId");
 
-  // Same rule as `saveMark`: when there's a project, its area wins, so the two
+  // Same rule as `saveTask`: when there's a project, its area wins, so the two
   // can never disagree and the event can't be coloured for an area it's left.
   let areaId = str(form, "areaId");
   if (projectId) {

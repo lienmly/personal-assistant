@@ -16,7 +16,7 @@ export type MomentumView = {
   /** Preformatted server-side — see components/studio/types.ts. */
   touchedLabel: string;
   idle: number;
-  openMarks: number;
+  openTasks: number;
   cadenceDays: number | null;
   drifting: boolean;
 };
@@ -79,7 +79,7 @@ function Row({ project }: { project: MomentumView }) {
       </div>
 
       <p className="mt-1 text-[11px] text-faint">
-        {project.openMarks} open {project.openMarks === 1 ? "mark" : "marks"}
+        {project.openTasks} open {project.openTasks === 1 ? "task" : "tasks"}
         {project.cadenceDays !== null && ` · every ${project.cadenceDays}d`}
       </p>
 

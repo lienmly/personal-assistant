@@ -37,7 +37,7 @@ export function SprintBar({
           <div className="min-w-0 flex-1">
             <p className="text-[14px] font-medium">No sprint running</p>
             <p className="mt-0.5 text-[12px] text-white/50">
-              Pick the handful of marks that are actually this week&apos;s work.
+              Pick the handful of tasks that are actually this week&apos;s work.
               Everything else stays on the board.
             </p>
           </div>
