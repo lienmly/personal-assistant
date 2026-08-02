@@ -57,13 +57,13 @@ instead of filling the whole column.
 ## Repeating events
 
 **Repeats** offers: every day, weekdays, weekly (pick the days), monthly. **Repeat until**
-is optional — leave it empty and it repeats forever, which a nap routine genuinely does
-until it doesn't.
+is optional — leave it empty and it repeats forever, which a standing weekly block
+genuinely does until it doesn't.
 
 **The important thing:** only the *rule* is stored, not the individual days. So:
 
 > **Editing any occurrence edits all of them — past and future.**
-> Moving Tuesday's nap moves every nap.
+> Moving Tuesday's session moves every Tuesday session.
 
 There is no "skip just this one" yet. If you need a one-off change, the honest move is to
 end the repeat (set **Repeat until** to the day before) and start a new one. That's a real
@@ -89,16 +89,21 @@ would be the same row three times on one screen.
 
 ---
 
-## The baby's calendar
+## What isn't on here: the baby
 
-There's no separate baby calendar and there doesn't need to be one: feeds, naps, bath and
-bed, swim class and appointments are all just Events in the **Baby** area, so they carry
-its orange and can be filtered to on their own with the Baby pill.
+There used to be a seeded baby routine — feeds, naps, bath and bed, a swim class, a
+check-up. It's gone, deliberately, as of 2 August 2026.
 
-The seeded routine is a starting point — edit the times to match reality rather than
-working around them.
+A four-month-old is followed, not scheduled. A calendar asserting a 13:00 nap every day
+is mostly a machine for feeling behind, and worse, things started to *depend* on the
+fiction: the Sunday filming block was parked "inside the long nap", which is planning
+against something that was never reliably true.
 
-One thing the calendar makes visible that no other screen does: **the naps are the only
-blocks of the day the other projects can happen in.** That's why the Sunday filming block
-for Coding Mom sits inside the afternoon nap. When you're deciding whether something fits
-this week, the Week view is the screen that actually answers it.
+The one part of the baby's day that genuinely is deliberate — reading to her in
+Vietnamese and English — lives on the **Multilingual baby** project as recurring
+**tasks**, not events. That's the right distinction and it's the one this whole app is
+built on: an event is something that *happens at a time*, a task is something you *owe*.
+Reading to her is owed. It happens in whatever gap the day leaves.
+
+Real appointments still belong here. A paediatrician slot is an event — it has a time,
+and the time is the point. Add it when you have one.

@@ -22,6 +22,12 @@ export const TRACKS = [
   "Marketing",
   "Experiments",
   "Content",
+  // The Baby area's streams. They sort last on purpose: this order is the
+  // order tracks appear on the board for *every* project, and a language
+  // shouldn't outrank "Ship" on Sleepy Cat just because it was added later.
+  "Vietnamese",
+  "English",
+  "Russian",
 ] as const;
 
 /** Widened to `string` on purpose — `track` is free text, so the lookup key is

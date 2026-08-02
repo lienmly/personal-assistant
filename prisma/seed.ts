@@ -42,6 +42,11 @@ const PROJECT_DOCS: { projectSlug: string; file: string; title: string }[] = [
     title: "The brand and the project",
   },
   { projectSlug: "forge", file: "forge-vision.md", title: "The startup brief" },
+  {
+    projectSlug: "multilingual-baby",
+    file: "multilingual-baby.md",
+    title: "Three languages, one unsolved",
+  },
 ];
 
 async function seedDocs(): Promise<number> {
@@ -144,6 +149,22 @@ const PROJECTS = [
     cadenceDays: 14,
     sortOrder: 2,
     priority: "side",
+    status: "active",
+  },
+  // The one deliberate thing in the Baby area, and the reason there is a
+  // project rather than a handful of loose tasks: it has a backlog (Russian is
+  // an unsolved problem, not a task), it has a cadence worth drifting against,
+  // and it feeds the Coding Mom content bank — the bilingual-reading angle is
+  // a pillar, so the project and the brand are the two axes again (§6).
+  {
+    slug: "multilingual-baby",
+    name: "Multilingual baby",
+    description:
+      "Vietnamese and English every day. Russian is the open problem — her dad speaks it and won't teach her.",
+    areaSlug: "baby",
+    cadenceDays: 2,
+    sortOrder: 4,
+    priority: "main",
     status: "active",
   },
   // Maintenance mode. Still shipping its daily shorts — which is why it stays
@@ -308,6 +329,11 @@ type SeedMark = {
   title: string;
   notes?: string;
   link?: string;
+  /** Makes this a recurring task: one live row that advances each time it is
+   *  ticked, rather than a one-off. See the `Task` model's recurrence block. */
+  recurrence?: Recurrence;
+  /** ISO weekdays for a `weekly` rule, 1 = Monday … 7 = Sunday. */
+  daysOfWeek?: number[];
   /** "YYYY-MM-DD", read as a *local* calendar day. `dueDate` is `@db.Date`, so
    *  it is stored as UTC midnight standing in for that day (§6). */
   dueDate?: string;
@@ -746,59 +772,22 @@ type SeedEvent = {
 };
 
 /**
- * The baby's day, which is the reason this phase exists.
+ * The standing shape of the week — the blocks other work has to fit around.
  *
- * A newborn's routine is *entirely* recurrence — seven rows here stand in for
- * roughly 2,500 occurrences a year, which is the case for storing the rule and
- * expanding on read rather than materialising anything. The naps are also the
- * most useful thing on the whole calendar: they are the only two blocks of the
- * day when the other projects can actually be worked on, which is why the
- * Sunday filming block below is deliberately parked inside one.
+ * There is deliberately **no baby routine here**. The first version seeded one:
+ * seven daily rows for feeds, naps, bath and bed, which read as a beautiful
+ * demonstration of recurrence and was a lie about how the day actually goes. A
+ * four-month-old is followed, not scheduled, and a calendar asserting a 13:00
+ * nap every day mostly generates the feeling of being behind. The one thing
+ * that genuinely is deliberate — reading to her in two languages — is a
+ * recurring *task* in the Baby area, because it is something owed rather than
+ * something that happens at a time.
+ *
+ * Removed 2026-08-02, along with the swim class and the check-up: the naps had
+ * become load-bearing (the Sunday filming block was parked inside one) and that
+ * dependency was on a fiction.
  */
 const EVENTS: SeedEvent[] = [
-  // ── Baby: the daily routine ───────────────────────────────────────────────
-  { title: "Morning feed", areaSlug: "baby", from: "07:00", to: "07:30", recurrence: "daily" },
-  {
-    title: "Morning nap",
-    areaSlug: "baby",
-    from: "09:00",
-    to: "10:30",
-    recurrence: "daily",
-    notes: "The reliable one. Good for anything that needs quiet.",
-  },
-  { title: "Midday feed", areaSlug: "baby", from: "11:30", to: "12:00", recurrence: "daily" },
-  {
-    title: "Afternoon nap",
-    areaSlug: "baby",
-    from: "13:00",
-    to: "15:00",
-    recurrence: "daily",
-    notes: "The long one — the only two-hour block in the day.",
-  },
-  { title: "Evening feed", areaSlug: "baby", from: "18:30", to: "19:00", recurrence: "daily" },
-  { title: "Bath and bed", areaSlug: "baby", from: "19:30", to: "20:15", recurrence: "daily" },
-  { title: "Dream feed", areaSlug: "baby", from: "22:30", to: "23:00", recurrence: "daily" },
-
-  // ── Baby: the dated things ────────────────────────────────────────────────
-  {
-    title: "Baby swim class",
-    areaSlug: "baby",
-    from: "10:00",
-    to: "10:45",
-    recurrence: "weekly",
-    daysOfWeek: [6],
-    location: "Leisure centre",
-  },
-  {
-    title: "Paediatrician — check-up",
-    areaSlug: "baby",
-    from: "10:15",
-    to: "11:00",
-    startsIn: 12,
-    location: "Clinic",
-    notes: "Bring the red book and the list of questions.",
-  },
-
   // ── Work: the standing blocks ─────────────────────────────────────────────
   {
     title: "Batch-film the week's shorts",
@@ -809,7 +798,7 @@ const EVENTS: SeedEvent[] = [
     recurrence: "weekly",
     daysOfWeek: [7],
     notes:
-      "Inside the long nap on purpose. A daily cadence only survives if it's produced weekly.",
+      "A daily cadence only survives if it's produced weekly, in one sitting.",
   },
   {
     title: "Fill the week's slots in Studio",
@@ -919,6 +908,67 @@ async function seedEvents() {
  * none. Upserting them would resurrect every task you'd since completed and
  * deleted, which is the opposite of useful.
  */
+/**
+ * The multilingual work. Two habits and one unsolved problem.
+ *
+ * The reading rows are `recurrence: "daily"` rather than seven dated tasks or a
+ * calendar event: they are owed rather than scheduled, they happen whenever the
+ * day allows, and a single live row that advances is the only shape that
+ * doesn't either vanish when ticked or pile up when missed.
+ *
+ * Russian is deliberately one umbrella task plus three concrete leads. "Find a
+ * solution" alone is the kind of task that sits open for a year because there
+ * is no first move in it; the leads are the first moves, and any that turn out
+ * to be wrong get deleted in a tap.
+ */
+const MULTILINGUAL_MARKS: SeedMark[] = [
+  {
+    track: "Vietnamese",
+    title: "Read her a Vietnamese book",
+    recurrence: "daily",
+    notes: "Any length. The point is the sound of it, daily.",
+  },
+  {
+    track: "English",
+    title: "Read her an English book",
+    recurrence: "daily",
+  },
+  {
+    track: "Russian",
+    title: "Work out how she gets Russian",
+    notes:
+      "Her dad is Russian and won't teach her, so it has to come from somewhere else. The three below are the leads worth trying first — this row is the decision, not the doing.",
+  },
+  {
+    track: "Russian",
+    title: "Find a Russian-speaking sitter or playgroup nearby",
+    notes: "A few hours a week of a real speaker beats any amount of screen.",
+  },
+  {
+    track: "Russian",
+    title: "Ask his family to video-call her in Russian, regularly",
+    notes:
+      "Costs nothing and needs no buy-in from him. Wants to be a standing slot, not an ask each time.",
+  },
+  {
+    track: "Russian",
+    title: "Build a Russian shelf — songs, cartoons, board books",
+    notes: "Lowest-effort lead. Won't make her fluent; will make it familiar.",
+  },
+  {
+    track: "Content",
+    title: "Film the two-language reading routine for Coding Mom",
+    notes:
+      "The bilingual-baby angle is a Coding Mom pillar and this project is where the footage comes from.",
+  },
+  {
+    track: "Content",
+    title: "Write up the Russian problem once it has an answer",
+    notes:
+      "'My daughter's dad is Russian and won't teach her' is a real post, and it needs the ending first.",
+  },
+];
+
 async function seedMarks(slug: string, tasks: SeedMark[]) {
   const project = await db.project.findUnique({ where: { slug } });
   if (!project) return 0;
@@ -933,6 +983,8 @@ async function seedMarks(slug: string, tasks: SeedMark[]) {
       link: task.link ?? null,
       track: task.track,
       dueDate: task.dueDate ? dateOnly(task.dueDate) : null,
+      recurrence: task.recurrence ?? "none",
+      daysOfWeek: task.daysOfWeek ?? [],
       projectId: project.id,
       areaId: project.areaId,
       sortOrder: index,
@@ -980,6 +1032,28 @@ const CODING_MOM_DROPS: SeedDrop[] = [
     pillar: "Baby",
     title: "The five baby purchases that actually earned their place",
     format: "short_video",
+  },
+  // These three carry `projectSlug: "multilingual-baby"` — the two axes doing
+  // their job (§6). Coding Mom is who is talking; the multilingual project is
+  // what it's about, and posting one bumps *that* project's lastTouchedAt, so
+  // Momentum stops reporting it as drifting on a day it actually moved.
+  {
+    pillar: "Baby",
+    title: "Raising her in two languages when only one of them is easy",
+    format: "short_video",
+    projectSlug: "multilingual-baby",
+  },
+  {
+    pillar: "Baby",
+    title: "Her dad is Russian and won't teach her. Here's what I'm doing.",
+    format: "short_video",
+    projectSlug: "multilingual-baby",
+  },
+  {
+    pillar: "Baby",
+    title: "What reading to a four-month-old in Vietnamese actually looks like",
+    format: "short_video",
+    projectSlug: "multilingual-baby",
   },
 
   // ── Pillar: Build — what I'm making and how ───────────────────────────────
@@ -1139,16 +1213,27 @@ async function seedDrops(brandSlug: string, items: SeedDrop[]) {
   const brand = await db.brand.findUnique({ where: { slug: brandSlug } });
   if (!brand) return 0;
 
-  const existing = await db.contentItem.count({
-    where: { brandId: brand.id, seriesId: null },
-  });
-  if (existing > 0) return 0;
+  // Per-title rather than "has this brand any content at all". The all-or-
+  // nothing count meant the bank could never *grow*: adding three multilingual
+  // ideas to a file that had already seeded twenty-five was a silent no-op.
+  // Titles are the stable key here — there is no slug on a content item, and
+  // an idea whose title you rewrote is one you have already made yours.
+  const seeded = new Set(
+    (
+      await db.contentItem.findMany({
+        where: { brandId: brand.id, seriesId: null },
+        select: { title: true },
+      })
+    ).map((row) => row.title),
+  );
+  const fresh = items.filter((item) => !seeded.has(item.title));
+  if (fresh.length === 0) return 0;
 
   const projects = await db.project.findMany({ select: { id: true, slug: true } });
   const projectId = new Map(projects.map((p) => [p.slug, p.id]));
 
   await db.contentItem.createMany({
-    data: items.map((item) => ({
+    data: fresh.map((item) => ({
       title: item.title,
       // There is no `pillar` column and there shouldn't be one — seven strings
       // don't earn a table. Carrying it in the notes keeps the rotation legible
@@ -1161,7 +1246,7 @@ async function seedDrops(brandSlug: string, items: SeedDrop[]) {
     })),
   });
 
-  return items.length;
+  return fresh.length;
 }
 
 /**
@@ -1403,7 +1488,8 @@ async function main() {
     (await seedMarks("utaitai", UTAITAI_MARKS)) +
     (await seedMarks("sleepy-cat", SLEEPY_CAT_MARKS)) +
     (await seedMarks("coding-mom", CODING_MOM_MARKS)) +
-    (await seedMarks("forge", FORGE_MARKS));
+    (await seedMarks("forge", FORGE_MARKS)) +
+    (await seedMarks("multilingual-baby", MULTILINGUAL_MARKS));
 
   const dropsCreated = await seedDrops("coding-mom", CODING_MOM_DROPS);
   const sprintMarks = await seedFirstSprint();
