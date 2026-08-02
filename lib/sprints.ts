@@ -249,3 +249,89 @@ export async function getUpNext(sprintId: string | null, perProject = 3) {
   };
 }
 
+
+/**
+ * "While you're in it" — the other work on a project you are already inside
+ * today.
+ *
+ * Utaitai is the case this exists for. Its content is produced in two sittings
+ * a week (Wednesday and Sunday), and those are the only two days the project
+ * reliably gets opened at all. Everything else on it — ship the mobile builds,
+ * talk to users, try a new format — is `side`-tier maintenance that no sprint
+ * is ever going to claim, so without this it simply never surfaces.
+ *
+ * Keyed on a *recurring* task due today rather than on the weekday, because the
+ * schedule is data: re-tick the batch task to Tuesday and Friday and this
+ * follows, with nothing to keep in step.
+ *
+ * The tasks offered are deliberately not from the sprint — the sprint is
+ * already the card above this one. These are the backlog rows that are cheap
+ * *right now* because the context is loaded, and no other moment makes them
+ * cheap.
+ */
+export async function getBandwidth(perProject = 3) {
+  const today = todayKey();
+
+  const anchors = await db.task.findMany({
+    where: {
+      status: { not: "done" },
+      recurringId: null,
+      // Weekly and monthly only. A *daily* habit does not create a special
+      // context — anchoring on one would put this card on the screen every
+      // single day, which is how it becomes wallpaper. The projects behind a
+      // daily task are surfaced by "Next up" instead, which is what that is
+      // for. What this card is about is the periodic *sitting*: the twice-a-
+      // week batch, where the project is open in front of you and the backlog
+      // is briefly cheap.
+      recurrence: { in: ["weekly", "monthly"] },
+      dueDate: { lte: new Date(`${today}T23:59:59.999Z`) },
+      projectId: { not: null },
+    },
+    select: {
+      id: true,
+      title: true,
+      project: { select: { id: true, name: true, slug: true } },
+      area: { select: { color: true } },
+    },
+  });
+
+  if (anchors.length === 0) return [];
+
+  // One entry per project even if two of its recurring tasks land today —
+  // "while you're in Utaitai" is true once, not twice.
+  const byProject = new Map<string, (typeof anchors)[number]>();
+  for (const anchor of anchors) {
+    if (anchor.project && !byProject.has(anchor.project.id)) {
+      byProject.set(anchor.project.id, anchor);
+    }
+  }
+
+  const groups = await Promise.all(
+    [...byProject.values()].map(async (anchor) => {
+      const tasks = await db.task.findMany({
+        where: {
+          projectId: anchor.project!.id,
+          status: "open",
+          recurringId: null,
+          recurrence: "none",
+          sprintId: null,
+        },
+        select: focusSelect,
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+        take: perProject,
+      });
+
+      return {
+        anchorTitle: anchor.title,
+        projectName: anchor.project!.name,
+        projectSlug: anchor.project!.slug,
+        color: anchor.area.color,
+        tasks,
+      };
+    }),
+  );
+
+  // A project whose backlog is empty has nothing to offer, and an empty
+  // heading is worse than no card.
+  return groups.filter((group) => group.tasks.length > 0);
+}

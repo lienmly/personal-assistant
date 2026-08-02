@@ -98,6 +98,23 @@ export async function saveTask(form: FormData) {
     ...repeat,
   };
 
+  // A recurring task is *driven* by its due date — that is the day it is for,
+  // and what `completeRecurring` advances. Without one it has a rule that
+  // never fires: it sits on the board looking scheduled and never appears on
+  // Today. Ticking "every Wednesday and Sunday" and leaving the date blank is
+  // the obvious thing to do, so the first date is inferred rather than demanded.
+  if (data.recurrence && data.recurrence !== "none" && !data.dueDate) {
+    const today = todayKey();
+    const first = nextOccurrence(
+      today,
+      data.recurrence,
+      data.daysOfWeek ?? [],
+      data.repeatUntil?.toISOString().slice(0, 10) ?? null,
+      today,
+    );
+    if (first) data.dueDate = new Date(`${first}T00:00:00.000Z`);
+  }
+
   const task = id
     ? await db.task.update({ where: { id }, data })
     : await db.task.create({ data });

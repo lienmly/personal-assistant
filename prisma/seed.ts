@@ -2,6 +2,9 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { PrismaClient } from "@prisma/client";
+
+import { nextOccurrence } from "../lib/calendar-keys";
+import { todayKey } from "../lib/utils";
 import type {
   ContentFormat,
   ProjectPriority,
@@ -339,12 +342,45 @@ type SeedMark = {
   dueDate?: string;
 };
 
+/** The first day a seeded recurrence rule fires, counting from today. Null for
+ *  a one-off, which is the overwhelming majority. */
+function firstOccurrence(
+  recurrence: Recurrence | undefined,
+  daysOfWeek: number[] | undefined,
+): Date | null {
+  if (!recurrence || recurrence === "none") return null;
+  const today = todayKey();
+  const first = nextOccurrence(today, recurrence, daysOfWeek ?? [], null, today);
+  return first ? new Date(`${first}T00:00:00.000Z`) : null;
+}
+
 /** The `@db.Date` convention, applied to a hand-written day string. */
 function dateOnly(day: string): Date {
   return new Date(`${day}T00:00:00.000Z`);
 }
 
 const UTAITAI_MARKS: SeedMark[] = [
+  // ── Content: the batch, and the reason the rest of this list is reachable ─
+  //
+  // Utaitai posts daily on two accounts. Filling ~14 slots one card at a time
+  // never happens, so the cadence is produced in two sittings a week and the
+  // *sitting* is the task — one recurring row on Wednesday and Sunday, which
+  // deep-links to the batch composer where a whole week goes in from one grid.
+  //
+  // These two days are also when the rest of the Utaitai backlog gets a look
+  // in: Today shows the project's other open tasks underneath a batch day
+  // ("While you're in it"), because the context is already loaded and the
+  // alternative is that maintenance work never surfaces at all.
+  {
+    track: "Content",
+    title: "Batch the Utaitai week",
+    recurrence: "weekly",
+    daysOfWeek: [3, 7],
+    link: "/studio/batch",
+    notes:
+      "Fill every upcoming slot from one grid. Screen-record the songs, paste the refs, advance the row.",
+  },
+
   // ── Ship ──────────────────────────────────────────────────────────────────
   {
     track: "Ship",
@@ -973,25 +1009,49 @@ async function seedMarks(slug: string, tasks: SeedMark[]) {
   const project = await db.project.findUnique({ where: { slug } });
   if (!project) return 0;
 
-  const existing = await db.task.count({ where: { projectId: project.id } });
-  if (existing > 0) return 0;
+  // Per-title, not "does this project have any tasks at all". The old
+  // all-or-nothing count meant a project could never gain a seeded task after
+  // its first run — adding "Batch the Utaitai week" to a project holding
+  // twenty rows was a silent no-op. Same fix as `seedDrops`.
+  //
+  // Completed tasks count as present, so ticking one doesn't bring it back.
+  // A *deleted* one does return on the next seed; that is the honest cost of
+  // matching on title, and re-deleting it is one tap.
+  const seeded = new Set(
+    (
+      await db.task.findMany({
+        where: { projectId: project.id },
+        select: { title: true },
+      })
+    ).map((row) => row.title),
+  );
+  const fresh = tasks.filter((task) => !seeded.has(task.title));
+  if (fresh.length === 0) return 0;
+
+  const offset = seeded.size;
 
   await db.task.createMany({
-    data: tasks.map((task, index) => ({
+    data: fresh.map((task, index) => ({
       title: task.title,
       notes: task.notes ?? null,
       link: task.link ?? null,
       track: task.track,
-      dueDate: task.dueDate ? dateOnly(task.dueDate) : null,
+      // A recurring task with no due date has a rule that never fires — see
+      // `saveTask`, which infers the same first date for one created in the UI.
+      dueDate: task.dueDate
+        ? dateOnly(task.dueDate)
+        : firstOccurrence(task.recurrence, task.daysOfWeek),
       recurrence: task.recurrence ?? "none",
       daysOfWeek: task.daysOfWeek ?? [],
       projectId: project.id,
       areaId: project.areaId,
-      sortOrder: index,
+      // Appended rather than renumbered from zero, so a task added later
+      // doesn't jump above the ones already on the board.
+      sortOrder: offset + index,
     })),
   });
 
-  return tasks.length;
+  return fresh.length;
 }
 
 /**

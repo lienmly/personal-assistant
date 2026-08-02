@@ -89,11 +89,20 @@ export function DailyQueue({
           </span>
         )}
 
+        {/* The accent when there is anything to fill. The cadence is produced
+            in one sitting twice a week — this is that sitting's front door, so
+            on a day with empty slots it should be the obvious thing on the
+            strip rather than a quiet secondary chip. */}
         <Link
           href="/studio/batch"
-          className="ml-auto flex items-center gap-1.5 rounded-chip bg-inset px-3 py-1.5 text-[12px] font-medium text-ink transition-[background-color,transform] duration-(--duration-base) ease-soft hover:bg-line active:scale-[0.97]"
+          className={cn(
+            "ml-auto flex items-center gap-1.5 rounded-chip px-3 py-1.5 text-[12px] font-medium transition-[background-color,transform] duration-(--duration-base) ease-soft active:scale-[0.97]",
+            total > totalFilled
+              ? "bg-accent text-white hover:bg-accent-hover"
+              : "bg-inset text-ink hover:bg-line",
+          )}
         >
-          Fill the week
+          {total > totalFilled ? `Fill ${total - totalFilled} slots` : "Fill the week"}
           <ArrowRight className="size-3" strokeWidth={2.4} />
         </Link>
       </div>

@@ -2,7 +2,14 @@
 
 import { useTransition } from "react";
 import Link from "next/link";
-import { Check, CirclePlus, ExternalLink, Play, Repeat } from "lucide-react";
+import {
+  ArrowRight,
+  Check,
+  CirclePlus,
+  ExternalLink,
+  Play,
+  Repeat,
+} from "lucide-react";
 
 import type { FocusTaskView, FocusReason } from "@/components/today/types";
 import { setTaskStatus } from "@/lib/task-actions";
@@ -199,17 +206,30 @@ function Row({
             />
           </button>
 
-          {task.link && (
-            <a
-              href={task.link}
-              target="_blank"
-              rel="noreferrer"
-              aria-label="Open the linked post"
-              className="shrink-0 text-faint transition-colors duration-(--duration-quick) hover:text-ink"
-            >
-              <ExternalLink className="size-3.5" strokeWidth={1.8} />
-            </a>
-          )}
+          {/* A task's link is usually the viral post it copies, which wants a
+              new tab. But a recurring task can point *into* the app — the
+              Utaitai batch row links to /studio/batch — and opening your own
+              dashboard in a second tab is nobody's intent. */}
+          {task.link &&
+            (task.link.startsWith("/") ? (
+              <Link
+                href={task.link}
+                aria-label="Go there"
+                className="shrink-0 text-faint transition-colors duration-(--duration-quick) hover:text-accent"
+              >
+                <ArrowRight className="size-3.5" strokeWidth={2} />
+              </Link>
+            ) : (
+              <a
+                href={task.link}
+                target="_blank"
+                rel="noreferrer"
+                aria-label="Open the linked post"
+                className="shrink-0 text-faint transition-colors duration-(--duration-quick) hover:text-ink"
+              >
+                <ExternalLink className="size-3.5" strokeWidth={1.8} />
+              </a>
+            ))}
         </div>
       </div>
     </div>

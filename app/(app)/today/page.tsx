@@ -2,6 +2,10 @@ import Link from "next/link";
 import { CalendarClock, Flag, Radio, TrendingUp } from "lucide-react";
 
 import { Agenda } from "@/components/today/agenda";
+import {
+  Bandwidth,
+  type BandwidthGroupView,
+} from "@/components/today/bandwidth";
 import { FocusList } from "@/components/today/focus-list";
 import { GoingOut } from "@/components/today/going-out";
 import { Momentum, type MomentumView } from "@/components/today/momentum";
@@ -18,7 +22,13 @@ import { SurfaceHeader } from "@/components/ui/surface-header";
 import { getAgenda } from "@/lib/calendar";
 import { minutesOfDay } from "@/lib/calendar-keys";
 import { getMomentum } from "@/lib/projects";
-import { dayKey, getActiveSprint, getFocus, getUpNext } from "@/lib/sprints";
+import {
+  dayKey,
+  getActiveSprint,
+  getBandwidth,
+  getFocus,
+  getUpNext,
+} from "@/lib/sprints";
 import { ensureSeriesSlots, getGoingOutToday } from "@/lib/studio";
 import { repeatLabel } from "@/lib/task-view";
 import { todayKey } from "@/lib/utils";
@@ -58,12 +68,13 @@ export default async function TodayPage() {
   const sprint = await getActiveSprint();
   const today = todayKey();
 
-  const [focus, upNext, items, momentum, agenda] = await Promise.all([
+  const [focus, upNext, items, momentum, agenda, bandwidth] = await Promise.all([
     getFocus(sprint?.id ?? null),
     getUpNext(sprint?.id ?? null),
     getGoingOutToday(),
     getMomentum(),
     getAgenda(today),
+    getBandwidth(),
   ]);
 
   const dateLabel = new Intl.DateTimeFormat("en-GB", {
@@ -104,6 +115,14 @@ export default async function TodayPage() {
 
   const nextGroups: NextGroupView[] = upNext.groups.map((group) => ({
     projectName: group.projectName,
+    color: group.color,
+    tasks: group.tasks.map(toNextView),
+  }));
+
+  const bandwidthGroups: BandwidthGroupView[] = bandwidth.map((group) => ({
+    anchorTitle: group.anchorTitle,
+    projectName: group.projectName,
+    projectSlug: group.projectSlug,
     color: group.color,
     tasks: group.tasks.map(toNextView),
   }));
@@ -268,9 +287,24 @@ export default async function TodayPage() {
               href="/studio"
               className="mt-3 inline-block text-[12px] text-muted transition-colors duration-(--duration-quick) hover:text-ink"
             >
-              Open Studio →
+              Open the Content Studio →
             </Link>
           </Card>
+
+          {/* Only on the days a recurring task has already put you inside a
+              project — otherwise this card does not exist. See getBandwidth. */}
+          {bandwidthGroups.length > 0 && (
+            <Card>
+              <CardHeader
+                title="While you’re in it"
+                hint="If you have the bandwidth"
+              />
+              <Bandwidth
+                groups={bandwidthGroups}
+                sprintId={sprint?.id ?? null}
+              />
+            </Card>
+          )}
         </div>
 
         <div className="flex flex-col gap-5">
@@ -289,7 +323,7 @@ export default async function TodayPage() {
               <EmptyState
                 icon={CalendarClock}
                 title="Nothing on today"
-                body="Events — including the baby's feeds, naps and appointments — sit on this timeline. Add one from the calendar."
+                body="Appointments, standing blocks and anything else that happens at a set time. Add one from the calendar."
               />
             )}
             <Link
