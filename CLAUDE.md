@@ -104,6 +104,7 @@ dashboard/UI ecosystem, easy Google auth, and a clean path to embedding an AI as
 /components/today  → focus list, "next up", going-out, momentum, agenda
 /components/calendar → month grid, week/day time grid, item chips, the event panel
 /components/projects → the roster, the project panel
+/components/docs   → the library list, the reader/editor, the markdown renderer
 /lib/db.ts         → Prisma client singleton
 /lib/studio.ts     → board queries + series slot generation + batch slots
 /lib/studio-actions.ts → server actions for drops, channels, series, batch save
@@ -114,6 +115,10 @@ dashboard/UI ecosystem, easy Google auth, and a clean path to embedding an AI as
 /lib/projects.ts   → momentum (Today §4) + the roster query
 /lib/project-actions.ts → create / edit / re-tier / archive / delete a project
 /lib/tracks.ts     → workstream names (client-safe: no Prisma import)
+/lib/docs.ts       → the library tree, one doc, a project's docs, filing options
+/lib/doc-actions.ts → server actions for docs
+/lib/doc-kinds.ts  → suggested doc kinds (client-safe: no Prisma import)
+/lib/manuals.ts    → the registry of app manuals read off disk from /docs
 /lib/calendar.ts   → the window query, recurrence expansion, the three-source merge
 /lib/calendar-keys.ts → day-key arithmetic (client-safe: no Prisma import)
 /lib/event-actions.ts → server actions for events
@@ -122,7 +127,8 @@ dashboard/UI ecosystem, easy Google auth, and a clean path to embedding an AI as
 /proxy.ts          → route protection (Next 16's renamed Middleware)
 /public            → static assets, icons, branding
 /assets            → styling reference screenshots — consult before building UI (§9)
-/docs              → guides written for me to read, not for agents (§9)
+/docs              → the app's manuals — also readable in-app on /docs (§9)
+/prisma/seed-docs  → bootstrap markdown for the project docs the seed imports
 ```
 _(Everything above exists except `/lib/montblanc`, which arrives with Phase 5.)_
 
@@ -225,6 +231,23 @@ _Built 2026-08-01._
 - [ ] Per-occurrence exceptions ("skip *this* nap"). Needs a table; see the note
       on `Recurrence` in the schema for why it isn't there yet.
 
+### Phase 4.5 — Docs
+_Built 2026-08-01, straight after the Calendar. Not on the original roadmap: the question
+"where do I read a project's vision doc?" had no answer, and the honest one was "in an
+editor, with the repo checked out"._
+- [x] `Doc` model + migration (`20260801183000_docs`) — `areaId` required, `projectId`
+      nullable, exactly like `Mark`, so an Area can hold a doc with no project
+- [x] `/docs` — two panes on desktop, master-then-detail on a phone; what's open is in the
+      URL, so a link to a doc is a link
+- [x] Create / edit / delete, markdown body with a live preview toggle
+- [x] The app's own manuals rendered read-only from `/docs/*.md` (`lib/manuals.ts`)
+- [x] A Docs list on the project panel, and a `+` on every row of the library
+- [x] `docs/forge-vision.md` and `docs/coding-mom.md` became Doc rows; the files moved to
+      `prisma/seed-docs/` as bootstrap material
+- [x] `docs/docs-surface.md` — the manual for the surface itself
+- [ ] Search across docs. Six of them fit on one screen; sixty won't.
+- [ ] Version history. Deliberately absent — see the note on deletion in §6.
+
 ### Phase 5 — Montblanc (AI assistant)
 - [ ] Chat drawer with streaming (Claude via AI SDK), available on every surface
 - [ ] Montblanc persona/prompt
@@ -259,7 +282,7 @@ sitting alongside them. The earlier draft listed "Social Media Branding" as an A
 With many concurrent projects that breaks down fast. So: **distribution is a dimension, not
 a destination.**
 
-### Eight nouns
+### Nine nouns
 
 | Noun | What it is | Example | Churn |
 |---|---|---|---|
@@ -271,6 +294,7 @@ a destination.**
 | **Drop** | A unit of content going out. Carries a Brand and (optionally) a Project. | "Devlog #7 → X + Threads" | Constant |
 | **Series** | A standing commitment that generates dated Drop slots. | "Daily short, both Utaitai TikToks" | Rare |
 | **Event** | Something that *happens at a time*, as opposed to something to do. | "Afternoon nap", "Paediatrician" | Constant |
+| **Doc** | Written thinking behind a Project or an Area. Markdown. | "Forge — the startup brief" | Occasional |
 
 **Drop is deliberately not a Mark.** A Mark is binary — open or done. A Drop moves through
 repeating pipeline stages, fans out to several channels from one source asset, and has a
@@ -422,6 +446,7 @@ row. Left icon rail on desktop, bottom tab bar on mobile — same IA, no redesig
 | **Calendar** | Time. Events + baby + Drop publish dates + Mark due dates, layered. |
 | **Studio** | Cross-project content pipeline. Kanban by stage, or calendar by publish date. |
 | **Projects** | The roster. Health and momentum at a glance. |
+| **Docs** | The written thinking behind the projects, plus the app's own manuals. |
 | **Montblanc** | A drawer on every surface, so it always knows what you're looking at. |
 
 Future **Ledger** (bank + property audit, §5 Phase 6) slots in as one more surface without
@@ -492,6 +517,8 @@ Built ones are in `prisma/schema.prisma`, which is the source of truth; this is 
   inclusive), allDay, recurrence (`none` | `daily` | `weekdays` | `weekly` |
   `monthly`), daysOfWeek, repeatUntil (`@db.Date`, null = forever), areaId,
   projectId (nullable) ✅
+- **Doc** — title, kind (free text), body (markdown), sortOrder, areaId, projectId
+  (nullable) ✅
 - **ChatMessage / Conversation** — Montblanc history — Phase 5
 - **User** — id, email, name, role (`owner` | `child`) — Phase 7. Deliberately absent for
   now: the app is single-tenant behind the allowlist and Auth.js runs JWT sessions with no
@@ -554,6 +581,53 @@ Four rules fell out of building it:
 Shape is the legend, not colour: a **bar** is an event, a **square** is a mark due, a
 **dot** is a drop going out. Colour is already spoken for — it carries the area (or the
 brand for a drop), which is the other thing a cell has to say at a glance.
+
+### Docs: two sources, one reader — decided 2026-08-01
+
+A Project had a `description` and nothing else. One line on a roster card cannot hold why
+Forge exists or what Sleepy Cat's launch is aiming at, so that thinking lived in markdown
+files in the repo — readable with the repo checked out, and nowhere else. `docs/` also
+quietly held two unrelated kinds of document, which is what made "where do I read this?"
+have no answer.
+
+**A `Doc` is a row; a manual is a file.** Both render through one component
+(`components/docs/markdown.tsx`), and the split is the whole design:
+
+- **Project and area docs → Postgres.** A vision doc gets rewritten when the thought
+  arrives, which is not when you have the repo open. This is the same argument that made
+  the roster the project editor: *the thing you can't edit from a phone is the thing that
+  never gets edited.*
+- **The app's manuals → files in `/docs`.** A manual describes how the code behaves, so it
+  changes in the same commit as the behaviour, written by whoever changed the calendar. In
+  the database it could drift from the code with nothing to catch it, and updating it would
+  need a seed edit — the exact failure "The roster is the editor" exists to end. They are
+  read-only in the app, deliberately, and registered explicitly in `lib/manuals.ts` so a
+  file dropped into the folder doesn't appear in the app before anyone meant it to.
+
+Four rules fell out:
+
+1. **Ownership mirrors `Mark` exactly** — `areaId` required, `projectId` nullable. That is
+   what lets "Baby" hold a doc without inventing a shadow project, and it means moving a
+   project between areas re-files its docs in the transaction that already re-files its
+   marks. The **Area notes** row is emitted even when empty, because an area with no
+   projects would otherwise have no way to write its first doc.
+2. **Saving a doc does not bump `lastTouchedAt`.** Momentum is driven by discrete finished
+   work. A save fires on the one that fixed a typo, so counting it would let two characters
+   silence a drift warning for a whole cadence — and an untrustworthy warning is worse than
+   none. If real thinking happened, the honest record is a Mark.
+3. **`kind` is free text**, like `Mark.track`, with suggestions in `lib/doc-kinds.ts`.
+   "Postmortem" and "Brand voice" are obviously docs and shouldn't cost a migration.
+4. **Deleting a doc takes two taps, and a project holding docs can't be deleted at all.**
+   There's no version history and no trash, so the body is the only copy. Docs *survive*
+   project deletion (`SetNull` drops them to area docs) — they still block it, because a
+   project with a written vision is not the one you named wrong two minutes ago.
+
+`react-markdown` + `remark-gfm` are the first UI dependencies added since the scaffold, and
+they don't contradict the hand-build-it rule from §8: that rule is about libraries shipping
+their own DOM and stylesheet. `react-markdown` ships neither — it emits plain semantic
+elements, styled by `.doc-prose` in `globals.css`. `@tailwindcss/typography` was skipped for
+exactly the §8 reason: it brings a full opinionated scale that would be overridden back to
+tokens line by line. Raw HTML is not enabled, so a doc can never inject markup.
 
 ### Dates are a trap here
 
@@ -628,6 +702,11 @@ originally — shifts every publish time by the machine's offset.
 - [ ] shadcn/ui — deferred. Phase 1 needed no complex primitives, and the design is custom
       enough that shadcn defaults would be fought rather than used. Revisit at Phase 2 when
       dialogs, selects and popovers appear.
+      _Sharpened 2026-08-01 by the Docs surface:_ the rule is **not** "no dependencies", it
+      is *no library that ships its own DOM and stylesheet*. `react-markdown` ships neither
+      — it emits plain semantic elements you style yourself — so it went in without
+      argument, while `@tailwindcss/typography` was refused on precisely the shadcn
+      grounds. That's the test to apply next time, not the dependency count.
 - [x] **Prisma vs Drizzle** — resolved: **Prisma**, pinned to `6.x`. Prisma 7 requires Node
       20.19+ and this machine is on 20.15.1; 6.x supports 18.18+. Bump both once Node is
       upgraded — the schema is fresh, so the 6→7 move is a non-event.
@@ -705,7 +784,11 @@ originally — shifts every publish time by the machine's offset.
   expression — `` {`${open ? "Hide" : "Show"} what’s next`} `` — with a real character
   instead of the entity. Cost half an hour on 2026-07-31.
 
-- **User docs live in `/docs`.** Guides written for *me reading later*, not for agents:
+- **User docs live in `/docs`.** Guides written for *me reading later*, not for agents.
+  **They are now rendered in the app** on the Docs surface, read-only, via the registry in
+  `lib/manuals.ts` — so adding one means adding it there too, or it stays invisible.
+  Project docs are no longer here: they are `Doc` rows, and `prisma/seed-docs/` holds only
+  the bootstrap copies the seed imports on an empty database.
   - `docs/studio-guide.md` — how to use the Studio (brands, channels, drops, series,
     the board, repurposing). Written 2026-07-30. Update it when Studio behaviour changes.
   - `docs/sprints.md` — the weekly loop: plan on the Hunt Board, work from Today, what
@@ -714,12 +797,22 @@ originally — shifts every publish time by the machine's offset.
   - `docs/calendar.md` — the three things on the grid and how they differ, getting
     around the views, repeating events and what editing one actually changes, and the
     baby's routine. Written 2026-08-01. Update it when calendar behaviour changes.
-  - `docs/coding-mom.md` — the brand *and* the project: the account setup chain, the
-    seven content pillars and their deliberate order, and where the idea bank lives.
-    Written 2026-07-31.
-  - `docs/forge-vision.md` — the startup brief: AI-designed AIoT hardware, $200
-    prototypes, the marketplace, the go-to-market that Coding Mom *is* phase 1 of.
+  - `docs/docs-surface.md` — the two kinds of document and why they're stored differently,
+    filing one, and the two things saving a doc deliberately doesn't do.
+    Written 2026-08-01. Update it when doc behaviour changes.
+
+  No longer here, because they are **project** docs rather than manuals — they are `Doc`
+  rows now, read and edited on the Docs surface:
+  - `prisma/seed-docs/coding-mom.md` — the brand *and* the project: the account setup
+    chain, the seven content pillars and their deliberate order, and where the idea bank
+    lives. Written 2026-07-31.
+  - `prisma/seed-docs/forge-vision.md` — the startup brief: AI-designed AIoT hardware,
+    $200 prototypes, the marketplace, the go-to-market that Coding Mom *is* phase 1 of.
     Written 2026-07-31. "Forge" is a placeholder name.
+
+  Both are **bootstrap copies only.** The seed imports them into an empty database and
+  never updates an existing row, so edits made in the app are the live version and these
+  files are the record of what they said on 2026-08-01.
 
 ---
 
@@ -819,8 +912,28 @@ Named animations: `animate-rise` (fade + 8px up — cards, columns, rows arrivin
 
 ---
 
-_Last updated: 2026-08-01 · Status: **Phase 4 is done — the Calendar is live, and Today is
-finally whole.**_
+_Last updated: 2026-08-01 · Status: **The Calendar is live, Today is whole, and the
+projects' writing finally has somewhere to live.**_
+
+_**Docs, built 2026-08-01** (not on the roadmap; added because the question "where do I
+read a project's vision doc?" had no answer). A `Doc` is a markdown row hanging off a
+Project or, with `projectId` null, an Area — ownership copied from `Mark` exactly, which
+is what lets "Baby" hold a doc without inventing a shadow project. `/docs` is two panes on
+a desktop and master-then-detail on a phone, with what's open in the URL so a link to
+Sleepy Cat's northstar is a link. The surface renders **two sources**: Doc rows out of
+Postgres, writable, and the app's own manuals read off disk read-only — stored differently
+on purpose, because a vision doc gets rewritten at 3am and a manual changes in the same
+commit as the code it describes (§6, "Docs: two sources, one reader"). `forge-vision.md`
+and `coding-mom.md` stopped being files and became rows; what's left in
+`prisma/seed-docs/` is bootstrap material the seed imports into an empty database and
+never updates again. Verified in a signed-in browser: created an area doc under Baby with
+a table and a blockquote, previewed it, saved it, reopened the editor to confirm the
+markdown round-tripped byte-for-byte, and deleted it through the two-tap guard.
+Two gaps were found and fixed there — empty areas offered no way to start a doc at all
+(the Area notes row is now always emitted), and hover-gated `+` buttons left every empty
+row looking dead on touch, so they're always visible now. **Not verified: the phone
+layout** — the narrow viewport wouldn't reflow in the automation environment, so `/docs`
+joins the rest of the app in still needing a look on a real device._
 
 _**Phase 4, built 2026-08-01.** The Calendar was the last surface still showing an empty
 state, and it is now month, week and day, hand-built rather than pulled from a library —

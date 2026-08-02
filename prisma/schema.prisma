@@ -148,6 +148,7 @@ model Area {
   projects Project[]
   marks    Mark[]
   events   Event[]
+  docs     Doc[]
 
   @@index([sortOrder])
 }
@@ -178,6 +179,7 @@ model Project {
   series Series[]
   marks  Mark[]
   events Event[]
+  docs   Doc[]
 
   @@index([areaId, sortOrder])
   @@index([status, lastTouchedAt])
@@ -434,6 +436,57 @@ model Mark {
   @@index([projectId, status, sortOrder])
   @@index([areaId, status])
   @@index([sprintId, status])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Docs
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// A written document: a vision, a northstar, a strategy, a research note.
+///
+/// The thing a Project was missing. `description` is a one-line label for a
+/// roster card; it can't hold why Forge exists or what Sleepy Cat's launch is
+/// aiming at, and until now the only place those lived was markdown files in
+/// the repo — readable in an editor, invisible from a phone.
+///
+/// **Ownership mirrors Mark exactly**: `areaId` required, `projectId` nullable.
+/// That is what lets "Baby" hold a doc of its own without inventing a shadow
+/// project to hang it off, and it means moving a project between areas re-files
+/// its docs in the same transaction that already re-files its marks.
+///
+/// The app's own manuals are deliberately *not* rows here — they live in
+/// `/docs/*.md` and are read from disk (`lib/manuals.ts`). See that file.
+model Doc {
+  id    String @id @default(cuid())
+  title String
+
+  /// "Vision", "Northstar", "Strategy", "Research", "Notes". Free text for the
+  /// same reason as `Mark.track`: a new kind of document turns up far more
+  /// often than that would justify a migration, and an unrecognised value has
+  /// to render fine regardless. Suggestions live in `lib/doc-kinds.ts`.
+  kind String?
+
+  /// Markdown. Rendered on the reading pane, edited as raw text — the same
+  /// thing that gets written into a `.md` file today, so nothing is lost in
+  /// moving it in here.
+  body String @default("")
+
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// `SetNull`, like everything else pointing at a Project. A doc that outlives
+  /// its project doesn't vanish — it falls back to being an Area doc, which is
+  /// a real place for it to be rather than an orphan.
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  areaId String
+  area   Area   @relation(fields: [areaId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, sortOrder])
+  @@index([areaId, sortOrder])
+  @@index([updatedAt])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

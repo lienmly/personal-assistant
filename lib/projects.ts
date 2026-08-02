@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { kindRank } from "@/lib/doc-kinds";
 
 /** Whole days since a timestamp. Shared so Today and Projects can't disagree
  *  about what "3d since" means. */
@@ -33,6 +34,11 @@ export async function getRoster() {
       include: {
         area: { select: { name: true, color: true } },
         _count: { select: { drops: true } },
+        // Titles only. The panel lists them and links out to `/docs` to read
+        // one — a 440px drawer is not where you read a vision statement, and
+        // pulling every body in here would load the whole library to draw a
+        // roster.
+        docs: { select: { id: true, title: true, kind: true } },
       },
     }),
     db.mark.groupBy({
@@ -73,6 +79,10 @@ export async function getRoster() {
         idle > project.cadenceDays,
       openMarks: openByProject.get(project.id) ?? 0,
       drops: project._count.drops,
+      docs: [...project.docs].sort(
+        (a, b) =>
+          kindRank(a.kind) - kindRank(b.kind) || a.title.localeCompare(b.title),
+      ),
     };
   });
 }

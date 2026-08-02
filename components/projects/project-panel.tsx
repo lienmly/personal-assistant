@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
-import { Trash2, X } from "lucide-react";
+import { FileText, Plus, Trash2, X } from "lucide-react";
 
 import type { AreaOption, ProjectRowView } from "@/components/projects/types";
 import { deleteProject, saveProject } from "@/lib/project-actions";
@@ -236,6 +237,59 @@ export function ProjectPanel({
               </p>
             )}
           </form>
+
+          {/* Docs live on the project, but they are read on the Docs surface —
+              a 440px drawer is where you *file* a vision statement, not where
+              you read one. So this is a list of links plus a way to start one,
+              and nothing more. */}
+          {project && (
+            <div className="mt-7">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <span className={cn(labelCls, "mb-0")}>Docs</span>
+                <Link
+                  href={{
+                    pathname: "/docs",
+                    query: { new: "1", project: project.id },
+                  }}
+                  className="flex items-center gap-1 rounded-chip px-2 py-1 text-[12px] text-muted transition-[background-color,color,transform] duration-(--duration-base) ease-soft hover:bg-inset hover:text-ink active:scale-[0.97]"
+                >
+                  <Plus className="size-3" strokeWidth={2} />
+                  New
+                </Link>
+              </div>
+
+              {project.docs.length === 0 ? (
+                <p className="text-[12px] leading-relaxed text-faint">
+                  Nothing written down yet. The vision, the northstar, the
+                  strategy — this is where they go.
+                </p>
+              ) : (
+                <ul className="space-y-0.5">
+                  {project.docs.map((doc) => (
+                    <li key={doc.id}>
+                      <Link
+                        href={{ pathname: "/docs", query: { doc: doc.id } }}
+                        className="flex items-center gap-2 rounded-chip px-2 py-1.5 transition-colors duration-(--duration-quick) hover:bg-inset"
+                      >
+                        <FileText
+                          className="size-3.5 shrink-0 text-faint"
+                          strokeWidth={1.8}
+                        />
+                        <span className="truncate text-[13px] text-ink">
+                          {doc.title}
+                        </span>
+                        {doc.kind && (
+                          <span className="ml-auto shrink-0 rounded-full bg-inset px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.05em] text-muted">
+                            {doc.kind}
+                          </span>
+                        )}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
 
           {project && (
             <button

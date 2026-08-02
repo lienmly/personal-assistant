@@ -92,9 +92,14 @@ export async function saveProject(form: FormData) {
     // and what supplies the colour — and `saveMark` keeps the two in step. So
     // without this the project moves and its marks stay behind, filed and
     // coloured for an area they're no longer in.
+    //
+    // Docs carry an `areaId` for exactly the same reason and need exactly the
+    // same treatment: the Docs library groups by area, so a doc left behind
+    // reads as belonging to a project that isn't in that area any more.
     await db.$transaction([
       db.project.update({ where: { id }, data }),
       db.mark.updateMany({ where: { projectId: id }, data: { areaId } }),
+      db.doc.updateMany({ where: { projectId: id }, data: { areaId } }),
     ]);
     refresh();
     return id;
@@ -153,14 +158,20 @@ export async function deleteProject(projectId: string) {
 
   const project = await db.project.findUniqueOrThrow({
     where: { id: projectId },
-    select: { _count: { select: { marks: true, drops: true, series: true } } },
+    select: {
+      _count: { select: { marks: true, drops: true, series: true, docs: true } },
+    },
   });
 
-  const { marks, drops, series } = project._count;
+  const { marks, drops, series, docs } = project._count;
   const held = [
     marks && `${marks} mark${marks === 1 ? "" : "s"}`,
     drops && `${drops} drop${drops === 1 ? "" : "s"}`,
     series && `${series} series`,
+    // A doc survives deletion — `SetNull` drops it back to being an Area doc
+    // rather than destroying it. It still blocks: a project with a written
+    // vision is by definition not the one you named wrong two minutes ago.
+    docs && `${docs} doc${docs === 1 ? "" : "s"}`,
   ].filter(Boolean);
 
   if (held.length > 0) {

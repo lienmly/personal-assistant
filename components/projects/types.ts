@@ -26,4 +26,6 @@ export type ProjectRowView = {
   drifting: boolean;
   openMarks: number;
   drops: number;
+  /** Titles only — the panel lists them and links out to `/docs` to read one. */
+  docs: { id: string; title: string; kind: string | null }[];
 };

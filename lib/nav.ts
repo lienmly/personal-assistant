@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  BookOpen,
   CalendarDays,
   Clapperboard,
   FolderKanban,
@@ -8,10 +9,15 @@ import {
 } from "lucide-react";
 
 /**
- * The five surfaces from CLAUDE.md §6. This list is deliberately fixed —
+ * The surfaces from CLAUDE.md §6. This list is deliberately fixed —
  * navigation is by verb and time, never one entry per life area. Areas are a
- * filter that cuts across all of these. A sixth surface (Ledger) arrives in
- * Phase 6 without disturbing anything here.
+ * filter that cuts across all of these. Ledger arrives in Phase 6 without
+ * disturbing anything here.
+ *
+ * Docs joined the original five rather than hiding behind a help icon: it holds
+ * the projects' vision and strategy, not just the app's manuals, so it is a
+ * place you go to read on purpose. It sorts last because it is the one you open
+ * weekly rather than hourly.
  */
 export type Surface = {
   href: string;
@@ -50,6 +56,12 @@ export const SURFACES: Surface[] = [
     label: "Projects",
     icon: FolderKanban,
     tagline: "The roster, and how much momentum each one has",
+  },
+  {
+    href: "/docs",
+    label: "Docs",
+    icon: BookOpen,
+    tagline: "Vision, strategy, and how this dashboard works",
   },
 ];
 

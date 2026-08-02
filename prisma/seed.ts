@@ -1,3 +1,6 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+
 import { PrismaClient } from "@prisma/client";
 import type {
   DropFormat,
@@ -82,7 +85,7 @@ const PROJECTS = [
     slug: "forge",
     name: "Forge",
     description:
-      "Design life-changing AIoT hardware with AI, prototype for $200, sell it. Vision: docs/forge-vision.md.",
+      "Design life-changing AIoT hardware with AI, prototype for $200, sell it. The full brief is on the Docs tab.",
     areaSlug: "work",
     cadenceDays: 14,
     sortOrder: 2,
@@ -583,7 +586,7 @@ const CODING_MOM_MARKS: SeedMark[] = [
     track: "Marketing",
     title: "Stand up a Forge waitlist page for the bio to point at",
     notes:
-      "Coding Mom is the community-building for Forge (§ docs/forge-vision.md). Until there is somewhere to send people, the audience doesn't compound into anything.",
+      "Coding Mom is the community-building for Forge — see Forge's brief on the Docs surface. Until there is somewhere to send people, the audience doesn't compound into anything.",
   },
 ];
 
@@ -592,7 +595,8 @@ const CODING_MOM_MARKS: SeedMark[] = [
  * the destination, and the work that gets you there is the audience and the two
  * prototypes, which are already marks below.
  *
- * The full brief lives in `docs/forge-vision.md`; these are only the next real
+ * The full brief is seeded as a Doc on this project (`prisma/seed-docs/
+ * forge-vision.md`, imported by `seedDocs`); these are only the next real
  * moves, so the project reads as a thing you could start on a Tuesday rather
  * than as a pitch deck.
  */
@@ -1108,6 +1112,95 @@ async function seedDrops(brandSlug: string, drops: SeedDrop[]) {
 }
 
 /**
+ * The two project docs that were written as markdown files before there was
+ * anywhere in the app to put them.
+ *
+ * They live in `prisma/seed-docs/` rather than `/docs`, and the distinction is
+ * load-bearing: `/docs` is the app's *manuals*, which stay files forever because
+ * they describe how the code behaves and change in the same commit as the code
+ * (`lib/manuals.ts`). These two describe a *project*, so their home is a Doc row
+ * you can edit from a phone. What's left on disk is bootstrap material — the
+ * record of what they said on the day the Docs surface arrived.
+ *
+ * Create-only, like every project column since 2026-07-31 (CLAUDE.md §6, "The
+ * roster is the editor"): once a thing is editable in the app, a re-seed that
+ * reverts last week's edit is exactly the failure the editor exists to end.
+ */
+const SEED_DOCS: {
+  file: string;
+  projectSlug: string;
+  title: string;
+  kind: string;
+}[] = [
+  {
+    file: "forge-vision.md",
+    projectSlug: "forge",
+    title: "Forge — the startup brief",
+    kind: "Vision",
+  },
+  {
+    file: "coding-mom.md",
+    projectSlug: "coding-mom",
+    title: "Coding Mom — brand and audience plan",
+    kind: "Strategy",
+  },
+];
+
+async function seedDocs(): Promise<number> {
+  let created = 0;
+
+  for (const entry of SEED_DOCS) {
+    const project = await db.project.findUnique({
+      where: { slug: entry.projectSlug },
+      select: { id: true, areaId: true },
+    });
+    if (!project) continue;
+
+    // No unique key to upsert on — a doc's identity is just its id — so
+    // existence is checked on (project, title). Renaming the doc in the app
+    // would let a re-seed recreate the original; acceptable, and far better
+    // than a unique constraint that would stop you having two drafts.
+    const existing = await db.doc.findFirst({
+      where: { projectId: project.id, title: entry.title },
+      select: { id: true },
+    });
+    if (existing) continue;
+
+    let body: string;
+    try {
+      const raw = await readFile(
+        path.join(__dirname, "seed-docs", entry.file),
+        "utf8",
+      );
+      // Drop the file's leading `# Heading`. A markdown file has to carry its
+      // own title; a Doc row has a `title` column and the reader prints it
+      // above the body, so importing it verbatim shows the name twice.
+      // Done here, at import, rather than in the renderer — a reader that
+      // silently swallowed your first heading would be a mystery every time
+      // you wrote one on purpose.
+      body = raw.replace(/^\s*#\s+.*\r?\n+/, "");
+    } catch {
+      // The seed shouldn't die because a bootstrap file was tidied away.
+      console.warn(`Docs: skipped ${entry.file} — not found.`);
+      continue;
+    }
+
+    await db.doc.create({
+      data: {
+        title: entry.title,
+        kind: entry.kind,
+        body,
+        projectId: project.id,
+        areaId: project.areaId,
+      },
+    });
+    created += 1;
+  }
+
+  return created;
+}
+
+/**
  * The one piece of reconciliation in this file. "Create the Coding Mom TikTok
  * account" was seeded under Sleepy Cat because Coding Mom had no project to hang
  * it on; it does now, and the account chain there supersedes it. Only removed
@@ -1350,6 +1443,7 @@ async function main() {
   const dropsCreated = await seedDrops("coding-mom", CODING_MOM_DROPS);
   const sprintMarks = await seedFirstSprint();
   const eventsCreated = await seedEvents();
+  const docsCreated = await seedDocs();
 
   const counts = {
     areas: await db.area.count(),
@@ -1360,6 +1454,7 @@ async function main() {
     marks: await db.mark.count(),
     drops: await db.drop.count(),
     events: await db.event.count(),
+    docs: await db.doc.count(),
   };
   console.log("Seeded:", counts);
   console.log(`Marks created: ${marksCreated}, ideas banked: ${dropsCreated}`);
@@ -1378,6 +1473,11 @@ async function main() {
     eventsCreated === 0
       ? "Events: left alone — the calendar already has some."
       : `Events: created ${eventsCreated}, including the baby's daily routine.`,
+  );
+  console.log(
+    docsCreated === 0
+      ? "Docs: left alone — the seeded ones are already in."
+      : `Docs: imported ${docsCreated} from prisma/seed-docs/.`,
   );
 }
 
