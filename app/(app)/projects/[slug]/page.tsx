@@ -10,6 +10,7 @@ import { Markdown } from "@/components/ui/markdown";
 import { db } from "@/lib/db";
 import { getProjectDetail } from "@/lib/project-detail";
 import { getActiveSprint } from "@/lib/sprints";
+import { toTaskView } from "@/lib/task-view";
 import { cn, todayKey } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -18,11 +19,6 @@ export const dynamic = "force-dynamic";
  *  formats in UTC. `publishAt` and `updatedAt` are real instants and format
  *  local. Both rules are CLAUDE.md §6; getting them the same way round is what
  *  makes a date render a day early. */
-const dueFormat = new Intl.DateTimeFormat("en-GB", {
-  day: "numeric",
-  month: "short",
-  timeZone: "UTC",
-});
 const stampFormat = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",
   month: "short",
@@ -83,28 +79,7 @@ export default async function ProjectPage({
   const tab: Tab = TABS.includes(query.tab as Tab) ? (query.tab as Tab) : "overview";
   const today = todayKey();
 
-  const taskViews: TaskView[] = tasks.map((task) => {
-    const dueDate = task.dueDate?.toISOString().slice(0, 10) ?? null;
-    return {
-      id: task.id,
-      title: task.title,
-      notes: task.notes,
-      link: task.link,
-      track: task.track,
-      status: task.status,
-      dueDate,
-      dueLabel: task.dueDate
-        ? dueDate === today
-          ? "Today"
-          : dueFormat.format(task.dueDate)
-        : null,
-      overdue:
-        dueDate !== null && dueDate < today && task.status !== "done",
-      sprintId: task.sprintId,
-      projectId: task.projectId,
-      areaId: task.areaId,
-    };
-  });
+  const taskViews: TaskView[] = tasks.map((task) => toTaskView(task, today));
 
   const docViews: DocView[] = docs.map((doc) => ({
     id: doc.id,

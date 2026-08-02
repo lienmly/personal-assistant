@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import Link from "next/link";
-import { Check, CirclePlus, ExternalLink, Play } from "lucide-react";
+import { Check, CirclePlus, ExternalLink, Play, Repeat } from "lucide-react";
 
 import type { FocusTaskView, FocusReason } from "@/components/today/types";
 import { setTaskStatus } from "@/lib/task-actions";
@@ -142,6 +142,17 @@ function Row({
                 <>
                   <span>·</span>
                   <span>{task.dueLabel}</span>
+                </>
+              )}
+              {/* A repeating row must say so, because the tick next to it does
+                  something else: it records today and moves the task on. */}
+              {task.repeatLabel && (
+                <>
+                  <span>·</span>
+                  <span className="flex items-center gap-1">
+                    <Repeat className="size-3" strokeWidth={2.2} />
+                    {task.repeatLabel}
+                  </span>
                 </>
               )}
             </p>

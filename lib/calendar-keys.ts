@@ -122,3 +122,51 @@ export function timeLabel(date: Date): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
+
+/**
+ * The first day on or after `from` that a `Recurrence` rule produces, or null
+ * once `until` has passed.
+ *
+ * Lives here rather than in `lib/calendar.ts` because recurring **tasks**
+ * (Phase 5) need exactly the same arithmetic as recurring events, and a second
+ * implementation is how "every Wednesday and Sunday" comes to mean two
+ * different things on two screens. Also the reason this file has no `lib/db`
+ * import: both callers include client bundles.
+ *
+ * Recurrence is the enum's vocabulary, passed as a plain string so the type
+ * doesn't drag `@prisma/client` into a client bundle either.
+ */
+export function nextOccurrence(
+  from: string,
+  rule: string,
+  daysOfWeek: number[],
+  until: string | null,
+  anchor: string,
+): string | null {
+  if (rule === "none") return null;
+
+  // 366 covers every rule here: `monthly` lands within 31 days, `weekly` on a
+  // named day within 7, and a `daysOfWeek` that is somehow empty falls out
+  // rather than spinning.
+  for (let offset = 0; offset < 366; offset++) {
+    const key = addDays(from, offset);
+    if (until !== null && key > until) return null;
+
+    const matches =
+      rule === "daily"
+        ? true
+        : rule === "weekdays"
+          ? isoDay(key) <= 5
+          : rule === "weekly"
+            ? daysOfWeek.length > 0
+              ? daysOfWeek.includes(isoDay(key))
+              : isoDay(key) === isoDay(anchor)
+            : rule === "monthly"
+              ? dayOfMonth(key) === dayOfMonth(anchor)
+              : false;
+
+    if (matches) return key;
+  }
+
+  return null;
+}

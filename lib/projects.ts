@@ -37,7 +37,10 @@ export async function getRoster() {
     }),
     db.task.groupBy({
       by: ["projectId"],
-      where: { status: { not: "done" }, projectId: { not: null } },
+      // `recurringId: null` excludes the completed snapshots a recurring task
+      // leaves behind — they are history, not open work, and counting them
+      // would make a daily habit look like thirty tasks.
+      where: { status: { not: "done" }, projectId: { not: null }, recurringId: null },
       _count: { _all: true },
     }),
   ]);
@@ -106,7 +109,10 @@ export async function getMomentum() {
     }),
     db.task.groupBy({
       by: ["projectId"],
-      where: { status: { not: "done" }, projectId: { not: null } },
+      // `recurringId: null` excludes the completed snapshots a recurring task
+      // leaves behind — they are history, not open work, and counting them
+      // would make a daily habit look like thirty tasks.
+      where: { status: { not: "done" }, projectId: { not: null }, recurringId: null },
       _count: { _all: true },
     }),
   ]);

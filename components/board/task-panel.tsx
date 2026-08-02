@@ -3,6 +3,8 @@
 import { useEffect, useState, useTransition } from "react";
 import { Check, ExternalLink, Trash2, X } from "lucide-react";
 
+import type { Recurrence } from "@prisma/client";
+
 import type { AreaView, BoardProjectView, TaskView } from "@/components/board/types";
 import type { SprintView } from "@/components/sprint/types";
 import { deleteTask, saveTask } from "@/lib/task-actions";
@@ -39,6 +41,8 @@ export function TaskPanel({
   const [committed, setCommitted] = useState(
     sprint !== null && task?.sprintId === sprint.id,
   );
+  const [recurrence, setRecurrence] = useState(task?.recurrence ?? "none");
+  const [days, setDays] = useState<number[]>(task?.daysOfWeek ?? []);
   const [error, setError] = useState<string | null>(null);
   const [closing, setClosing] = useState(false);
   const dismiss = () => setClosing(true);
@@ -212,6 +216,14 @@ export function TaskPanel({
               </div>
             </div>
 
+            <RepeatField
+              recurrence={recurrence}
+              setRecurrence={setRecurrence}
+              days={days}
+              setDays={setDays}
+              repeatUntil={task?.repeatUntil ?? ""}
+            />
+
             {sprint && (
               <div>
                 <input
@@ -338,6 +350,126 @@ export function TaskPanel({
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+const WEEKDAYS = [
+  { day: 1, label: "M" },
+  { day: 2, label: "T" },
+  { day: 3, label: "W" },
+  { day: 4, label: "T" },
+  { day: 5, label: "F" },
+  { day: 6, label: "S" },
+  { day: 7, label: "S" },
+];
+
+const REPEATS: { id: Recurrence; label: string }[] = [
+  { id: "none", label: "Once" },
+  { id: "daily", label: "Daily" },
+  { id: "weekdays", label: "Weekdays" },
+  { id: "weekly", label: "Weekly" },
+  { id: "monthly", label: "Monthly" },
+];
+
+/**
+ * The repeat control. Deliberately the same vocabulary as the event panel —
+ * one mental model for "how often does this happen" across the app, which is
+ * the whole reason `Recurrence` is shared rather than duplicated per model.
+ *
+ * The consequence is stated out loud, as it is on an event: ticking a repeating
+ * task does not finish it, it moves it to the next day. That is a surprising
+ * thing for a checkbox to do, and finding out by surprise is worse than reading
+ * one line.
+ */
+function RepeatField({
+  recurrence,
+  setRecurrence,
+  days,
+  setDays,
+  repeatUntil,
+}: {
+  recurrence: Recurrence;
+  setRecurrence: (value: Recurrence) => void;
+  days: number[];
+  setDays: (value: number[]) => void;
+  repeatUntil: string;
+}) {
+  const toggleDay = (day: number) =>
+    setDays(
+      days.includes(day)
+        ? days.filter((value) => value !== day)
+        : [...days, day].sort(),
+    );
+
+  return (
+    <div>
+      <span className={labelCls}>Repeats</span>
+
+      <input type="hidden" name="recurrence" value={recurrence} />
+      {days.map((day) => (
+        <input key={day} type="hidden" name="daysOfWeek" value={day} />
+      ))}
+
+      <div className="flex flex-wrap gap-1.5">
+        {REPEATS.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            onClick={() => setRecurrence(option.id)}
+            className={cn(
+              "rounded-chip px-3 py-1.5 text-[12.5px] transition-[background-color,color,transform] duration-(--duration-base) ease-soft active:scale-[0.97]",
+              recurrence === option.id
+                ? "bg-obsidian text-white"
+                : "bg-inset text-muted hover:text-ink",
+            )}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+
+      {recurrence === "weekly" && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {WEEKDAYS.map((entry) => (
+            <button
+              key={entry.day}
+              type="button"
+              onClick={() => toggleDay(entry.day)}
+              aria-pressed={days.includes(entry.day)}
+              className={cn(
+                "size-8 rounded-full text-[12px] transition-[background-color,color,transform] duration-(--duration-base) ease-soft active:scale-90",
+                days.includes(entry.day)
+                  ? "bg-accent text-white"
+                  : "bg-inset text-muted hover:text-ink",
+              )}
+            >
+              {entry.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {recurrence !== "none" && (
+        <>
+          <p className="mt-2 text-[11.5px] leading-relaxed text-faint">
+            Ticking this doesn’t finish it — it records the day and moves the
+            task to its next one.
+          </p>
+          <div className="mt-2">
+            <label className={labelCls} htmlFor="task-until">
+              Until
+            </label>
+            <input
+              id="task-until"
+              type="date"
+              name="repeatUntil"
+              defaultValue={repeatUntil}
+              className={field}
+            />
+          </div>
+        </>
+      )}
     </div>
   );
 }

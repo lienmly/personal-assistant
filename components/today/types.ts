@@ -21,6 +21,9 @@ export type FocusTaskView = {
   inSprint: boolean;
   projectName: string | null;
   areaColor: string;
+  /** "Wed & Sun", "Daily" — null for a one-off. A repeating row has to say so:
+   *  ticking it moves it to its next day rather than finishing it. */
+  repeatLabel: string | null;
 };
 
 /** A row in "Next up" — the backlog you reach for when the sprint runs dry. */

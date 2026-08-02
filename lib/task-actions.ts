@@ -1,10 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import type { TaskStatus } from "@prisma/client";
+import type { Prisma, Recurrence, Task, TaskStatus } from "@prisma/client";
 
 import { auth } from "@/lib/auth";
+import { addDays, nextOccurrence } from "@/lib/calendar-keys";
 import { db } from "@/lib/db";
+import { todayKey } from "@/lib/utils";
 
 /** Server actions are their own public endpoints — the route guard in the
  *  layout does not cover them, so each one re-checks the session. */
@@ -69,6 +71,20 @@ export async function saveTask(form: FormData) {
     ? { sprintId: str(form, "sprintId") }
     : {};
 
+  // Same shape as the sprint field above: only written when the form knows
+  // about recurrence, so a save from somewhere that doesn't can't quietly turn
+  // a repeating task into a one-off.
+  const repeat = form.has("recurrence")
+    ? {
+        recurrence: (str(form, "recurrence") ?? "none") as Recurrence,
+        daysOfWeek: form
+          .getAll("daysOfWeek")
+          .map((value) => Number(value))
+          .filter((day) => day >= 1 && day <= 7),
+        repeatUntil: dateOnly(str(form, "repeatUntil")),
+      }
+    : {};
+
   const data = {
     title,
     notes: str(form, "notes"),
@@ -79,6 +95,7 @@ export async function saveTask(form: FormData) {
     projectId,
     areaId,
     ...sprint,
+    ...repeat,
   };
 
   const task = id
@@ -98,23 +115,96 @@ export async function setTaskStatus(taskId: string, status: string) {
   await requireSession();
 
   await db.$transaction(async (tx) => {
-    const task = await tx.task.update({
-      where: { id: taskId },
-      data: {
-        status: status as TaskStatus,
-        completedAt: status === "done" ? new Date() : null,
-      },
-    });
+    const before = await tx.task.findUniqueOrThrow({ where: { id: taskId } });
 
-    if (status === "done" && task.projectId) {
+    if (status === "done" && before.recurrence !== "none") {
+      await completeRecurring(tx, before);
+    } else {
+      await tx.task.update({
+        where: { id: taskId },
+        data: {
+          status: status as TaskStatus,
+          completedAt: status === "done" ? new Date() : null,
+        },
+      });
+    }
+
+    if (status === "done" && before.projectId) {
       await tx.project.update({
-        where: { id: task.projectId },
+        where: { id: before.projectId },
         data: { lastTouchedAt: new Date() },
       });
     }
   });
 
   refresh();
+}
+
+/**
+ * Ticking a recurring task: write what happened, then re-arm.
+ *
+ * The snapshot is a real `done` Task rather than a counter, so everything that
+ * already reads tasks keeps working — sprint history, the board's recent-done
+ * list, "what did I actually get through in July". It carries `recurringId`,
+ * which is what tells the two apart.
+ *
+ * The live row advances to the next occurrence **after today**, not after its
+ * old due date. Advancing from the old date is the obvious version and it is
+ * how a daily habit you skipped for a fortnight comes back as fourteen overdue
+ * rows — a backlog of days that have already gone. Missing a day is missing a
+ * day; the next one is tomorrow.
+ */
+async function completeRecurring(tx: Prisma.TransactionClient, task: Task) {
+  const today = todayKey();
+  const anchor = task.dueDate ? task.dueDate.toISOString().slice(0, 10) : today;
+  const until = task.repeatUntil
+    ? task.repeatUntil.toISOString().slice(0, 10)
+    : null;
+
+  await tx.task.create({
+    data: {
+      title: task.title,
+      notes: task.notes,
+      link: task.link,
+      track: task.track,
+      status: "done",
+      completedAt: new Date(),
+      // The day it was *for*, so a Sunday batch ticked on Monday morning still
+      // reads as Sunday's — which is what the sprint's record should say.
+      dueDate: task.dueDate,
+      projectId: task.projectId,
+      areaId: task.areaId,
+      sprintId: task.sprintId,
+      recurringId: task.id,
+    },
+  });
+
+  const next = nextOccurrence(
+    addDays(today, 1),
+    task.recurrence,
+    task.daysOfWeek,
+    until,
+    anchor,
+  );
+
+  if (next === null) {
+    // The rule has run out. The live row becomes the last completed one rather
+    // than lingering open with a due date it can never reach.
+    await tx.task.update({
+      where: { id: task.id },
+      data: { status: "done", completedAt: new Date(), recurrence: "none" },
+    });
+    return;
+  }
+
+  await tx.task.update({
+    where: { id: task.id },
+    data: {
+      status: "open",
+      completedAt: null,
+      dueDate: new Date(`${next}T00:00:00.000Z`),
+    },
+  });
 }
 
 export async function deleteTask(taskId: string) {

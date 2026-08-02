@@ -1,19 +1,7 @@
 import { db } from "@/lib/db";
+import { TASK_VIEW_SELECT } from "@/lib/task-view";
 
-const taskSelect = {
-  id: true,
-  title: true,
-  notes: true,
-  link: true,
-  track: true,
-  status: true,
-  dueDate: true,
-  sortOrder: true,
-  createdAt: true,
-  sprintId: true,
-  projectId: true,
-  areaId: true,
-} as const;
+const taskSelect = { ...TASK_VIEW_SELECT, sortOrder: true, createdAt: true } as const;
 
 export type TaskRow = Awaited<ReturnType<typeof getHuntBoard>>["tasks"][number];
 
@@ -33,6 +21,10 @@ export async function getHuntBoard() {
   const [tasks, projects, areas] = await Promise.all([
     db.task.findMany({
       where: {
+        // A recurring task keeps one live row and leaves a completed snapshot
+        // per occurrence. The snapshots are its history — showing them here
+        // would put "Read her a Vietnamese book" on the board thirty times.
+        recurringId: null,
         OR: [
           { status: { not: "done" } },
           { completedAt: { gte: since } },

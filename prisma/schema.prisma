@@ -466,14 +466,46 @@ model Task {
 
   /// Required even when a project is set — a floating one-off needs somewhere
   /// to hang, and the Area is what supplies the colour and the calendar
-  /// grouping. Kept in step with the project's area by `saveMark`.
+  /// grouping. Kept in step with the project's area by `saveTask`.
   areaId String
   area   Area   @relation(fields: [areaId], references: [id], onDelete: Cascade)
+
+  // ── Recurrence ────────────────────────────────────────────────────────────
+  //
+  // "Read her a Vietnamese book" and "batch the Utaitai week" are not tasks
+  // that get finished; they are tasks that come back. Before this they had two
+  // equally wrong homes: a one-off task you tick and lose, or a calendar Event,
+  // which says a thing *happens at a time* rather than that you owe it.
+  //
+  // The rule is stored, not the occurrences — the same decision the calendar
+  // made (CLAUDE.md §6) and for the same reason: reading daily for a year is
+  // 365 rows that are only ever looked at one at a time.
+  //
+  // A recurring task is **one live row** that advances. Completing it writes a
+  // `done` snapshot below and moves this row's `dueDate` to its next
+  // occurrence, so history survives — momentum, sprint records and "did I
+  // actually do it last week" all read real rows — while the board still shows
+  // exactly one "read to her" at a time.
+
+  recurrence Recurrence @default(none)
+  /// For `weekly`: ISO weekdays, 1 = Monday … 7 = Sunday. Utaitai's batching is
+  /// `[3, 7]`. Same convention as `Series.daysOfWeek` and `Event.daysOfWeek`.
+  daysOfWeek Int[]      @default([])
+  /// Last day the rule fires, inclusive. Null means forever.
+  repeatUntil DateTime? @db.Date
+
+  /// Set on a completed snapshot, pointing at the live row it was struck from.
+  /// Cascade: the snapshots are the recurring task's own history and mean
+  /// nothing detached from it, unlike every other relation here.
+  recurringId String?
+  recurring   Task?   @relation("TaskRecurrence", fields: [recurringId], references: [id], onDelete: Cascade)
+  occurrences Task[]  @relation("TaskRecurrence")
 
   @@index([status, dueDate])
   @@index([projectId, status, sortOrder])
   @@index([areaId, status])
   @@index([sprintId, status])
+  @@index([recurringId, completedAt])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

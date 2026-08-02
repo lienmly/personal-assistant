@@ -20,6 +20,7 @@ import { minutesOfDay } from "@/lib/calendar-keys";
 import { getMomentum } from "@/lib/projects";
 import { dayKey, getActiveSprint, getFocus, getUpNext } from "@/lib/sprints";
 import { ensureSeriesSlots, getGoingOutToday } from "@/lib/studio";
+import { repeatLabel } from "@/lib/task-view";
 import { todayKey } from "@/lib/utils";
 
 export const metadata = { title: "Today · Clan Centurio" };
@@ -86,6 +87,7 @@ export default async function TodayPage() {
     inSprint: sprint !== null && task.sprintId === sprint.id,
     projectName: task.project?.name ?? null,
     areaColor: task.area.color,
+    repeatLabel: repeatLabel(task),
   }));
 
   const toNextView = (task: {

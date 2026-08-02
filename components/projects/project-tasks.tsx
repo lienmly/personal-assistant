@@ -1,12 +1,13 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Check, ExternalLink, Plus } from "lucide-react";
+import { Check, ExternalLink, Plus, Repeat } from "lucide-react";
 
 import { TaskPanel } from "@/components/board/task-panel";
 import type { AreaView, BoardProjectView, TaskView } from "@/components/board/types";
 import type { SprintView } from "@/components/sprint/types";
 import { setTaskStatus } from "@/lib/task-actions";
+import { repeatLabel } from "@/lib/task-view";
 import { trackRank } from "@/lib/tracks";
 import { cn } from "@/lib/utils";
 
@@ -143,6 +144,7 @@ export function ProjectTasks({
 function TaskRow({ task, onOpen }: { task: TaskView; onOpen: () => void }) {
   const [pending, startTransition] = useTransition();
   const done = task.status === "done";
+  const repeat = repeatLabel(task);
 
   return (
     // The fold-out on completion: `grid-template-rows` 1fr → 0fr, with the
@@ -193,6 +195,23 @@ function TaskRow({ task, onOpen }: { task: TaskView; onOpen: () => void }) {
               {task.title}
             </span>
           </button>
+
+          {repeat && (
+            <span
+              className="flex shrink-0 items-center gap-1 rounded-full bg-card px-2 py-0.5 text-[11px] text-muted"
+              title={
+                task.doneCount > 0
+                  ? `Done ${task.doneCount} times`
+                  : "Repeats — ticking it moves it to the next day"
+              }
+            >
+              <Repeat className="size-3" strokeWidth={2.2} />
+              {repeat}
+              {task.doneCount > 0 && (
+                <span className="text-faint">·{task.doneCount}</span>
+              )}
+            </span>
+          )}
 
           {task.dueLabel && (
             <span

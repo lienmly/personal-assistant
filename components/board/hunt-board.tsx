@@ -8,6 +8,7 @@ import {
   Link2,
   Minus,
   Plus,
+  Repeat,
   Sparkles,
 } from "lucide-react";
 
@@ -21,6 +22,7 @@ import { SprintBar } from "@/components/sprint/sprint-bar";
 import type { SprintView } from "@/components/sprint/types";
 import { captureExperiment, setTaskStatus } from "@/lib/task-actions";
 import { setTaskSprint } from "@/lib/sprint-actions";
+import { repeatLabel } from "@/lib/task-view";
 import { trackRank } from "@/lib/tracks";
 import { cn } from "@/lib/utils";
 
@@ -533,6 +535,7 @@ function TaskRow({
   const [moving, startMove] = useTransition();
   const done = task.status === "done";
   const busy = pending || moving;
+  const repeat = repeatLabel(task);
 
   // The row folds away while the tick is in flight, because the server
   // round-trip is what unmounts it and an un-animated disappearance is the
@@ -594,8 +597,17 @@ function TaskRow({
             >
               {task.title}
             </p>
-            {(task.dueLabel || task.notes) && (
+            {(task.dueLabel || task.notes || repeat) && (
               <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-faint">
+                {repeat && (
+                  <>
+                    <span className="flex items-center gap-1 text-muted">
+                      <Repeat className="size-3" strokeWidth={2.2} />
+                      {repeat}
+                    </span>
+                    {(task.dueLabel || task.notes) && <span>·</span>}
+                  </>
+                )}
                 {task.dueLabel && (
                   <span
                     className={cn(task.overdue && !done && "font-medium text-accent")}

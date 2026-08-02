@@ -267,6 +267,10 @@ export async function getCalendar(
       ? db.task.findMany({
           where: {
             ...areaWhere,
+            // The live row only. A recurring task's completed snapshots keep the
+            // due date they were for, so without this every past occurrence
+            // would stack up on the day it happened.
+            recurringId: null,
             dueDate: { gte: keyToUtc(first), lte: keyToUtc(last) },
           },
           select: {

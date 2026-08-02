@@ -20,6 +20,8 @@ const focusSelect = {
   dueDate: true,
   sortOrder: true,
   sprintId: true,
+  recurrence: true,
+  daysOfWeek: true,
   project: { select: { id: true, name: true, slug: true } },
   area: { select: { name: true, color: true } },
 } as const;
@@ -59,15 +61,41 @@ export async function getActiveSprint(): Promise<SprintSummary | null> {
   const sprint = await db.sprint.findFirst({
     where: { status: "active" },
     orderBy: { startsOn: "desc" },
-    include: { _count: { select: { tasks: true } } },
   });
   if (!sprint) return null;
 
-  const done = await db.task.count({
-    where: { sprintId: sprint.id, status: "done" },
+  const today = todayKey();
+
+  /**
+   * Progress has to special-case recurring tasks, and the alternatives are
+   * both wrong. A recurring row never *stays* done — ticking it re-arms it for
+   * its next day — so counting `status: "done"` reports it as outstanding all
+   * week however many times you did it. Counting its completed snapshots
+   * instead makes `done` climb past `total`, because two Wednesdays and a
+   * Sunday are three completions of one commitment.
+   *
+   * So: the sprint's members are the live rows (`recurringId: null`), and a
+   * recurring one counts as done once it has fired *inside the sprint window*.
+   */
+  const members = await db.task.findMany({
+    where: { sprintId: sprint.id, recurringId: null },
+    select: {
+      status: true,
+      recurrence: true,
+      _count: {
+        select: {
+          occurrences: { where: { completedAt: { gte: sprint.startsOn } } },
+        },
+      },
+    },
   });
 
-  const today = todayKey();
+  const done = members.filter(
+    (task) =>
+      task.status === "done" ||
+      (task.recurrence !== "none" && task._count.occurrences > 0),
+  ).length;
+
   const startsOn = dayKey(sprint.startsOn);
   const endsOn = dayKey(sprint.endsOn);
   const totalDays = daysBetweenKeys(startsOn, endsOn) + 1;
@@ -85,7 +113,7 @@ export async function getActiveSprint(): Promise<SprintSummary | null> {
     ),
     daysLeft: daysBetweenKeys(today, endsOn),
     done,
-    total: sprint._count.tasks,
+    total: members.length,
   };
 }
 
@@ -111,6 +139,9 @@ export async function getFocus(sprintId: string | null, limit = 8) {
   const tasks = await db.task.findMany({
     where: {
       status: { not: "done" },
+      // Snapshots are completed by definition, but be explicit: a recurring
+      // task is represented here by its one live row.
+      recurringId: null,
       OR: [
         ...(sprintId ? [{ sprintId }] : []),
         { dueDate: { lte: endOfToday } },
@@ -165,6 +196,7 @@ export async function getUpNext(sprintId: string | null, perProject = 3) {
       where: {
         status: "open",
         sprintId: null,
+        recurringId: null,
         track: { not: "Experiments" },
         project: { priority: "main", status: { in: ["active", "simmering"] } },
       },
@@ -172,7 +204,12 @@ export async function getUpNext(sprintId: string | null, perProject = 3) {
       orderBy: [{ project: { sortOrder: "asc" } }, { sortOrder: "asc" }],
     }),
     db.task.findMany({
-      where: { status: "open", sprintId: null, track: "Experiments" },
+      where: {
+        status: "open",
+        sprintId: null,
+        track: "Experiments",
+        recurringId: null,
+      },
       select: focusSelect,
       orderBy: [{ createdAt: "desc" }],
       take: 5,
@@ -205,6 +242,7 @@ export async function getUpNext(sprintId: string | null, perProject = 3) {
     backlogTotal: await db.task.count({
       where: {
         status: { not: "done" },
+        recurringId: null,
         ...(sprintId ? { sprintId: null } : {}),
       },
     }),

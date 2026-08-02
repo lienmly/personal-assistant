@@ -1,4 +1,5 @@
 import type {
+  Recurrence,
   TaskStatus,
   ProjectPriority,
   ProjectStatus,
@@ -38,4 +39,15 @@ export type TaskView = {
   sprintId: string | null;
   projectId: string | null;
   areaId: string;
+
+  /** `"none"` for an ordinary task. Anything else and ticking it re-arms the
+   *  row for its next day rather than finishing it — see `completeRecurring`. */
+  recurrence: Recurrence;
+  /** ISO weekdays for a `weekly` rule, 1 = Monday … 7 = Sunday. */
+  daysOfWeek: number[];
+  /** "YYYY-MM-DD", or "" — the date input round-trips it without a zone. */
+  repeatUntil: string;
+  /** How many times this has been completed. Only meaningful when recurring;
+   *  it is what makes a habit feel like it is going somewhere. */
+  doneCount: number;
 };
