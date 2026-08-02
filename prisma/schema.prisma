@@ -182,10 +182,46 @@ model Project {
   series Series[]
   tasks  Task[]
   events Event[]
+  docs   ProjectDoc[]
 
   @@index([areaId, sortOrder])
   @@index([status, lastTouchedAt])
   @@index([priority, sortOrder])
+}
+
+/// A written page belonging to one project: the vision brief, the content
+/// pillars, a running scratchpad of ideas.
+///
+/// The alternative was rendering the repo's `/docs/*.md` read-only, and it
+/// fails the only test that matters — the notes worth keeping are the ones
+/// thought of at 3am on a phone, and a git commit is not available then.
+/// `/docs` keeps the guides that are about the *app*; anything about a
+/// *project* lives here.
+///
+/// Cascades with the project, unlike every other relation, which is `SetNull`.
+/// A doc without a project isn't an orphan with a home elsewhere — it's a page
+/// about nothing. `deleteProject` counts docs among what blocks a delete, so
+/// nothing written can be lost without being named first.
+model ProjectDoc {
+  id    String @id @default(cuid())
+  /// Stable within a project, so a doc keeps its URL across a rename — the
+  /// same rule the Project slug follows, for the same reason.
+  slug  String
+  title String
+  /// Markdown. Rendered by a deliberately small renderer (`lib/markdown.ts`):
+  /// headings, lists, bold, links, code. A full pipeline is a dependency and a
+  /// sanitiser for content only I can write.
+  body  String @default("")
+
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, slug])
+  @@index([projectId, sortOrder])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

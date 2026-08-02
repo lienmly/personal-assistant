@@ -19,7 +19,7 @@ import type {
 } from "@/components/board/types";
 import { SprintBar } from "@/components/sprint/sprint-bar";
 import type { SprintView } from "@/components/sprint/types";
-import { captureExperiment, setMarkStatus } from "@/lib/task-actions";
+import { captureExperiment, setTaskStatus } from "@/lib/task-actions";
 import { setTaskSprint } from "@/lib/sprint-actions";
 import { trackRank } from "@/lib/tracks";
 import { cn } from "@/lib/utils";
@@ -564,7 +564,7 @@ function TaskRow({
             aria-label={done ? "Reopen this task" : "Mark as done"}
             onClick={() =>
               startTransition(() =>
-                setMarkStatus(task.id, done ? "open" : "done"),
+                setTaskStatus(task.id, done ? "open" : "done"),
               )
             }
             className={cn(

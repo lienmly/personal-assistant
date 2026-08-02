@@ -132,7 +132,7 @@ export async function ensureSeriesSlots(): Promise<number> {
 }
 
 export type StudioBoard = Awaited<ReturnType<typeof getStudioBoard>>;
-export type StudioDrop = StudioBoard["items"][number];
+export type StudioContentItem = StudioBoard["items"][number];
 
 /**
  * Everything the board needs in one round trip. Published items are capped —

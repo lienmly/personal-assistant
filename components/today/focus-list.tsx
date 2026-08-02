@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Check, CirclePlus, ExternalLink, Play } from "lucide-react";
 
 import type { FocusTaskView, FocusReason } from "@/components/today/types";
-import { setMarkStatus } from "@/lib/task-actions";
+import { setTaskStatus } from "@/lib/task-actions";
 import { setTaskSprint } from "@/lib/sprint-actions";
 import { cn } from "@/lib/utils";
 
@@ -103,7 +103,7 @@ function Row({
             type="button"
             disabled={busy}
             aria-label="Mark as done"
-            onClick={() => startDone(() => setMarkStatus(task.id, "done"))}
+            onClick={() => startDone(() => setTaskStatus(task.id, "done"))}
             className="grid size-5 shrink-0 place-items-center rounded-full bg-inset text-transparent transition-[background-color,color,transform] duration-(--duration-base) ease-soft hover:bg-good hover:text-white active:scale-90"
           >
             <Check className="size-3" strokeWidth={3} />
@@ -173,7 +173,7 @@ function Row({
             title={doing ? "Stop working on this" : "Start working on this"}
             onClick={() =>
               startEdit(() =>
-                setMarkStatus(task.id, doing ? "open" : "doing"),
+                setTaskStatus(task.id, doing ? "open" : "doing"),
               )
             }
             className={cn(

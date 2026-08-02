@@ -394,9 +394,9 @@ export function ContentPanel({
 function PublishChecklist({ item }: { item: ContentView }) {
   const [pending, startTransition] = useTransition();
 
-  function update(dropChannelId: string, state: string, publishedUrl: string) {
+  function update(itemChannelId: string, state: string, publishedUrl: string) {
     const form = new FormData();
-    form.set("dropChannelId", dropChannelId);
+    form.set("itemChannelId", itemChannelId);
     form.set("state", state);
     form.set("publishedUrl", publishedUrl);
     startTransition(() => setChannelState(form));

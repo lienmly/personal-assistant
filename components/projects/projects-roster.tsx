@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
-import { FolderKanban, Plus } from "lucide-react";
+import { FolderKanban, Pencil, Plus } from "lucide-react";
 
 import { ProjectPanel } from "@/components/projects/project-panel";
 import type { AreaOption, ProjectRowView } from "@/components/projects/types";
@@ -100,14 +101,34 @@ export function ProjectsRoster({
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
           {shown.map((project, index) => (
-            <button
+            // The card opens the project; the pencil opens the editor. Before
+            // project pages existed, tapping a card *was* the editor — which
+            // made the roster the only way in and the settings form the first
+            // thing you saw of a project.
+            <div
               key={project.id}
-              type="button"
-              onClick={() => setEditing(project)}
               style={{ animationDelay: `${index * 40}ms` }}
-              className="animate-rise rounded-card bg-card p-4 text-left shadow-card transition-[transform,box-shadow] duration-(--duration-base) ease-soft hover:-translate-y-px active:scale-[0.985]"
+              className="group relative animate-rise rounded-card bg-card p-4 shadow-card transition-[transform,box-shadow] duration-(--duration-base) ease-soft hover:-translate-y-px"
             >
-              <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setEditing(project)}
+                aria-label={`Edit ${project.name}`}
+                // Visible outright on touch, revealed on hover on a pointer
+                // device — CLAUDE.md §9. A hover-only control does not exist
+                // on a phone.
+                className="absolute right-3 top-3 z-10 grid size-7 place-items-center rounded-full bg-inset text-faint transition-[background-color,color,opacity] duration-(--duration-quick) hover:text-ink active:scale-90 sm:opacity-0 sm:group-hover:opacity-100"
+              >
+                <Pencil className="size-3.5" strokeWidth={2} />
+              </button>
+
+              <Link
+                href={`/projects/${project.slug}`}
+                className="absolute inset-0 rounded-card"
+                aria-label={`Open ${project.name}`}
+              />
+
+              <div className="flex items-center gap-2 pr-8">
                 <span
                   className="size-2 shrink-0 rounded-full"
                   style={{ background: project.areaColor }}
@@ -120,7 +141,7 @@ export function ProjectsRoster({
                     main
                   </span>
                 )}
-                <span className="ml-auto shrink-0 text-[11px] text-faint">
+                <span className="ml-auto hidden shrink-0 text-[11px] text-faint sm:block">
                   {project.areaName}
                 </span>
               </div>
@@ -153,7 +174,7 @@ export function ProjectsRoster({
                   </>
                 )}
               </div>
-            </button>
+            </div>
           ))}
         </div>
       )}

@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { PrismaClient } from "@prisma/client";
 import type {
   ContentFormat,
@@ -17,6 +20,60 @@ const db = new PrismaClient();
  * Channels rather than here; this file is a starting point, not the source of
  * truth once the app is live.
  */
+
+/**
+ * Project docs, bootstrapped from `prisma/docs/*.md`.
+ *
+ * These files used to live in `/docs` next to the guides that are about the
+ * *app*, which is one folder away from the project they describe and a git
+ * commit away from being edited. They are seed material now: the row in
+ * Postgres is the copy that gets read and written, and the file is only how an
+ * empty database gets one.
+ *
+ * `update: {}` for the same reason the Project upsert has it — the moment a
+ * column is editable in the app, every value in it is a decision, and a
+ * re-seed that reverted last night's writing is exactly the failure this
+ * whole move was meant to end.
+ */
+const PROJECT_DOCS: { projectSlug: string; file: string; title: string }[] = [
+  {
+    projectSlug: "coding-mom",
+    file: "coding-mom.md",
+    title: "The brand and the project",
+  },
+  { projectSlug: "forge", file: "forge-vision.md", title: "The startup brief" },
+];
+
+async function seedDocs(): Promise<number> {
+  let created = 0;
+
+  for (const entry of PROJECT_DOCS) {
+    const project = await db.project.findUnique({
+      where: { slug: entry.projectSlug },
+      select: { id: true },
+    });
+    if (!project) continue;
+
+    const slug = entry.file.replace(/\.md$/, "");
+    const existing = await db.projectDoc.findUnique({
+      where: { projectId_slug: { projectId: project.id, slug } },
+      select: { id: true },
+    });
+    if (existing) continue;
+
+    await db.projectDoc.create({
+      data: {
+        projectId: project.id,
+        slug,
+        title: entry.title,
+        body: readFileSync(join(__dirname, "docs", entry.file), "utf8"),
+      },
+    });
+    created++;
+  }
+
+  return created;
+}
 
 const AREAS = [
   { slug: "work", name: "Work", color: "#3b6fd4", sortOrder: 0 },
@@ -1339,6 +1396,7 @@ async function main() {
     }
   }
 
+  const docsCreated = await seedDocs();
   const reseated = await reseatMarks();
 
   const marksCreated =
@@ -1377,7 +1435,12 @@ async function main() {
   console.log(
     eventsCreated === 0
       ? "Events: left alone — the calendar already has some."
-      : `Events: created ${eventsCreated}, including the baby's daily routine.`,
+      : `Events: created ${eventsCreated}.`,
+  );
+  console.log(
+    docsCreated === 0
+      ? "Docs: left alone — they are edited in the app now."
+      : `Docs: imported ${docsCreated} from prisma/docs.`,
   );
 }
 

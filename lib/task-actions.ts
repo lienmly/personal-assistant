@@ -18,6 +18,10 @@ function refresh() {
   revalidatePath("/board");
   revalidatePath("/today");
   revalidatePath("/projects");
+  // The project page reads tasks, content and momentum, so every one of
+  // these actions changes it. A dynamic segment is revalidated by its route
+  // pattern, not by each concrete slug.
+  revalidatePath("/projects/[slug]", "page");
 }
 
 function str(form: FormData, key: string): string | null {
@@ -90,12 +94,12 @@ export async function saveTask(form: FormData) {
  * `lastTouchedAt` — the same signal publishing a ContentItem sends — so section 4 of
  * Today measures real movement rather than just posting volume.
  */
-export async function setMarkStatus(markId: string, status: string) {
+export async function setTaskStatus(taskId: string, status: string) {
   await requireSession();
 
   await db.$transaction(async (tx) => {
     const task = await tx.task.update({
-      where: { id: markId },
+      where: { id: taskId },
       data: {
         status: status as TaskStatus,
         completedAt: status === "done" ? new Date() : null,
@@ -113,9 +117,9 @@ export async function setMarkStatus(markId: string, status: string) {
   refresh();
 }
 
-export async function deleteTask(markId: string) {
+export async function deleteTask(taskId: string) {
   await requireSession();
-  await db.task.delete({ where: { id: markId } });
+  await db.task.delete({ where: { id: taskId } });
   refresh();
 }
 

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { ChevronDown, Plus, Settings2, X } from "lucide-react";
 
@@ -151,12 +152,14 @@ export function Sidebar({
                   <div className="tree-branch ml-[18px] pl-3">
                     {projects.length > 0 ? (
                       projects.map((project) => (
-                        <div
+                        <Link
                           key={project.id}
-                          className="cursor-default rounded-chip px-3 py-1.5 text-[13px] text-muted hover:text-ink"
+                          href={`/projects/${project.slug}`}
+                          onClick={onClose}
+                          className="block truncate rounded-chip px-3 py-1.5 text-[13px] text-muted transition-colors duration-(--duration-quick) hover:text-ink"
                         >
                           {project.name}
-                        </div>
+                        </Link>
                       ))
                     ) : (
                       <div className="px-3 py-1.5 text-[13px] text-faint">

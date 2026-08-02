@@ -153,14 +153,17 @@ export async function deleteProject(projectId: string) {
 
   const project = await db.project.findUniqueOrThrow({
     where: { id: projectId },
-    select: { _count: { select: { tasks: true, items: true, series: true } } },
+    select: { _count: { select: { tasks: true, items: true, series: true, docs: true } } },
   });
 
-  const { tasks, items, series } = project._count;
+  const { tasks, items, series, docs } = project._count;
   const held = [
     tasks && `${tasks} task${tasks === 1 ? "" : "s"}`,
     items && `${items} item${items === 1 ? "" : "s"}`,
     series && `${series} series`,
+    // Docs cascade rather than orphaning, so deleting would not leave them
+    // behind — it would erase them. Which is worse, and so still blocks.
+    docs && `${docs} doc${docs === 1 ? "" : "s"}`,
   ].filter(Boolean);
 
   if (held.length > 0) {

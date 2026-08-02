@@ -33,6 +33,10 @@ function refresh() {
   revalidatePath("/studio/channels");
   revalidatePath("/today");
   revalidatePath("/projects");
+  // The project page reads tasks, content and momentum, so every one of
+  // these actions changes it. A dynamic segment is revalidated by its route
+  // pattern, not by each concrete slug.
+  revalidatePath("/projects/[slug]", "page");
 }
 
 function str(form: FormData, key: string): string | null {
@@ -269,7 +273,7 @@ export async function deriveContentItem(form: FormData) {
 export async function setChannelState(form: FormData) {
   await requireSession();
 
-  const id = str(form, "dropChannelId");
+  const id = str(form, "itemChannelId");
   const state = str(form, "state") ?? "pending";
   const publishedUrl = str(form, "publishedUrl");
   if (!id) throw new Error("Missing channel row");

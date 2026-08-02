@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 
-const markSelect = {
+const taskSelect = {
   id: true,
   title: true,
   notes: true,
@@ -38,7 +38,7 @@ export async function getHuntBoard() {
           { completedAt: { gte: since } },
         ],
       },
-      select: markSelect,
+      select: taskSelect,
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
     }),
     db.project.findMany({

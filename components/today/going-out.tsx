@@ -23,13 +23,13 @@ export function GoingOut({ items }: { items: GoingOutView[] }) {
   return (
     <div className="flex flex-col gap-2">
       {items.map((item) => (
-        <DropRow key={item.id} item={item} />
+        <ContentRow key={item.id} item={item} />
       ))}
     </div>
   );
 }
 
-function DropRow({ item }: { item: GoingOutView }) {
+function ContentRow({ item }: { item: GoingOutView }) {
   const posted = item.channels.filter(
     (channel) => channel.state === "published",
   ).length;
@@ -106,7 +106,7 @@ function ChannelTick({ channel }: { channel: GoingOutChannelView }) {
 
   function toggle() {
     const form = new FormData();
-    form.set("dropChannelId", channel.id);
+    form.set("itemChannelId", channel.id);
     form.set("state", done ? "pending" : "published");
     startTransition(() => setChannelState(form));
   }

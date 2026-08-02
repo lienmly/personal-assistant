@@ -17,6 +17,10 @@ function refresh() {
   revalidatePath("/today");
   revalidatePath("/board");
   revalidatePath("/projects");
+  // The project page reads tasks, content and momentum, so every one of
+  // these actions changes it. A dynamic segment is revalidated by its route
+  // pattern, not by each concrete slug.
+  revalidatePath("/projects/[slug]", "page");
 }
 
 function str(form: FormData, key: string): string | null {
