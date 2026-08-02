@@ -5,8 +5,21 @@ import { parseMarkdown, type Block, type Inline } from "@/lib/markdown";
  * rather than with a `prose` plugin: the reference's typography is dense and
  * calm, and Typography's defaults are neither.
  */
-export function Markdown({ source }: { source: string }) {
-  const blocks = parseMarkdown(source);
+export function Markdown({
+  source,
+  skipLeadingHeading = false,
+}: {
+  source: string;
+  /** Drop a heading that opens the document. A doc pasted from a file starts
+   *  with its own title, and the reader already renders one above — without
+   *  this the page says the same sentence twice, in two sizes. */
+  skipLeadingHeading?: boolean;
+}) {
+  const parsed = parseMarkdown(source);
+  const blocks =
+    skipLeadingHeading && parsed[0]?.kind === "heading"
+      ? parsed.slice(1)
+      : parsed;
 
   if (blocks.length === 0) {
     return <p className="text-[13px] text-faint">Nothing written yet.</p>;

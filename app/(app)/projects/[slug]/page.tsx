@@ -281,7 +281,7 @@ export default async function ProjectPage({
                   title={docViews[0].title}
                   hint={docViews[0].updatedLabel}
                 />
-                <Markdown source={docViews[0].body} />
+                <Markdown source={docViews[0].body} skipLeadingHeading />
                 <Link
                   href={`/projects/${project.slug}?tab=docs`}
                   className="mt-4 inline-block text-[12.5px] text-muted hover:text-accent"

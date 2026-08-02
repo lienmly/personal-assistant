@@ -154,7 +154,7 @@ function DocReader({ doc, onEdit }: { doc: DocView; onEdit: () => void }) {
         </div>
       </div>
 
-      <Markdown source={doc.body} />
+      <Markdown source={doc.body} skipLeadingHeading />
     </div>
   );
 }

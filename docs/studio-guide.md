@@ -1,4 +1,4 @@
-# How to use the Studio
+# How to use the Content Studio
 
 > The pipeline for everything you post publicly. This is the "what do I click, and why"
 > guide — for the *reasoning* behind the data model, see `CLAUDE.md` §6.
@@ -7,7 +7,7 @@
 
 ## The four nouns
 
-Studio has four ideas in it. Once these land, the rest of the screen is obvious.
+The Content Studio has four ideas in it. Once these land, the rest of the screen is obvious.
 
 ### Brand — *who is talking*
 
@@ -21,7 +21,7 @@ A public identity, with its own audience and its own voice. You have three:
 
 **A brand is not a project.** A brand is a persona that can talk about *any* of your
 projects, or about nothing in particular — an app idea you haven't started belongs to no
-project at all. That's why the board filters by brand, and why every drop's project field
+project at all. That's why the board filters by brand, and why every content item's project field
 has a `None — brand building` option.
 
 > **"But Coding Mom is in both lists now."** It is, since 2026-07-31, and the two are
@@ -46,9 +46,9 @@ generating work you can't do.
 
 Managed at **Studio → Channels**.
 
-### Drop — *one unit of content going out*
+### Content item — *one unit of content going out*
 
-One video. One essay. One text post. A drop carries:
+One video. One essay. One text post. A content item carries:
 
 - **Brand** — who's saying it *(required)*
 - **Project** — what it's about *(optional)*
@@ -59,17 +59,17 @@ One video. One essay. One text post. A drop carries:
 - **Body** — the actual words
 - **Notes** — anything else
 
-**A drop is deliberately not a Mark.** A Mark (task) is binary — open or done. A drop moves
+**A content item is deliberately not a Task.** A task is binary — open or done. A content item moves
 through repeating stages, fans out to several channels from one source asset, and has a
 publish datetime. If they were the same thing, your task list would be 90% "post the thing"
 and the real work would be buried underneath.
 
-### Series — *a standing commitment that creates drops for you*
+### Series — *a standing commitment that creates content items for you*
 
 "Daily short, Japanese TikTok, 18:00." A series materialises empty dated cards ahead of
 time, every time Studio loads.
 
-This is the whole point. Posting daily on two accounts is ~730 drops a year — a Studio that
+This is the whole point. Posting daily on two accounts is ~730 content items a year — a Studio that
 made you hand-create each one would die in a week. **You never create your daily posts. You
 open a card that's already waiting and fill it in.**
 
@@ -109,39 +109,39 @@ one column, so you get one board instead of a board per format.
 ### What's on the screen
 
 - **Brand filter chips** (top left) — pick a brand, or "All brands". The filter also
-  pre-selects the brand when you hit "New drop".
-- **"N going out today"** — a crimson pill, only appears when there are unpublished drops
+  pre-selects the brand when you hit "New content item".
+- **"N going out today"** — a crimson pill, only appears when there are unpublished content items
   with today's publish date.
-- **"New drop"** (top right) — for anything outside a series.
-- **Drop cards** — brand dot + name, title, format · project · publish date, and a row of
-  channel badges. A `↳` means the drop was derived from another one.
+- **"New content item"** (top right) — for anything outside a series.
+- **Content item cards** — brand dot + name, title, format · project · publish date, and a row of
+  channel badges. A `↳` means the content item was derived from another one.
 - **The `→ <next stage>` button** at the bottom of a card — appears on hover (always
   visible on phone). One click advances the stage without opening anything.
 
-The columns hold **one-off drops only**. Series slots live in the queue strip above — see
+The columns hold **one-off content items only**. Series slots live in the queue strip above — see
 below.
 
-### The drop panel
+### The content item panel
 
-Click any card to open the panel from the right. Everything about the drop is editable
+Click any card to open the panel from the right. Everything about the content item is editable
 there. Two sections are worth calling out:
 
 **Goes out on** — checkboxes for every channel belonging to the selected brand. Tick more
 to fan the same asset out to more places.
 
 **Posted where** — the per-channel publish checklist, one row per attached channel:
-- a check button to mark that channel posted
+- a check button to task that channel posted
 - a field for the live URL
 - an open-link icon once the URL is in
 
-This is how one video going to TikTok + Reels + Shorts stays *one drop* instead of three.
+This is how one video going to TikTok + Reels + Shorts stays *one content item* instead of three.
 The card shows `2/3` when you're partway through.
 
 ---
 
 ## The daily queue, and filling a week at a time
 
-Posting daily on two accounts is about 730 drops a year. Two things make that survivable.
+Posting daily on two accounts is about 730 content items a year. Two things make that survivable.
 
 ### The queue strip
 
@@ -156,11 +156,11 @@ Above the columns sits **Daily queue** — one lane per series, one small square
 | solid green | `published` |
 | ringed | today |
 
-Click any square to open that slot's drop panel, exactly as if it were a card. The header
+Click any square to open that slot's content item panel, exactly as if it were a card. The header
 counts `filled / total` and flags anything that slipped past.
 
 Series slots are deliberately **not** shown as cards in the columns — twenty-eight
-identical empty cards would bury the handful of drops you actually thought up.
+identical empty cards would bury the handful of content items you actually thought up.
 
 ### Fill the week
 
@@ -174,7 +174,7 @@ one grid, grouped by day. Each row is one slot:
 Type the whole batch, then:
 
 - **Save** — writes the titles and links, leaves every stage alone.
-- **Save + mark produced** — the same, and moves every row that has a title to `Produce`.
+- **Save + task produced** — the same, and moves every row that has a title to `Produce`.
   Empty rows are left alone, and anything already `scheduled` is never dragged backwards.
 
 This is the flow if you batch: find the songs, screen-record the clips, then fill the grid
@@ -188,15 +188,15 @@ Calling both of these "repurposing" is what makes content feel unmanageable. The
 different, and Studio treats them differently:
 
 **1. Same asset, more places** — a TikTok also going to IG Reels, FB Reels, YT Shorts.
-→ **One drop, more channels ticked.** Near-zero effort, and it should stay that way.
+→ **One content item, more channels ticked.** Near-zero effort, and it should stay that way.
 
 **2. Same idea, different form** — a Medium essay becoming a Threads post.
-→ **A derived drop.** Use the *derive* action in the panel. It gets its own stages and its
+→ **A derived content item.** Use the *derive* action in the panel. It gets its own stages and its
 own publish date, because it has to be rewritten, not re-uploaded. The child card shows `↳`.
 
 ---
 
-## A week in the Studio
+## A week in the Content Studio
 
 **Batch day.**
 
@@ -204,20 +204,20 @@ own publish date, because it has to be rewritten, not re-uploaded. The child car
 2. Screen-record the clips from the Utaitai app.
 3. **Studio → Fill the week.** Type each song into its row, and paste the TikTok you found
    it on into the reference field beside it.
-4. Hit **Save + mark produced**. All fourteen land in `Produce` at once.
+4. Hit **Save + task produced**. All fourteen land in `Produce` at once.
 
 **Each day after.**
 
 1. **Open Studio.** The queue strip rings today and the crimson pill says
    "2 going out today".
-2. **Click today's square** for the Japanese account. The panel opens on that drop.
+2. **Click today's square** for the Japanese account. The panel opens on that content item.
 3. **Post it on TikTok for real**, then tick the channel under "Posted where" and paste
    the URL.
 4. The square turns green. That publish **bumps the Utaitai project's `lastTouchedAt`**,
    which is what feeds momentum and drift warnings on the Projects surface. Posting is how
    a project proves it's alive.
 
-If you'd rather work one drop at a time, nothing stops you — click an empty square, fill
+If you'd rather work one content item at a time, nothing stops you — click an empty square, fill
 the panel, and walk it through the stages by hand.
 
 ---
@@ -236,7 +236,7 @@ point, not the source of truth now that the app is live.
 
 ## FAQ
 
-**A drop should have no project. Is that wrong?**
+**A content item should have no project. Is that wrong?**
 No — it's the normal case for brand-building content. Pick `None — brand building`. Forcing
 a project would make you invent a fake "Coding Mom content" project, which is exactly the
 mess the two-axis model exists to avoid.
@@ -249,9 +249,9 @@ account. Brand and project are two independent axes.
 It's a series slot. The series generated it for that date; you haven't filled it yet.
 
 **Can I delete a series slot I'm not going to do?**
-Yes, delete the drop from the panel. Slot generation is idempotent on `[seriesId, slotDate]`,
+Yes, delete the content item from the panel. Slot generation is idempotent on `[seriesId, slotDate]`,
 so a deleted slot may reappear on the next load — turn the series off if you're stopping the
 cadence for good.
 
 **Where do tasks go?**
-Not here. Tasks are **Marks**, and they live on the Hunt Board — Phase 3, not built yet.
+Not here. Tasks are **Tasks**, and they live on the Hunt Board — Phase 3, not built yet.

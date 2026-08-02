@@ -601,21 +601,28 @@ function TaskRow({
               <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-faint">
                 {repeat && (
                   <>
-                    <span className="flex items-center gap-1 text-muted">
+                    <span className="flex shrink-0 items-center gap-1 whitespace-nowrap text-muted">
                       <Repeat className="size-3" strokeWidth={2.2} />
                       {repeat}
                     </span>
                     {(task.dueLabel || task.notes) && <span>·</span>}
                   </>
                 )}
+                {/* `shrink-0` and no wrapping: the notes beside this are long
+                    and flex was squeezing "1 Aug" onto two lines. */}
                 {task.dueLabel && (
                   <span
-                    className={cn(task.overdue && !done && "font-medium text-accent")}
+                    className={cn(
+                      "shrink-0 whitespace-nowrap",
+                      task.overdue && !done && "font-medium text-accent",
+                    )}
                   >
                     {task.dueLabel}
                   </span>
                 )}
-                {task.dueLabel && task.notes && <span>·</span>}
+                {task.dueLabel && task.notes && (
+                  <span className="shrink-0">·</span>
+                )}
                 {task.notes && <span className="truncate">{task.notes}</span>}
               </p>
             )}

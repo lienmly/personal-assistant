@@ -147,7 +147,7 @@ const PROJECTS = [
     slug: "forge",
     name: "Forge",
     description:
-      "Design life-changing AIoT hardware with AI, prototype for $200, sell it. Vision: docs/forge-vision.md.",
+      "Design life-changing AIoT hardware with AI, prototype for $200, sell it. The full brief is on the Docs tab.",
     areaSlug: "work",
     cadenceDays: 14,
     sortOrder: 2,

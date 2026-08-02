@@ -90,10 +90,15 @@ export function SprintPlanner({
                     on ? "bg-card shadow-card" : "bg-transparent opacity-55",
                   )}
                 >
+                  {/* The state is carried by the tile's background, not by
+                      colour. Eight filled crimson ticks plus a crimson button
+                      is five too many accents for one region (§9) — and since
+                      every row starts selected, the accent would have been
+                      marking the default rather than a decision. */}
                   <span
                     className={cn(
                       "grid size-4.5 shrink-0 place-items-center rounded-full transition-colors duration-(--duration-base)",
-                      on ? "bg-accent text-white" : "bg-card text-transparent",
+                      on ? "bg-ink/85 text-white" : "bg-line text-transparent",
                     )}
                   >
                     <Check className="size-2.5" strokeWidth={3.2} />

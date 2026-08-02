@@ -14,13 +14,13 @@ Three different things share one grid, and they are told apart by **shape**, not
 | Glyph | What it is | Clicking it |
 |---|---|---|
 | **▌ bar** | An **Event** — something that happens at a time | Opens the event panel |
-| **▪ square** | A **Mark** due that day | Goes to the Hunt Board |
-| **● dot** | A **Drop** going out at that time | Goes to Studio |
+| **▪ square** | A **Task** due that day | Goes to the Hunt Board |
+| **● dot** | A **Content item** going out at that time | Goes to Studio |
 
-Colour is the **area** (or, for a drop, the brand) — orange for Baby, blue for Work, and
+Colour is the **area** (or, for a content item, the brand) — orange for Baby, blue for Work, and
 so on. That's why shape carries the type: colour is already saying something else.
 
-Only Events actually live on the calendar. Mark due dates and Drop publish times are
+Only Events actually live on the calendar. Task due dates and Content item publish times are
 *shown* here but still belong to the Hunt Board and Studio, which is why clicking them
 takes you there. The calendar is not a second place to edit them.
 
@@ -32,14 +32,14 @@ takes you there. The calendar is not a second place to edit them.
   shows how a day actually packs together; Day is for a full one.
 - **‹ › and Today** — pages by month, week or day depending on the view you're in.
 - **Area pills** — filter to just Baby, just Work, and so on.
-- **+N more** in a month cell drops you into that day.
+- **+N more** in a month cell content items you into that day.
 
 The view and the date live in the URL, so a particular week is a link you can come back to
 or send to yourself.
 
 Week and Day show an hour grid. Things happening at the same time sit **side by side**
-rather than on top of each other, and a thin crimson line marks the current time.
-**All-day things** — mark due dates, an all-day event — sit in a band above the hours
+rather than on top of each other, and a thin crimson line tasks the current time.
+**All-day things** — task due dates, an all-day event — sit in a band above the hours
 instead of filling the whole column.
 
 ---
@@ -52,7 +52,7 @@ instead of filling the whole column.
   end date and it appears on each one.
 - **Project** is optional and mostly stays empty. A dentist appointment belongs to an area
   and nothing else; a playtest belongs to Sleepy Cat. Picking a project sets the area for
-  you — same rule as marks.
+  you — same rule as tasks.
 
 ## Repeating events
 
@@ -83,8 +83,8 @@ The **Agenda** card on Today is the same events, just for today, in time order w
 all-day ones first. Things that have already finished go grey; whatever is happening right
 now gets a crimson **Now**.
 
-It shows **events only** — your marks are already in the sprint card at the top of the
-screen and your drops are in "Going out today" in between, so putting them here as well
+It shows **events only** — your tasks are already in the sprint card at the top of the
+screen and your content items are in "Going out today" in between, so putting them here as well
 would be the same row three times on one screen.
 
 ---
