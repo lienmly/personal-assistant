@@ -231,6 +231,48 @@ export async function deleteTask(taskId: string) {
 }
 
 /**
+ * Somewhere to put an idea, from the screen you already have open.
+ *
+ * The Hunt Board's capture box wants a link, because it exists for "try this
+ * format" — the link *is* the task there. This one wants nothing but a
+ * sentence, because the ideas that get lost are the ones you have while doing
+ * something else, and any field beyond the first is enough friction to lose
+ * them.
+ *
+ * It lands in the backlog on the Experiments track, which is where "Next up"
+ * already reads ideas from, so a note written on Tuesday surfaces itself the
+ * next time the sprint runs dry rather than needing to be remembered.
+ */
+export async function captureIdea(form: FormData) {
+  await requireSession();
+
+  const title = str(form, "title");
+  if (!title) throw new Error("Write the idea down first");
+
+  const projectId = str(form, "projectId");
+  const project = projectId
+    ? await db.project.findUniqueOrThrow({
+        where: { id: projectId },
+        select: { areaId: true },
+      })
+    : null;
+
+  // Every task needs an area even without a project (§6). Falling back to the
+  // first one is right here: an idea with nowhere to go is still worth more
+  // than a form that refuses to save it.
+  const areaId =
+    project?.areaId ??
+    str(form, "areaId") ??
+    (await db.area.findFirstOrThrow({ orderBy: { sortOrder: "asc" } })).id;
+
+  await db.task.create({
+    data: { title, projectId, areaId, track: "Experiments" },
+  });
+
+  refresh();
+}
+
+/**
  * The viral-format capture. Finding a post worth copying happens while
  * scrolling on a phone — it has to be one paste and one tap, or it won't
  * happen at all, and the idea is gone by evening.

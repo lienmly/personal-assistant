@@ -15,7 +15,12 @@ import type {
   NextGroupView,
   NextTaskView,
 } from "@/components/today/types";
+import { QuickCapture } from "@/components/today/quick-capture";
 import { UpNext } from "@/components/today/up-next";
+import {
+  SprintPlanner,
+  type SuggestionView,
+} from "@/components/sprint/sprint-planner";
 import { Card, CardHeader, StatTile } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SurfaceHeader } from "@/components/ui/surface-header";
@@ -24,9 +29,11 @@ import { minutesOfDay } from "@/lib/calendar-keys";
 import { getMomentum } from "@/lib/projects";
 import {
   dayKey,
+  ensureActiveSprint,
   getActiveSprint,
   getBandwidth,
   getFocus,
+  getSprintSuggestion,
   getUpNext,
 } from "@/lib/sprints";
 import { ensureSeriesSlots, getGoingOutToday } from "@/lib/studio";
@@ -64,6 +71,10 @@ export default async function TodayPage() {
   // Today is the screen that actually gets opened, so it's the honest place to
   // keep the daily cadence materialised — not just Studio.
   await ensureSeriesSlots();
+  // Close last week and open this one if the date has moved past it. Today is
+  // the screen that actually gets opened, so it is the honest place to do this
+  // — the rollover only has to have happened by the time someone looks.
+  const rollover = await ensureActiveSprint();
 
   const sprint = await getActiveSprint();
   const today = todayKey();
@@ -76,6 +87,11 @@ export default async function TodayPage() {
     getAgenda(today),
     getBandwidth(),
   ]);
+
+  // Only asked for when there is nothing to show — a suggestion list computed
+  // on a full sprint is four queries nobody reads.
+  const suggestion =
+    sprint && sprint.total === 0 ? await getSprintSuggestion(sprint) : [];
 
   const dateLabel = new Intl.DateTimeFormat("en-GB", {
     weekday: "long",
@@ -126,6 +142,42 @@ export default async function TodayPage() {
     color: group.color,
     tasks: group.tasks.map(toNextView),
   }));
+
+  const suggestionViews: SuggestionView[] = suggestion.map((task) => ({
+    id: task.id,
+    title: task.title,
+    track: task.track,
+    projectName: task.project?.name ?? null,
+    dueLabel: task.dueDate
+      ? dayKey(task.dueDate) === today
+        ? "Today"
+        : dueFormat.format(task.dueDate)
+      : null,
+    overdue: task.overdue,
+    color: task.area.color,
+  }));
+
+  /**
+   * The one-line answer to "am I on track", which is most of why this screen
+   * gets opened. Pace is done-so-far against days-elapsed: a sprint four days
+   * into seven with half its rows ticked is fine, and the same sprint on the
+   * last day is not. Saying only "3 days left" leaves that sum to be done in
+   * your head every morning, which is the work the tile is supposed to save.
+   */
+  const sprintNote = (() => {
+    if (!sprint) return "Nothing committed — plan one on the Hunt Board";
+    if (sprint.daysLeft < 0) return `Ended ${-sprint.daysLeft}d ago`;
+    if (sprint.total === 0) return "Empty — pick this week's few below";
+
+    const left = sprint.daysLeft === 0 ? "last day" : `${sprint.daysLeft}d left`;
+    if (sprint.done === sprint.total) return `Done — ${left}`;
+
+    // Where you'd be if the week were spread evenly. Elapsed rather than
+    // remaining, so day one is never "behind".
+    const expected = (sprint.dayNumber / sprint.totalDays) * sprint.total;
+    const behind = Math.ceil(expected - sprint.done);
+    return behind > 0 ? `${behind} behind pace · ${left}` : `On track · ${left}`;
+  })();
 
   const contentViews: GoingOutView[] = items.map((item) => ({
     id: item.id,
@@ -187,15 +239,7 @@ export default async function TodayPage() {
           value={sprint ? String(sprint.done) : "—"}
           tail={sprint ? `/${sprint.total}` : undefined}
           tone="dark"
-          note={
-            sprint
-              ? sprint.daysLeft < 0
-                ? `Ended ${-sprint.daysLeft}d ago — close it out`
-                : sprint.daysLeft === 0
-                  ? "Last day"
-                  : `${sprint.daysLeft} days left`
-              : "Nothing committed — plan one on the Hunt Board"
-          }
+          note={sprintNote}
         />
         <StatTile
           label="On the list"
@@ -237,6 +281,16 @@ export default async function TodayPage() {
               title={sprint ? "This sprint" : "Due and overdue"}
               count={`${focus.total} open`}
             />
+            {sprint && sprint.total === 0 && (
+              <div className="mb-4">
+                <SprintPlanner
+                  sprintId={sprint.id}
+                  sprintName={sprint.name}
+                  suggestions={suggestionViews}
+                  rollover={rollover}
+                />
+              </div>
+            )}
             {sprint?.goal && (
               <p className="-mt-2 mb-3 text-[13px] leading-relaxed text-muted">
                 {sprint.goal}
@@ -266,6 +320,12 @@ export default async function TodayPage() {
                 backlogTotal={upNext.backlogTotal}
                 sprintId={sprint?.id ?? null}
               />
+              {/* Last thing in the card on purpose: capturing an idea must
+                  never be above the work, and it must never be a screen away
+                  either — which is where it was. */}
+              <div className="mt-3">
+                <QuickCapture />
+              </div>
             </div>
           </Card>
 
