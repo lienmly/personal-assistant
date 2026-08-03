@@ -46,6 +46,11 @@ const PROJECT_DOCS: { projectSlug: string; file: string; title: string }[] = [
   },
   { projectSlug: "forge", file: "forge-vision.md", title: "The startup brief" },
   {
+    projectSlug: "utaitai",
+    file: "utaitai-pricing.md",
+    title: "What Utaitai charges",
+  },
+  {
     projectSlug: "multilingual-baby",
     file: "multilingual-baby.md",
     title: "Three languages, one unsolved",
@@ -402,6 +407,71 @@ const UTAITAI_MARKS: SeedMark[] = [
   },
   { track: "Ship", title: "Submit the iOS build for review" },
   { track: "Ship", title: "Submit the Android build for review" },
+
+  // ── Monetization: the paid week ───────────────────────────────────────────
+  //
+  // Added 2026-08-03. $1 for 7 days, then $7.99 a month automatically. The
+  // $7.99 price already exists in Stripe and there is one subscriber on it;
+  // what changes is only the way someone arrives. The reasoning, the mechanism
+  // and the open questions are on the project's "What Utaitai charges" doc —
+  // this is the work that falls out of it.
+  //
+  // The first three are the whole change and are in the sprint. The rest are
+  // what makes charging automatically defensible rather than merely possible,
+  // and they are backlog on purpose: none of them blocks the first $1.
+  {
+    track: "Monetization",
+    title: "Charge $1 for the 7-day trial, then $7.99 monthly automatically",
+    notes:
+      "Subscription on the existing $7.99 monthly price with a 7-day trial, and the $1 on the first invoice so it collects immediately. Check the current Stripe docs for the exact shape before building — a one-time line item on a trialing subscription, or a two-phase schedule. Prefer the first: one subscription, one price, and every later query stays simple. Trialing must count as fully entitled — the week was paid for.",
+  },
+  {
+    track: "Monetization",
+    title: "Paywall copy: $1 for 7 days, then $7.99/month, cancel anytime",
+    notes:
+      "Next to the button, same size as the rest of the sentence, not in a footer. A trial that charges by default is the pattern people feel tricked by, and one refund is cheaper than one person saying they were charged without warning.",
+  },
+  {
+    track: "Monetization",
+    title: "Decide and code what happens at day 7 — charged, failed, cancelled",
+    notes:
+      "Three outcomes and all three need an answer. Charged: nothing. Failed: Stripe retries on its own schedule, so say out loud whether access stays on in between rather than letting the entitlement check decide by accident. Cancelled during the week: access runs to the end of the paid 7 days, because they paid for 7 days.",
+  },
+  {
+    track: "Monetization",
+    title: "Leave the one existing subscriber on their current terms",
+    notes:
+      "A Stripe subscription keeps the price it was created with, so the new trial path shouldn't touch them. Confirm that in the dashboard rather than assuming it. Do not migrate — handing someone who already pays a trial, or changing their terms without asking, is how one subscriber becomes zero.",
+  },
+  {
+    track: "Monetization",
+    title: "Put Stripe's customer portal behind a Cancel link in the app",
+    notes:
+      "About a day's work, and without it the paywall copy is a lie. If the only way out is emailing me, 'cancel anytime' isn't true.",
+  },
+  {
+    track: "Monetization",
+    title: "Reminder e-mail on trial_will_end, three days before the charge",
+    notes:
+      "The webhook fires three days out, which on a 7-day trial is day 4. It costs a few conversions and buys the right to charge automatically at all.",
+  },
+  {
+    track: "Monetization",
+    title: "Write the refund line for the $1 and the first month",
+    notes: "Before the first person asks, not during.",
+  },
+  {
+    track: "Monetization",
+    title: "Track trial starts and day-7 conversion",
+    notes:
+      "The $1 week is a bet against a free one. Without this number the bet never resolves and there is nothing to tune.",
+  },
+  {
+    track: "Monetization",
+    title: "Resolve Stripe vs in-app purchase before the iOS submission",
+    notes:
+      "A Stripe paywall inside an iOS app that unlocks digital content is a rejection under guideline 3.1.1 — Apple wants IAP, at its cut and with its own trial mechanics. Six Ship tasks lead to that submission. Doesn't block the web checkout; does block the iOS one. Decide before building the paywall screen twice.",
+  },
 
   // ── Marketing: store presence ─────────────────────────────────────────────
   {
@@ -786,158 +856,36 @@ const FORGE_MARKS: SeedMark[] = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Events (Phase 4)
+// Events (Phase 4) — deliberately none. See below.
 // ─────────────────────────────────────────────────────────────────────────────
 
-type SeedEvent = {
-  title: string;
-  areaSlug: string;
-  projectSlug?: string;
-  /** "HH:mm"–"HH:mm", or omitted for an all-day event. */
-  from?: string;
-  to?: string;
-  /** Offsets in days from the seed run, so the calendar has something on it
-   *  whenever this is run rather than in one fixed week of 2026. */
-  startsIn?: number;
-  endsIn?: number;
-  allDay?: boolean;
-  recurrence?: Recurrence;
-  daysOfWeek?: number[];
-  location?: string;
-  notes?: string;
-};
-
 /**
- * The standing shape of the week — the blocks other work has to fit around.
+ * **The seed no longer creates any events, and that is the whole point.**
  *
- * There is deliberately **no baby routine here**. The first version seeded one:
- * seven daily rows for feeds, naps, bath and bed, which read as a beautiful
- * demonstration of recurrence and was a lie about how the day actually goes. A
- * four-month-old is followed, not scheduled, and a calendar asserting a 13:00
- * nap every day mostly generates the feeling of being behind. The one thing
- * that genuinely is deliberate — reading to her in two languages — is a
- * recurring *task* in the Baby area, because it is something owed rather than
- * something that happens at a time.
+ * It used to create five: a Sunday batch-film block, a Monday "fill the slots"
+ * block, a Sunday playtest, a monthly "check the rent has landed" and a
+ * four-day "In-laws visiting". Every one of them was invented in Phase 4 to
+ * give the freshly-built grid something to draw.
  *
- * Removed 2026-08-02, along with the swim class and the check-up: the naps had
- * become load-bearing (the Sunday filming block was parked inside one) and that
- * dependency was on a fiction.
+ * That is the same mistake as the baby routine, which this file removed on
+ * 2026-08-02 for lying about how the day goes — and it failed *worse*, because
+ * a nap you don't take is at least recognisably yours. An in-law visit you
+ * never arranged and a rent cheque on a property you may not own are rows you
+ * have to stop and disprove before you can dismiss them. A calendar's only job
+ * is to be trusted on sight; demo data on it costs more than an empty grid ever
+ * could. Deleted 2026-08-03.
+ *
+ * Two of the five were duplicates on top of that: "Batch-film the week's
+ * shorts" and "Fill the week's slots in Studio" restate the recurring *task*
+ * "Batch the Utaitai week", which links straight to the batch composer. A
+ * commitment stated in two places is a commitment you get to ignore in both.
+ *
+ * So: **an event is something you were there for.** Nothing else may create
+ * one. If the calendar looks empty on a fresh database, it is telling the
+ * truth. What the seed still fills is Tasks (owed), ContentItems (going out)
+ * and Series (the cadence) — the three things that are genuinely knowable
+ * without asking.
  */
-const EVENTS: SeedEvent[] = [
-  // ── Work: the standing blocks ─────────────────────────────────────────────
-  {
-    title: "Batch-film the week's shorts",
-    areaSlug: "work",
-    projectSlug: "coding-mom",
-    from: "13:00",
-    to: "15:00",
-    recurrence: "weekly",
-    daysOfWeek: [7],
-    notes:
-      "A daily cadence only survives if it's produced weekly, in one sitting.",
-  },
-  {
-    title: "Fill the week's slots in Studio",
-    areaSlug: "work",
-    projectSlug: "coding-mom",
-    from: "08:00",
-    to: "08:30",
-    recurrence: "weekly",
-    daysOfWeek: [1],
-  },
-  {
-    title: "Sleepy Cat playtest",
-    areaSlug: "work",
-    projectSlug: "sleepy-cat",
-    from: "20:30",
-    to: "21:30",
-    recurrence: "weekly",
-    daysOfWeek: [7],
-    notes: "Play the current build together and write down what felt bad.",
-  },
-
-  // ── Home: the two shapes nothing else covers ──────────────────────────────
-  {
-    title: "Check the rent has landed",
-    areaSlug: "home",
-    allDay: true,
-    startsIn: 1,
-    recurrence: "monthly",
-  },
-  {
-    title: "In-laws visiting",
-    areaSlug: "home",
-    allDay: true,
-    startsIn: 14,
-    endsIn: 17,
-  },
-];
-
-/**
- * Bootstrap, not reconciliation — same rule as the tasks below. Events are
- * seeded only into a completely empty table, because there is no stable key to
- * upsert a "Morning feed" on and re-running this must not quietly give the baby
- * two of every nap.
- */
-async function seedEvents() {
-  if ((await db.event.count()) > 0) return 0;
-
-  const areas = new Map(
-    (await db.area.findMany()).map((area) => [area.slug, area]),
-  );
-  const projects = new Map(
-    (await db.project.findMany()).map((project) => [project.slug, project]),
-  );
-
-  const now = new Date();
-  /** A local calendar day, `offset` days from today. Built with the local
-   *  constructor because `Event.start` is a real timestamp and both halves of
-   *  the seed data mean local wall-clock (CLAUDE.md §6). */
-  const at = (offset: number, time: string) => {
-    const [hours, minutes] = time.split(":").map(Number);
-    return new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate() + offset,
-      hours,
-      minutes,
-    );
-  };
-
-  const data = EVENTS.flatMap((event) => {
-    const project = event.projectSlug ? projects.get(event.projectSlug) : null;
-    // The project's area wins, exactly as `saveEvent` enforces it.
-    const area = project
-      ? [...areas.values()].find((row) => row.id === project.areaId)
-      : areas.get(event.areaSlug);
-    if (!area) return [];
-
-    const startsIn = event.startsIn ?? 0;
-    const endsIn = event.endsIn ?? startsIn;
-
-    return [
-      {
-        title: event.title,
-        notes: event.notes ?? null,
-        location: event.location ?? null,
-        start: event.allDay ? at(startsIn, "00:00") : at(startsIn, event.from!),
-        // Inclusive end — the last instant of the final day. See the note on
-        // `Event.end` in the schema.
-        end: event.allDay
-          ? new Date(at(endsIn, "00:00").getTime() + 86_399_999)
-          : at(endsIn, event.to!),
-        allDay: event.allDay ?? false,
-        recurrence: event.recurrence ?? "none",
-        daysOfWeek: event.daysOfWeek ?? [],
-        areaId: area.id,
-        projectId: project?.id ?? null,
-      },
-    ];
-  });
-
-  await db.event.createMany({ data });
-  return data.length;
-}
 
 /**
  * Bootstrap, not reconciliation: tasks are seeded only into a project that has
@@ -1553,7 +1501,6 @@ async function main() {
 
   const dropsCreated = await seedDrops("coding-mom", CODING_MOM_DROPS);
   const sprintMarks = await seedFirstSprint();
-  const eventsCreated = await seedEvents();
 
   const counts = {
     areas: await db.area.count(),
@@ -1579,9 +1526,7 @@ async function main() {
       : `Sprint: created 'Week 1' with ${sprintMarks} tasks.`,
   );
   console.log(
-    eventsCreated === 0
-      ? "Events: left alone — the calendar already has some."
-      : `Events: created ${eventsCreated}.`,
+    "Events: none — the calendar only ever holds what you put there.",
   );
   console.log(
     docsCreated === 0

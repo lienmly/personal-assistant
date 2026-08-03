@@ -1,6 +1,7 @@
 # The Calendar
 
-_Written 2026-08-01, when Phase 4 shipped. Update this when calendar behaviour changes._
+_Written 2026-08-01, when Phase 4 shipped. Updated 2026-08-03 — content is a layer now,
+and the seeded events are gone. Update this when calendar behaviour changes._
 
 The Calendar is the only surface organised by **time** rather than by state. Everything
 else in Clan Centurio answers "what needs doing"; this one answers "what is my day".
@@ -23,6 +24,25 @@ so on. That's why shape carries the type: colour is already saying something els
 Only Events actually live on the calendar. Task due dates and Content item publish times are
 *shown* here but still belong to the Hunt Board and Studio, which is why clicking them
 takes you there. The calendar is not a second place to edit them.
+
+### Layers — and why content starts off
+
+The three counts under the grid are also **switches**. Tap one to show or hide that layer.
+
+**Content going out starts hidden**, from 3 August 2026. The two Utaitai dailies alone put
+34 dots on an August grid — two a day, every day, most of them unfilled slots reading
+"Daily short — Japanese slot". A month that repetitive stops getting read at all, which
+costs you the handful of things on it that actually mattered. Turning content off took the
+August grid from 52 things to 11.
+
+You lose nothing: **ticking a post off already lives on Today**, in "Going out today", one
+tick per channel. That is where the satisfying part is, and the calendar was only showing
+it a second, worse time.
+
+The hidden layer still shows its real count, so it can tell you it's there. Tap it and the
+publish times come back — useful when you want the week's posting laid out against
+everything else. The choice lives in the URL like the view and the date do, so "the month
+with content shown" is a link you can come back to.
 
 ---
 
@@ -88,6 +108,25 @@ screen and your content items are in "Going out today" in between, so putting th
 would be the same row three times on one screen.
 
 ---
+
+## What isn't on here: anything you didn't put there
+
+The seed used to create five events so the freshly-built grid had something to draw: a
+Sunday batch-film block, a Monday "fill the slots in Studio" block, a Sunday Sleepy Cat
+playtest, a monthly **Check the rent has landed**, and a four-day **In-laws visiting**.
+All five were deleted on 3 August 2026, and the seed no longer creates any.
+
+They were invented. That is the same mistake as the baby routine below, and it landed
+harder: a nap you didn't take is at least recognisably yours, whereas an in-law visit you
+never arranged is a row you have to stop and *disprove* before you can dismiss it. A
+calendar's only job is to be trusted on sight.
+
+Two of them were duplicates as well — "Batch-film the week's shorts" and "Fill the week's
+slots in Studio" restate the recurring task **Batch the Utaitai week**, which already links
+straight to the batch composer. A commitment stated twice is one you get to ignore twice.
+
+So the rule now: **an event is something you were there for.** Nothing creates one but you.
+An empty calendar on a fresh database is the calendar telling the truth.
 
 ## What isn't on here: the baby
 

@@ -243,7 +243,11 @@ _Built 2026-08-01._
 - [x] Layer in Task due dates and Content item publish times alongside events
 - [x] Baby daughter's activity calendar — Events in the Baby area, seeded with the
       real routine (7 daily rows standing in for ~2,500 occurrences a year)
+      _(deleted 2026-08-02 — see Phase 4.5)_
 - [x] Today, section 3 (Agenda) — events only, now-aware
+- [x] **The three sources are switchable layers, content off by default**
+      (2026-08-03) — the legend under the grid is the control. See §6.
+- [x] **The seeded events are deleted and the seed makes none** (2026-08-03)
 - [ ] Drag to move / resize an event. Every occurrence is positioned from
       `startMinutes` already, so this is a pointer handler and a server action,
       not a rewrite. Deliberately deferred: creating and editing had to be real
@@ -573,7 +577,11 @@ Two fields on Task are not in the original sketch, both added 2026-07-31:
   followed the same day** with Coding Mom, whose first ten days are entirely accounts and
   handles — work that blocks everything else and then disappears forever. Three new
   streams from two new projects, at a cost of zero migrations: that is the case for free
-  text, made twice.
+  text, made twice. **"Monetization" followed on 2026-08-03** with Utaitai's subscription
+  change — deliberately not "Money", because that word is about to mean the Ledger
+  (Phase 6), which is household finances and an entirely different thing. It sits after
+  "Ship" and before "Users": pricing and checkout are product work, and they come before
+  the tracks about courting people.
 
 ### The calendar: one grid, three sources — decided 2026-08-01
 
@@ -611,6 +619,40 @@ Four rules fell out of building it:
 Shape is the legend, not colour: a **bar** is an event, a **square** is a task due, a
 **dot** is a content item going out. Colour is already spoken for — it carries the area (or the
 brand for a content item), which is the other thing a cell has to say at a glance.
+
+**A fifth rule, added 2026-08-03: the three sources are layers, and content is off by
+default.** The three-source design was right and its default was wrong. Two Utaitai
+dailies put **34 content dots on an August grid** — two a day, every day, and 34 of the 41
+were unfilled slots rendering as "Daily short — Japanese slot". A grid that repetitive
+stops being read, which costs it the eleven rows that mattered; the month went from 52
+things to 11 by hiding one layer. `parseLayers` / `layersParam` in `lib/calendar-keys.ts`
+put the set in the URL beside the view and the cursor, so "the month with content shown"
+stays a link.
+
+Three things make it work rather than just hide data:
+
+- **The legend is the switch.** It was already naming and counting the three sources, so
+  the thing that tells you "41 content going out" is the thing you press. No new control
+  in the toolbar, and none of the accent budget (§9) spent — on/off is a filled pill and
+  opacity.
+- **A hidden layer keeps its true count**, which is why `getCalendar` is still asked for
+  all three and only the active ones are drawn. A layer reporting `0` while hidden could
+  never advertise itself, and the toggle would be present and invisible. One indexed read
+  on a small table is worth less than the discoverability.
+- **The dopamine was never the calendar's to give.** Ticking a post off already lives on
+  Today's "Going out today", one tick per channel. The calendar was replaying it as an
+  unfillable dot — recognisably the same failure as §6's "Followed, not scheduled", where
+  a thing you *owe* had been drawn as a thing that *happens*.
+
+**And nothing but you creates an event — decided 2026-08-03.** The seed's five invented
+events are deleted and `seedEvents` is gone. "Check the rent has landed" and "In-laws
+visiting" were demo rows built to give Phase 4's new grid something to draw, and they
+failed worse than the baby routine did: a nap you didn't take is at least recognisably
+yours, while an in-law visit you never arranged is a row you must stop and *disprove*
+before dismissing. A calendar is only worth having if it is trusted on sight. Two of the
+five were also duplicates — "Batch-film the week's shorts" and "Fill the week's slots in
+Studio" restate the recurring task "Batch the Utaitai week", and a commitment stated twice
+is one you get to ignore twice. An empty calendar on a fresh database is correct.
 
 ### Tasks that come back — decided 2026-08-02
 
@@ -987,6 +1029,12 @@ Named animations: `animate-rise` (fade + 8px up — cards, columns, rows arrivin
     `D:\npm-cache` because the `C:` system drive kept filling. If npm errors with `ENOSPC`
     or Node throws "heap out of memory" there, check free space on `C:` first — a full
     system drive breaks the pagefile. Measured 2026-07-31 at **100% (69 MB free)**.
+    **Re-measured 2026-08-03: 100%, `0` bytes free — and it is now blocking.** `next dev`
+    dies on startup with "Fatal process out of memory: Zone" before serving a request, so
+    the Windows machine currently cannot run the app at all. Short scripts (`tsx`, a
+    Prisma query) still work, which is why the 2026-08-03 calendar change could be
+    verified against the database but not in a browser. `D:` has 114 GB free; the fix is
+    clearing `C:`, not moving anything.
 - **The app assumes the server's local time is *my* local time**, and Phase 4 makes that
   assumption load-bearing rather than theoretical. Every "today", every publish window and
   the whole calendar grid is computed server-side with `new Date()` and the local-time
@@ -1009,8 +1057,51 @@ Named animations: `animate-rise` (fade + 8px up — cards, columns, rows arrivin
 
 ---
 
-_Last updated: 2026-08-02 · Status: **Phase 4.5 — the nouns are plain, projects have
-pages, and the parts that were supposed to be automatic now are.**_
+_Last updated: 2026-08-03 · Status: **Phase 4.5, plus a calendar that only shows what it
+was asked to, and Utaitai charging for its trial.**_
+
+_**2026-08-03 — Utaitai's subscription became a paid week.** $1 for 7 days, then $7.99 a
+month automatically. Captured as nine tasks on a new **Monetization** track (§6) and a
+project doc, **"What Utaitai charges"** — Utaitai's first, and the reason `ProjectDoc`
+exists: a pricing decision that is only in someone's head is one that gets re-litigated
+every time it's questioned. Three tasks went into Week 1 because the change is the whole
+point; the other six are backlog because none of them blocks the first $1, and a sprint
+with three days left does not need nine more rows. The billing is **Stripe**, not store
+IAP — the $7.99 price already exists and has one subscriber on it, who is deliberately
+not migrated: a Stripe subscription keeps the price it was created with, and handing
+someone who already pays a trial is how one subscriber becomes zero. Two things the
+capture surfaced that the ask didn't mention. **A Stripe paywall inside the iOS app is a
+3.1.1 rejection** — Apple wants IAP for digital content — and six open Ship tasks lead
+straight to that submission, so it is a real collision with a date on it rather than a
+someday. And **charging by default is the pattern regulators are looking at**: the
+disclosure next to the button, a cancel path that isn't emailing me, and a reminder on
+`trial_will_end` are what make it defensible, so they are tasks rather than assumptions.
+Written into the live database and into `prisma/seed.ts` with identical titles, so a
+re-seed is a no-op. Not seen in a browser — `C:` is still at 0 bytes free and `next dev`
+dies on startup (Environment notes)._
+
+_**Noticed while writing that doc, not fixed:** `lib/markdown.ts` treats a wrapped list
+item as a list of one plus a stray paragraph, because it consumes a bullet run line by
+line. `prisma/docs/forge-vision.md` has been rendering that way since it was written.
+The new doc works around it with single-line bullets; the renderer is the real fix._
+
+_**2026-08-03 — the calendar stopped shouting.** Two complaints, one root: the grid was
+showing things nobody put there. **Content is now a layer, off by default.** The two
+Utaitai dailies were laying 34 dots across August, two a day and mostly untitled slots
+reading "Daily short — Japanese slot"; hiding the layer took the month from 52 things to
+11. The three counts in the legend became the switch, because the thing that says "41
+content going out" should be the thing you press, and the hidden layer keeps its real
+count so it can still advertise itself. Nothing was lost — ticking a post off already
+lives on Today's "Going out today", one tick per channel, and the calendar was replaying
+it as a dot you can't tick. **And the five seeded events are deleted**, `seedEvents` with
+them: "In-laws visiting", "Check the rent has landed", a Sunday playtest and two batching
+blocks that duplicated the recurring "Batch the Utaitai week" task. Invented rows are
+worse on a calendar than anywhere else — an appointment you never made is one you have to
+disprove before you can dismiss it — and it is the same error as the baby routine, one
+notch harder to spot. An event is now something you were there for; nothing but you makes
+one. Verified against the live database and by 22 checks on the layer parsing; **not** yet
+seen in a browser, because `C:` is at 0 bytes free and the dev server dies allocating
+memory — see Environment notes, this needs clearing before the phone pass._
 
 _**Phase 4.5, built 2026-08-02.** Not a planned phase — the set of things that turned out
 to be wrong once the app had been lived in for two days._

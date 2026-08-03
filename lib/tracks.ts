@@ -18,6 +18,13 @@ export const TRACKS = [
   "Build",
   "Art",
   "Ship",
+  // Added 2026-08-03 with Utaitai's subscription change. Deliberately not
+  // "Money" — that word is about to mean the Ledger (Phase 6), which is
+  // household finances and a different thing entirely. This is the product's
+  // own revenue: pricing, checkout, entitlement, the paywall. It sits after
+  // "Ship" because it is product work, and before the two tracks about
+  // courting people, which is work you do once there is something to charge for.
+  "Monetization",
   "Users",
   "Marketing",
   "Experiments",

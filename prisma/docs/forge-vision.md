@@ -100,6 +100,56 @@ hardware as a non-engineer", multilingual parenting, baby safety innovation.
 communities and assistive-tech organisations; press around democratising life-changing
 hardware.
 
+## Marketing & growth — the early-stage playbook
+
+Early-stage founder and a mom, so growth runs on authentic storytelling plus
+hands-on experiences that let someone *feel* what the platform does. The three
+phases above say when; this says what.
+
+**The core is already running.** Documenting the journey publicly — TikTok,
+Instagram, YouTube — while building real products for a real baby, the
+multilingual reader and the breathing tracker, is Phase 1 above, and it is Coding
+Mom. It's what builds trust and an engaged community of parents, makers and
+impact-driven creators. Everything below is added to it rather than instead of
+it, and all of it depends on it: a workshop needs an audience, and the audience
+is what Phase 1 is for.
+
+### Workshops and events
+
+The highest-engagement tactic available, because a workshop ends with someone
+holding their own idea. Each one ends the same way — a prototype ordered against
+the $200 credit.
+
+- **Parent & family workshops** — "Build your child's custom learning toy". Parents design a personalised multilingual reader, a smart educational game or a customised game console on the AI platform.
+- **Themed maker workshops** — customised smart toys, cosplay gadgets (LED props with AI features), interactive learning tools.
+- **Impact-focused sessions** — assistive devices for caregivers and patients: simple robotic aids, accessibility tools. Partner with disability support groups and hospitals.
+- **Enthusiast & professional workshops** — drone building for firefighting and rescue practice; custom IoT for one specific hobby, like gardening sensors or pet tech.
+- **Educational talks with partners** — invite a manufacturing partner to speak on state-of-the-art manufacturing pipelines: how an idea becomes a real product, through materials, processes, quality control and scaling. Educates the user and borrows the partner's credibility.
+
+**Any of these can run on TikTok Live**, and hardware and app building are the two
+obvious ones to start with. It is the cheapest version of this whole section —
+no venue, no date to fill, no travel with a baby — and it happens where the
+audience already is, because Phase 1 is what put them there. The trade is that
+nobody leaves the room holding anything, so the $200 credit has to arrive as a
+link in the comments rather than as the moment the session builds to. Which
+makes it the right place to *find out* which workshop people actually want,
+before booking a real one.
+
+### The rest of the mix
+
+- **Pop-up maker days** at libraries, schools and co-working spaces.
+- **Challenge campaigns** — "Build a product that changes one life", with free credits and a featured listing as the prizes.
+- **Creator spotlights** — user success stories. "This mom built a better baby monitor and sold 100 units."
+- **Partnerships** — parenting influencers, language-learning communities, maker fairs, assistive-tech nonprofits.
+- **Content series** — "From prompt to product in weeks": real-time builds plus behind-the-scenes factory talks.
+- **Referral & affiliate programme** — creators earn credits for bringing new users in.
+
+### What it is all for
+
+Four outputs rather than one: awareness, user-generated content, the first
+listings on the marketplace, and direct sales — while positioning the platform as
+educational and community-oriented rather than transactional.
+
 ## Competition
 
 | Who | What they have | What they don't |

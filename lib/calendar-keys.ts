@@ -11,10 +11,60 @@
  * only ever reading back the date part is immune to that.
  */
 
+import type { CalendarKind } from "@/components/calendar/types";
+
 export type CalendarView = "month" | "week" | "day";
 
 export function isCalendarView(value: string | undefined): value is CalendarView {
   return value === "month" || value === "week" || value === "day";
+}
+
+/**
+ * Which of the three sources the grid draws — a URL parameter, like the view
+ * and the cursor, so "the month with content shown" is a link you can return to.
+ *
+ * **Content is off by default, and that is the considered position.** The two
+ * Utaitai dailies alone put 34 empty slot cards on an August grid — two dots a
+ * day, every day, most of them untitled and reading "Daily short — Japanese
+ * slot". A calendar that repetitive stops being read at all, which costs you
+ * the five things on it that actually mattered. The dopamine of ticking a post
+ * off already lives on Today's "Going out today" card, one tick per channel;
+ * the calendar was only ever showing it a second, worse time.
+ *
+ * Off, not gone: a publish time is still a real time, and the day you want to
+ * see the week's posting laid out against everything else it is one tap in the
+ * legend.
+ */
+export const DEFAULT_LAYERS: CalendarKind[] = ["event", "task"];
+
+/** Canonical order, so the same set always serialises to the same URL. */
+const LAYER_ORDER: CalendarKind[] = ["event", "task", "item"];
+
+/**
+ * A malformed `?layers=` falls back to the default rather than throwing — the
+ * URL is hand-editable by design, and a bad one shouldn't cost you the screen.
+ * `none` is the explicit empty set; an empty string is treated as malformed,
+ * because "all layers off" is a choice worth having to spell.
+ */
+export function parseLayers(value: string | undefined): CalendarKind[] {
+  if (value === "none") return [];
+  if (!value) return DEFAULT_LAYERS;
+  const wanted = new Set(value.split(","));
+  const layers = LAYER_ORDER.filter((kind) => wanted.has(kind));
+  return layers.length > 0 ? layers : DEFAULT_LAYERS;
+}
+
+/** The `?layers=` value for a set, or null when it is the default and the
+ *  parameter can be left off the URL entirely. */
+export function layersParam(layers: CalendarKind[]): string | null {
+  const ordered = LAYER_ORDER.filter((kind) => layers.includes(kind));
+  if (
+    ordered.length === DEFAULT_LAYERS.length &&
+    ordered.every((kind) => DEFAULT_LAYERS.includes(kind))
+  ) {
+    return null;
+  }
+  return ordered.length === 0 ? "none" : ordered.join(",");
 }
 
 /** "2026-08-01" → [2026, 8, 1]. */

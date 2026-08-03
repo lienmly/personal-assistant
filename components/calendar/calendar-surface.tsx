@@ -17,7 +17,11 @@ import type {
   EventView,
 } from "@/components/calendar/types";
 import { EmptyState } from "@/components/ui/empty-state";
-import { type CalendarView, shiftCursor } from "@/lib/calendar-keys";
+import {
+  type CalendarView,
+  layersParam,
+  shiftCursor,
+} from "@/lib/calendar-keys";
 import { cn } from "@/lib/utils";
 
 const VIEWS: CalendarView[] = ["month", "week", "day"];
@@ -35,6 +39,7 @@ export function CalendarSurface({
   view,
   cursor,
   areaSlug,
+  layers,
   days,
   byDay,
   events,
@@ -48,6 +53,9 @@ export function CalendarSurface({
   view: CalendarView;
   cursor: string;
   areaSlug: string | null;
+  /** The sources currently drawn. `byDay` is already filtered to these; the
+   *  counts are not, so the legend can offer what is hidden. */
+  layers: CalendarKind[];
   days: string[];
   byDay: Record<string, CalendarItem[]>;
   events: Record<string, EventView>;
@@ -67,21 +75,37 @@ export function CalendarSurface({
     view?: CalendarView;
     cursor?: string;
     area?: string | null;
+    layers?: CalendarKind[];
   }) => {
     const params = new URLSearchParams();
     params.set("view", next.view ?? view);
     params.set("date", next.cursor ?? cursor);
     const area = next.area === undefined ? areaSlug : next.area;
     if (area) params.set("area", area);
+    // Omitted entirely while the layers are the default, so the ordinary URL
+    // stays the short one it has always been.
+    const asParam = layersParam(next.layers ?? layers);
+    if (asParam) params.set("layers", asParam);
     return `/calendar?${params.toString()}`;
   };
+
+  /** The legend's links: each one is this view with that layer flipped. */
+  const toggleHref = (kind: CalendarKind) =>
+    href({
+      layers: layers.includes(kind)
+        ? layers.filter((active) => active !== kind)
+        : [...layers, kind],
+    });
 
   const openEvent = (eventId: string) => {
     const event = events[eventId];
     if (event) setPanel({ event, day: event.startDay });
   };
 
-  const total = counts.event + counts.task + counts.item;
+  // What is actually on screen — the hidden layers' counts still exist, but an
+  // empty state that read "nothing on" while 37 unshown items sat behind a
+  // toggle would be a lie about the day.
+  const total = layers.reduce((sum, kind) => sum + counts[kind], 0);
 
   return (
     <>
@@ -208,12 +232,12 @@ export function CalendarSurface({
           <EmptyState
             icon={CalendarDays}
             title="Nothing on"
-            body="Events you add land here alongside task due dates and the content going out that day."
+            body="Events you add land here, alongside task due dates. Content going out is a layer you can switch on below."
             className="mt-4 py-10"
           />
         )}
 
-        <Legend counts={counts} />
+        <Legend counts={counts} layers={layers} hrefFor={toggleHref} />
       </section>
 
       {panel && (

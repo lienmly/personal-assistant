@@ -108,25 +108,64 @@ export function ItemChip({
   );
 }
 
-/** The key to the three glyphs, shown once under the grid. */
-export function Legend({ counts }: { counts: Record<string, number> }) {
+/**
+ * The key to the three glyphs — and the control that shows or hides each one.
+ *
+ * The legend was already naming the three sources and counting them, so it is
+ * the one place a layer switch can live without adding a control to the
+ * toolbar: you read "37 content going out", and the thing that told you is the
+ * thing you press. A hidden layer keeps its real count for exactly that reason
+ * (see the note in `parseLayers`) — it has to be able to advertise itself.
+ *
+ * Deliberately quiet. No accent: §9 gives the screen one crimson element and
+ * the "New event" button has it, and a legend that shouted would compete with
+ * the grid it explains. On/off is carried by a filled pill and by opacity,
+ * which is the same contrast-not-borders rule the cards use.
+ */
+export function Legend({
+  counts,
+  layers,
+  hrefFor,
+}: {
+  counts: Record<string, number>;
+  layers: CalendarItem["kind"][];
+  /** This same view with that one layer flipped. */
+  hrefFor: (kind: CalendarItem["kind"]) => string;
+}) {
   const entries: Array<[CalendarItem["kind"], string]> = [
     ["event", "events"],
     ["task", "tasks due"],
-    ["item", "items going out"],
+    ["item", "content going out"],
   ];
 
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-1 pt-3.5 text-[11.5px] text-muted">
-      {entries.map(([kind, label]) => (
-        <span key={kind} className="flex items-center gap-1.5">
-          <ItemGlyph kind={kind} color="var(--color-faint)" />
-          <span className="font-medium text-ink">{counts[kind] ?? 0}</span>
-          {label}
-        </span>
-      ))}
-      <span className="ml-auto hidden sm:block">
-        Colour is the area · tasks and items open their own surface
+    <div className="flex flex-wrap items-center gap-x-1 gap-y-1.5 pt-3 text-[11.5px] text-muted">
+      {entries.map(([kind, label]) => {
+        const shown = layers.includes(kind);
+        return (
+          <Link
+            key={kind}
+            href={hrefFor(kind)}
+            scroll={false}
+            aria-pressed={shown}
+            title={`${shown ? "Hide" : "Show"} ${label}`}
+            className={cn(
+              "flex items-center gap-1.5 rounded-full px-2.5 py-1 transition-[background-color,color,opacity,transform] duration-(--duration-quick) ease-soft active:scale-[0.97]",
+              shown
+                ? "bg-inset text-muted"
+                : "opacity-45 hover:bg-inset hover:opacity-100",
+            )}
+          >
+            <ItemGlyph kind={kind} color="var(--color-faint)" />
+            <span className={cn("font-medium", shown ? "text-ink" : "text-muted")}>
+              {counts[kind] ?? 0}
+            </span>
+            {label}
+          </Link>
+        );
+      })}
+      <span className="ml-auto hidden pr-1 sm:block">
+        Colour is the area · tap a layer to show or hide it
       </span>
     </div>
   );

@@ -1,10 +1,12 @@
 import { CalendarSurface } from "@/components/calendar/calendar-surface";
+import type { CalendarItem } from "@/components/calendar/types";
 import { SurfaceHeader } from "@/components/ui/surface-header";
 import { getCalendar, getCalendarMeta } from "@/lib/calendar";
 import {
   type CalendarView,
   isCalendarView,
   minutesOfDay,
+  parseLayers,
   viewDays,
 } from "@/lib/calendar-keys";
 import { todayKey } from "@/lib/utils";
@@ -75,6 +77,7 @@ export default async function CalendarPage({
   const raw = one("date");
   const cursor = raw && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : today;
   const areaSlug = one("area") ?? null;
+  const layers = parseLayers(one("layers"));
 
   const days = viewDays(view, cursor);
 
@@ -82,6 +85,21 @@ export default async function CalendarPage({
     getCalendar(days, { areaSlug }),
     getCalendarMeta(),
   ]);
+
+  /**
+   * All three sources are still *queried*, and only the active ones are drawn.
+   *
+   * That looks like a wasted query when content is hidden, and it is the point:
+   * `counts` has to cover every layer, because the legend is the toggle. A
+   * hidden layer that reported "0 content going out" would give you no reason
+   * to ever switch it back on — the control would be there and be invisible.
+   * The content query is one indexed read on a small table; discoverability is
+   * worth more than it costs.
+   */
+  const visible: Record<string, CalendarItem[]> = {};
+  for (const day of days) {
+    visible[day] = byDay[day].filter((item) => layers.includes(item.kind));
+  }
 
   const dayLabels: Record<string, string> = {};
   for (const day of days) dayLabels[day] = dayLabel.format(asUtc(day));
@@ -99,7 +117,7 @@ export default async function CalendarPage({
     <>
       <SurfaceHeader
         title="Calendar"
-        tagline="Events, task due dates and content publish times layered on one timeline."
+        tagline="Events and task due dates. Content publish times are a layer you can switch on."
         meta={periodLabel}
       />
 
@@ -107,8 +125,9 @@ export default async function CalendarPage({
         view={view}
         cursor={cursor}
         areaSlug={areaSlug}
+        layers={layers}
         days={days}
-        byDay={byDay}
+        byDay={visible}
         events={events}
         counts={counts}
         today={today}
