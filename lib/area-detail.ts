@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { TASK_VIEW_SELECT, toTaskView } from "@/lib/task-view";
+import { TASK_VIEW_SELECT, TOP_LEVEL_ONLY, toTaskView } from "@/lib/task-view";
 
 /**
  * Everything one area is, on one page — `/areas/[slug]`.
@@ -33,9 +33,11 @@ export async function getAreaDetail(slug: string) {
       select: { id: true, slug: true, name: true, focus: true },
     }),
     db.task.findMany({
-      // Snapshots excluded, the same filter every list of *open* work carries —
-      // see `getHuntBoard`. Without it a daily habit appears once per occurrence.
-      where: { areaId: area.id, recurringId: null },
+      // Snapshots and checklist items excluded, the same filter every list of
+      // *open* work carries — see `getHuntBoard`. Without the first a daily
+      // habit appears once per occurrence; without the second its steps appear
+      // beside it as tasks of their own.
+      where: { areaId: area.id, ...TOP_LEVEL_ONLY },
       orderBy: [{ status: "asc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
       select: {
         ...TASK_VIEW_SELECT,

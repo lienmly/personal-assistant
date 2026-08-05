@@ -1,4 +1,4 @@
-import type { TaskView } from "@/components/board/types";
+import type { SubtaskView, TaskView } from "@/components/board/types";
 import { todayKey } from "@/lib/utils";
 
 /**
@@ -36,6 +36,7 @@ export type TaskRowInput = {
   daysOfWeek: number[];
   repeatUntil: Date | null;
   _count?: { occurrences: number };
+  subtasks?: SubtaskView[];
 };
 
 /** The columns every caller has to select for `toTaskView` to work. Exported so
@@ -54,7 +55,25 @@ export const TASK_VIEW_SELECT = {
   daysOfWeek: true,
   repeatUntil: true,
   _count: { select: { occurrences: true } },
+  // Nested rather than fetched separately: a checklist is never read apart
+  // from the row it belongs to, and a second query per task would be one per
+  // row on a board of ninety.
+  // A single-object `orderBy`, not the usual two-key array: this whole select
+  // is `as const`, which would make the array `readonly` and Prisma's
+  // `TaskOrderByWithRelationInput[]` will not take one. `sortOrder` alone is
+  // enough — `addSubtask` numbers each new step off the count before it, so
+  // there are no ties to break.
+  subtasks: {
+    select: { id: true, title: true, status: true },
+    orderBy: { sortOrder: "asc" },
+  },
 } as const;
+
+/** The filter every list of *open work* must carry, for the same reason
+ *  `recurringId: null` exists beside it: without it a checklist item appears
+ *  on the board as a task in its own right, directly under the parent that
+ *  already shows it. */
+export const TOP_LEVEL_ONLY = { recurringId: null, parentId: null } as const;
 
 export function toTaskView(task: TaskRowInput, today = todayKey()): TaskView {
   // Slicing the ISO string is the only read that doesn't shift the day in a
@@ -83,7 +102,16 @@ export function toTaskView(task: TaskRowInput, today = todayKey()): TaskView {
     daysOfWeek: task.daysOfWeek,
     repeatUntil: task.repeatUntil?.toISOString().slice(0, 10) ?? "",
     doneCount: task._count?.occurrences ?? 0,
+    subtasks: task.subtasks ?? [],
   };
+}
+
+/** "1/3", or null when there is no checklist. Computed once here so the board,
+ *  Today and a project page can't render three different counts. */
+export function checklistLabel(subtasks: SubtaskView[]): string | null {
+  if (subtasks.length === 0) return null;
+  const done = subtasks.filter((task) => task.status === "done").length;
+  return `${done}/${subtasks.length}`;
 }
 
 const DAY_LETTERS = ["", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];

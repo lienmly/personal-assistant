@@ -23,6 +23,10 @@ function refresh() {
   // these actions changes it. A dynamic segment is revalidated by its route
   // pattern, not by each concrete slug.
   revalidatePath("/projects/[slug]", "page");
+  // An area page lists the tasks floating in that area, and has since
+  // 2026-08-05. It was missing here, so ticking the Baby area's one task left
+  // it looking untouched until a hard reload.
+  revalidatePath("/areas/[slug]", "page");
 }
 
 function str(form: FormData, key: string): string | null {
@@ -136,6 +140,18 @@ export async function setTaskStatus(taskId: string, status: string) {
       });
     }
 
+    // Ticking the last item of a checklist finishes the job the checklist is
+    // *for*. The alternative is a row reading "2/2" that still counts as open,
+    // which is the kind of untrue line this app keeps having to delete: there
+    // is nothing left to do on it and nothing to press but the parent's own
+    // tick, so the app would be asking you to say the same thing twice.
+    //
+    // On a recurring parent this is the whole flow — tick the Japanese account,
+    // tick the Chinese one, and the day is recorded and re-armed for tomorrow.
+    if (status === "done" && before.parentId) {
+      await completeParentIfFinished(tx, before.parentId);
+    }
+
     if (status === "done" && before.projectId) {
       await tx.project.update({
         where: { id: before.projectId },
@@ -145,6 +161,30 @@ export async function setTaskStatus(taskId: string, status: string) {
   });
 
   refresh();
+}
+
+/** Nothing left open under it → the parent is done, by whichever route its own
+ *  tick would have taken. Silent when anything is still outstanding. */
+async function completeParentIfFinished(
+  tx: Prisma.TransactionClient,
+  parentId: string,
+) {
+  const remaining = await tx.task.count({
+    where: { parentId, status: { not: "done" } },
+  });
+  if (remaining > 0) return;
+
+  const parent = await tx.task.findUniqueOrThrow({ where: { id: parentId } });
+  if (parent.status === "done") return;
+
+  if (parent.recurrence !== "none") {
+    await completeRecurring(tx, parent);
+  } else {
+    await tx.task.update({
+      where: { id: parent.id },
+      data: { status: "done", completedAt: new Date() },
+    });
+  }
 }
 
 /**
@@ -195,10 +235,16 @@ async function completeRecurring(tx: Prisma.TransactionClient, task: Task) {
 
   if (next === null) {
     // The rule has run out. The live row becomes the last completed one rather
-    // than lingering open with a due date it can never reach.
+    // than lingering open with a due date it can never reach — and its
+    // checklist goes with it, because an open step under a finished job is a
+    // row nothing will ever ask you to do again.
     await tx.task.update({
       where: { id: task.id },
       data: { status: "done", completedAt: new Date(), recurrence: "none" },
+    });
+    await tx.task.updateMany({
+      where: { parentId: task.id, status: { not: "done" } },
+      data: { status: "done", completedAt: new Date() },
     });
     return;
   }
@@ -211,11 +257,89 @@ async function completeRecurring(tx: Prisma.TransactionClient, task: Task) {
       dueDate: new Date(`${next}T00:00:00.000Z`),
     },
   });
+
+  // The checklist re-arms with the row it belongs to. Tomorrow's post has not
+  // been made, so tomorrow's boxes are empty — and clearing `completedAt` is
+  // what keeps the contribution map honest: the day is recorded once, by the
+  // snapshot above, rather than once per account posted to.
+  await tx.task.updateMany({
+    where: { parentId: task.id },
+    data: { status: "open", completedAt: null },
+  });
 }
 
 export async function deleteTask(taskId: string) {
   await requireSession();
+  // The checklist goes with it, by the FK's `onDelete: Cascade`. That is the
+  // one thing about deleting a parent that has to be true: a subtask left
+  // behind would reappear on the board as a loose row reading "TikTok
+  // @utaitai_jp", with nothing left to say what it was a step of.
   await db.task.delete({ where: { id: taskId } });
+  refresh();
+}
+
+/**
+ * One more step on a checklist.
+ *
+ * A single field and no panel, for the reason the idea box and the experiment
+ * capture both exist: this is a thing you add *while looking at the list*, and
+ * a form that asks for a project, a track and a due date to record "and
+ * Instagram too" is a form you close.
+ *
+ * Everything it needs it takes from the parent — the project, the area and the
+ * track are properties of the job, not of the step. It never takes the
+ * recurrence: a checklist repeats with the thing it is a checklist for, and a
+ * subtask with a rule of its own is a second schedule to disagree with.
+ */
+export async function addSubtask(parentId: string, title: string) {
+  await requireSession();
+
+  const clean = title.trim();
+  if (!clean) throw new Error("Give the step a name");
+
+  const parent = await db.task.findUniqueOrThrow({
+    where: { id: parentId },
+    select: {
+      projectId: true,
+      areaId: true,
+      track: true,
+      parentId: true,
+      _count: { select: { subtasks: true } },
+    },
+  });
+
+  // One level, deliberately. A checklist on a checklist item is a tree, and a
+  // tree needs a way to collapse, indent and re-parent — none of which the
+  // board has, and none of which "post to these accounts" asks for.
+  if (parent.parentId) throw new Error("A checklist item can't have its own");
+
+  const step = await db.task.create({
+    data: {
+      title: clean,
+      parentId,
+      projectId: parent.projectId,
+      areaId: parent.areaId,
+      track: parent.track,
+      sortOrder: parent._count.subtasks,
+    },
+  });
+
+  refresh();
+  // Returned because the panel holds its own copy of the list and every
+  // control on a row addresses it by id. Inventing a placeholder id here is
+  // what made the first version throw on removing a step you had just added.
+  return step.id;
+}
+
+/** Renaming a step in place. The panel is for the job; the step is one line of
+ *  text and opening a drawer to change it is more ceremony than it is worth. */
+export async function renameSubtask(taskId: string, title: string) {
+  await requireSession();
+
+  const clean = title.trim();
+  if (!clean) throw new Error("Give the step a name");
+
+  await db.task.update({ where: { id: taskId }, data: { title: clean } });
   refresh();
 }
 

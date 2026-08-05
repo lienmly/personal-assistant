@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { daysSince } from "@/lib/projects";
-import { TASK_VIEW_SELECT } from "@/lib/task-view";
+import { TASK_VIEW_SELECT, TOP_LEVEL_ONLY } from "@/lib/task-view";
 import { todayKey } from "@/lib/utils";
 
 /**
@@ -26,9 +26,10 @@ export async function getProjectDetail(slug: string) {
 
   const [tasks, items, docs, series, events] = await Promise.all([
     db.task.findMany({
-      // Snapshots excluded — see `getHuntBoard`. The live recurring row
-      // carries the history via its `occurrences` count.
-      where: { projectId: project.id, recurringId: null },
+      // Snapshots and checklist items excluded — see `getHuntBoard`. The live
+      // recurring row carries the history via its `occurrences` count, and the
+      // parent row carries its own checklist.
+      where: { projectId: project.id, ...TOP_LEVEL_ONLY },
       orderBy: [{ status: "asc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
       select: { ...TASK_VIEW_SELECT, completedAt: true },
     }),

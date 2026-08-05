@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { TASK_VIEW_SELECT } from "@/lib/task-view";
+import { TASK_VIEW_SELECT, TOP_LEVEL_ONLY } from "@/lib/task-view";
 
 const taskSelect = { ...TASK_VIEW_SELECT, sortOrder: true, createdAt: true } as const;
 
@@ -24,7 +24,9 @@ export async function getHuntBoard() {
         // A recurring task keeps one live row and leaves a completed snapshot
         // per occurrence. The snapshots are its history — showing them here
         // would put "Read her a Vietnamese book" on the board thirty times.
-        recurringId: null,
+        // The second half excludes checklist items, which the parent row
+        // renders itself.
+        ...TOP_LEVEL_ONLY,
         OR: [
           { status: { not: "done" } },
           { completedAt: { gte: since } },

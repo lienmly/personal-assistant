@@ -2,6 +2,7 @@ import type { ProjectEditView } from "@/components/projects/types";
 import { addDays, startOfWeek } from "@/lib/calendar-keys";
 import { db } from "@/lib/db";
 import { daysSince } from "@/lib/projects";
+import { TOP_LEVEL_ONLY } from "@/lib/task-view";
 import { localDayKey, todayKey } from "@/lib/utils";
 
 /**
@@ -36,6 +37,11 @@ const boardSelect = {
   daysOfWeek: true,
   project: { select: { id: true, name: true, slug: true } },
   area: { select: { name: true, color: true } },
+  // Single-object `orderBy` — see the note on `TASK_VIEW_SELECT`.
+  subtasks: {
+    select: { id: true, title: true, status: true },
+    orderBy: { sortOrder: "asc" },
+  },
 } as const;
 
 /** `@db.Date` → "YYYY-MM-DD". Read in UTC because that is where Prisma puts the
@@ -129,9 +135,11 @@ export async function getProjectBoards(perProject = 5) {
       where: {
         status: { not: "done" },
         // A recurring task is one live row plus a completed snapshot per
-        // occurrence. Without this filter a daily habit appears once for every
-        // time it has ever been ticked (CLAUDE.md §6).
-        recurringId: null,
+        // occurrence. Without the first half of this filter a daily habit
+        // appears once for every time it has ever been ticked; without the
+        // second, a checklist item appears as a task beside the row that
+        // renders it (CLAUDE.md §6).
+        ...TOP_LEVEL_ONLY,
       },
       select: boardSelect,
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
@@ -242,6 +250,13 @@ export async function getProjectBoards(perProject = 5) {
  * things done, and collapsing them to the one live row would make the habits
  * that are easiest to keep the ones that show up least.
  *
+ * Checklist items are the one thing excluded, and it is the opposite call from
+ * the recurring snapshots for a reason that survives saying out loud: thirty
+ * days of reading to her is thirty *days*, but posting to three accounts this
+ * morning is one morning. Counting the steps would make a job look bigger for
+ * having been broken up, which is a metric you can game by writing longer
+ * checklists. The job itself still counts, once, when its last box is ticked.
+ *
  * `completedAt` is a real timestamp, so it reduces to a **local** day key. The
  * grid then indexes on strings and never touches a `Date` again — the same
  * trick the calendar uses to make three date conventions agree on a cell.
@@ -255,6 +270,7 @@ export async function getCompletionMap(weeks = 26) {
   const done = await db.task.findMany({
     where: {
       status: "done",
+      parentId: null,
       completedAt: { gte: new Date(`${from}T00:00:00.000`) },
     },
     select: {

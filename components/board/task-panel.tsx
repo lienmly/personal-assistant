@@ -1,12 +1,22 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { ExternalLink, Trash2, X } from "lucide-react";
+import { ExternalLink, Plus, Trash2, X } from "lucide-react";
 
 import type { Recurrence } from "@prisma/client";
 
-import type { AreaView, BoardProjectView, TaskView } from "@/components/board/types";
-import { deleteTask, saveTask } from "@/lib/task-actions";
+import type {
+  AreaView,
+  BoardProjectView,
+  SubtaskView,
+  TaskView,
+} from "@/components/board/types";
+import {
+  addSubtask,
+  deleteTask,
+  renameSubtask,
+  saveTask,
+} from "@/lib/task-actions";
 import { TRACKS } from "@/lib/tracks";
 import { cn } from "@/lib/utils";
 
@@ -278,6 +288,12 @@ export function TaskPanel({
             )}
           </form>
 
+          {/* Outside the form on purpose: it has its own field and its own
+              buttons, and inside a `<form>` every one of them would submit the
+              task. It also only exists once the task does — there is nothing to
+              hang a step off until the row has an id. */}
+          {task && <ChecklistEditor taskId={task.id} initial={task.subtasks} />}
+
           {task && (
             <button
               type="button"
@@ -317,6 +333,131 @@ export function TaskPanel({
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * The checklist, editable: add a step, rename one, drop one.
+ *
+ * It holds its own copy of the list rather than reading the `task` prop on
+ * every render, and that is not an optimisation — the panel is opened with a
+ * *snapshot* of the row the board was holding, so a revalidation after adding
+ * a step never reaches it. Without local state you would add "Instagram", watch
+ * nothing happen, and add it again.
+ *
+ * There is no drag handle. Steps arrive in the order they are written, which
+ * for "the accounts I post to" is the order they were opened in, and a reorder
+ * affordance is a lot of machinery for a list of three.
+ */
+function ChecklistEditor({
+  taskId,
+  initial,
+}: {
+  taskId: string;
+  initial: SubtaskView[];
+}) {
+  const [steps, setSteps] = useState(initial);
+  const [draft, setDraft] = useState("");
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  function add() {
+    const title = draft.trim();
+    if (!title) return;
+    setError(null);
+    startTransition(async () => {
+      try {
+        // The real id, not a placeholder — the × and the rename-on-blur beside
+        // each row both address it, so a made-up one throws the moment you
+        // touch a step you have just added.
+        const id = await addSubtask(taskId, title);
+        setSteps((current) => [...current, { id, title, status: "open" }]);
+        setDraft("");
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : "Could not add it");
+      }
+    });
+  }
+
+  return (
+    <div className="mt-6">
+      <div className="mb-1.5 flex items-baseline gap-2">
+        <span className={cn(labelCls, "mb-0")}>Steps</span>
+        <span className="text-[11.5px] text-faint">
+          Where this gets done — tick them off and the task ticks itself
+        </span>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        {steps.map((step) => (
+          <div key={step.id} className="flex items-center gap-2">
+            <span className="size-1.5 shrink-0 rounded-full bg-line" />
+            <input
+              defaultValue={step.title}
+              aria-label={`Rename "${step.title}"`}
+              onBlur={(event) => {
+                const title = event.target.value.trim();
+                if (!title || title === step.title) {
+                  event.target.value = step.title;
+                  return;
+                }
+                startTransition(() => renameSubtask(step.id, title));
+                setSteps((current) =>
+                  current.map((row) =>
+                    row.id === step.id ? { ...row, title } : row,
+                  ),
+                );
+              }}
+              className={cn(field, "flex-1")}
+            />
+            <button
+              type="button"
+              disabled={pending}
+              aria-label={`Remove "${step.title}"`}
+              onClick={() => {
+                startTransition(() => deleteTask(step.id));
+                setSteps((current) =>
+                  current.filter((row) => row.id !== step.id),
+                );
+              }}
+              className="grid size-7 shrink-0 place-items-center rounded-full text-faint transition-[background-color,color,transform] duration-(--duration-base) ease-soft hover:bg-inset hover:text-accent active:scale-90"
+            >
+              <X className="size-3.5" strokeWidth={2.2} />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <div className={cn("flex items-center gap-2", steps.length > 0 && "mt-2")}>
+        <span className="size-1.5 shrink-0 rounded-full bg-line/60" />
+        <input
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          // A step is one short phrase, and Enter is what your hands do after
+          // typing one. Without this it submits the *task* form instead.
+          onKeyDown={(event) => {
+            if (event.key !== "Enter") return;
+            event.preventDefault();
+            add();
+          }}
+          placeholder="Add a step — TikTok @utaitai_cn"
+          className={cn(field, "flex-1")}
+        />
+        <button
+          type="button"
+          disabled={pending || draft.trim() === ""}
+          onClick={add}
+          aria-label="Add this step"
+          className="grid size-7 shrink-0 place-items-center rounded-full bg-inset text-muted transition-[background-color,color,transform] duration-(--duration-base) ease-soft hover:bg-line hover:text-ink active:scale-90 disabled:opacity-35"
+        >
+          <Plus className="size-3.5" strokeWidth={2.4} />
+        </button>
+      </div>
+
+      {error && (
+        <p className="mt-2 animate-rise text-[12px] text-accent">{error}</p>
+      )}
     </div>
   );
 }

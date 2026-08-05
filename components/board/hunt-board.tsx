@@ -17,6 +17,7 @@ import type {
   BoardProjectView,
   TaskView,
 } from "@/components/board/types";
+import { Checklist, ticksTheLastBox } from "@/components/tasks/checklist";
 import { captureExperiment, setTaskStatus } from "@/lib/task-actions";
 import { repeatLabel } from "@/lib/task-view";
 import { trackRank } from "@/lib/tracks";
@@ -458,8 +459,13 @@ function TaskRow({
   collapseOnDone: boolean;
 }) {
   const [pending, startTransition] = useTransition();
+  const [subPending, startSubtask] = useTransition();
+  // Whether the subtask tick currently in flight is the one that empties the
+  // checklist — and so completes this row and takes it off the board. Set at
+  // click time because by the time the action returns the list has changed.
+  const [subtaskFinishes, setSubtaskFinishes] = useState(false);
   const done = task.status === "done";
-  const busy = pending;
+  const busy = pending || subPending;
   const repeat = repeatLabel(task);
 
   // The row folds away while the tick is in flight, because the server
@@ -467,7 +473,14 @@ function TaskRow({
   // jankiest thing on the board. Derived from `pending` rather than held in
   // state, so a failed action simply unfolds it again instead of leaving a
   // blank gap where the row was.
-  const leaving = pending && collapseOnDone && !done;
+  //
+  // A subtask tick folds it too, but only the last one, and only when this row
+  // is going to *finish*: a recurring task re-arms and stays put, so folding it
+  // there would animate away a row that is about to be redrawn.
+  const leaving =
+    collapseOnDone &&
+    !done &&
+    (pending || (subPending && subtaskFinishes && task.recurrence === "none"));
 
   return (
     <div
@@ -571,6 +584,28 @@ function TaskRow({
             </a>
           )}
         </div>
+
+        {/* Below the row rather than in it, indented to the title: a checklist
+            is *part of* this job, and the tree in the reference (§9) is the
+            pattern for that. Collapsed by default — the board is where you
+            choose which job, and an expanded checklist under every row is the
+            same wall of detail the scope pills exist to hold back. */}
+        {task.subtasks.length > 0 && (
+          <div className="pb-1 pl-10">
+            <Checklist
+              subtasks={task.subtasks}
+              busy={busy}
+              onTick={(subtaskId, subtaskDone) => {
+                setSubtaskFinishes(
+                  subtaskDone && ticksTheLastBox(task.subtasks, subtaskId),
+                );
+                startSubtask(() =>
+                  setTaskStatus(subtaskId, subtaskDone ? "done" : "open"),
+                );
+              }}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

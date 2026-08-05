@@ -614,11 +614,38 @@ model Task {
   recurring   Task?   @relation("TaskRecurrence", fields: [recurringId], references: [id], onDelete: Cascade)
   occurrences Task[]  @relation("TaskRecurrence")
 
+  // ── Checklist ─────────────────────────────────────────────────────────────
+  //
+  // Added 2026-08-06. "Post today" is one job done in several places, and
+  // before this it had two equally wrong homes: one row, which cannot record
+  // that you got the Japanese account done and not the Chinese one, or one row
+  // *per account*, which multiplies the whole daily commitment by however many
+  // accounts exist and buries "ship the iOS build" under it.
+  //
+  // A subtask is deliberately the same model rather than a `Checklist` table.
+  // It carries a track, a project and a `done` state already, and having half
+  // a Task's fields be meaningless on a child is cheaper than a second table
+  // that every list query would also have to learn about. What it does *not*
+  // get is its own recurrence: a checklist repeats with the thing it is a
+  // checklist for, and two rules on the same job is how they disagree.
+  //
+  // The tax is the mirror of `recurringId`'s: **every list of open work must
+  // filter `parentId: null`**, or the checklist items appear as loose tasks on
+  // the board alongside the parent that owns them.
+
+  /// Null for an ordinary task. Cascade, like the recurrence snapshots and
+  /// unlike every other relation here: a checklist item detached from its
+  /// parent is a fragment of a sentence, not an orphan with a home elsewhere.
+  parentId String?
+  parent   Task?   @relation("TaskChecklist", fields: [parentId], references: [id], onDelete: Cascade)
+  subtasks Task[]  @relation("TaskChecklist")
+
   @@index([status, dueDate])
   @@index([projectId, status, sortOrder])
   @@index([areaId, status])
   @@index([sprintId, status])
   @@index([recurringId, completedAt])
+  @@index([parentId, sortOrder])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

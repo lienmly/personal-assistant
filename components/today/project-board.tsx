@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -12,6 +12,7 @@ import {
   Repeat,
 } from "lucide-react";
 
+import { Checklist, ticksTheLastBox } from "@/components/tasks/checklist";
 import type {
   ProjectBoardView,
   TaskLineView,
@@ -189,15 +190,27 @@ function TaskLine({ task }: { task: TaskLineView }) {
   // `isPending` would collapse the row every time you pressed "start".
   const [leaving, startDone] = useTransition();
   const [pending, startEdit] = useTransition();
-  const busy = leaving || pending;
+  // A third, for the checklist. Ticking a step usually leaves the row alone —
+  // except the step that empties it, which finishes the job. Recorded at click
+  // time because the list has already changed by the time the action returns.
+  const [subPending, startSubtask] = useTransition();
+  const [subtaskFinishes, setSubtaskFinishes] = useState(false);
+  const busy = leaving || pending || subPending;
   const badge = BADGE[task.reason];
   const doing = task.status === "doing";
+
+  // A recurring job re-arms rather than finishing, so it stays on this screen
+  // with tomorrow's date and empty boxes. Folding it out would animate away a
+  // row that is about to be redrawn in place.
+  const folding =
+    leaving ||
+    (subPending && subtaskFinishes && task.recurrence === "none");
 
   return (
     <div
       className={cn(
         "grid transition-[grid-template-rows,opacity] duration-(--duration-base) ease-exit",
-        leaving
+        folding
           ? "grid-rows-[0fr] opacity-0 delay-[140ms]"
           : "grid-rows-[1fr] opacity-100",
       )}
@@ -305,6 +318,27 @@ function TaskLine({ task }: { task: TaskLineView }) {
               </a>
             ))}
         </div>
+
+        {/* Open by default here and nowhere else. Today is the screen you are
+            on in order to *tick*, and a checklist you have to expand first is
+            one tap of friction on the thing this row exists for. */}
+        {task.subtasks.length > 0 && (
+          <div className="pb-1 pl-9">
+            <Checklist
+              subtasks={task.subtasks}
+              defaultOpen
+              busy={busy}
+              onTick={(subtaskId, subtaskDone) => {
+                setSubtaskFinishes(
+                  subtaskDone && ticksTheLastBox(task.subtasks, subtaskId),
+                );
+                startSubtask(() =>
+                  setTaskStatus(subtaskId, subtaskDone ? "done" : "open"),
+                );
+              }}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

@@ -59,6 +59,27 @@ you'd forget you owned.
 
 Loose tasks with no project collect at the bottom under **One-offs**.
 
+### Steps under a task
+
+Some jobs are one thing done in several places. "Post today's shorts" on Utaitai goes up on
+two TikTok accounts, and one tick box can't say that the Japanese one is done and the
+Chinese one isn't.
+
+So a task can carry a **checklist**. Its steps show indented under it here, open by default,
+because this is the screen you're on in order to tick things. The little `1/2` beside it
+collapses them if you'd rather not see them.
+
+**Ticking the last step finishes the task itself** — you don't tick the parent too. And if
+the task repeats, finishing it moves it to its next day and **clears every box again**, so
+tomorrow starts empty.
+
+Steps only count once, as the job. Ticking two accounts is one square on the contribution
+map, not two — otherwise a job would look bigger for having been broken up.
+
+To add, rename or remove one, open the task (on the Hunt Board or a project page) and use
+the **Steps** box near the bottom of the panel. Type and press Enter. They stay in the order
+you write them.
+
 ### The focus line
 
 New field, set on the project's settings panel — the pencil beside the project's name on
@@ -85,7 +106,7 @@ The streak counts consecutive days with at least one thing ticked. **Today not h
 yet doesn't break it** — at 7am it never would.
 
 Recurring tasks count every time you tick them. Reading her a Vietnamese book on thirty
-days is thirty things done, not one.
+days is thirty things done, not one. Steps under a task are the exception — see above.
 
 ### Social media content going out today
 

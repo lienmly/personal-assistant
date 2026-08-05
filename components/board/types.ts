@@ -23,6 +23,18 @@ export type BoardProjectView = {
   area: AreaView;
 };
 
+/**
+ * One step of a checklist. Deliberately three fields out of a Task's twenty:
+ * the project, the area, the track and the due date all belong to the job it
+ * hangs off, and repeating them on every step is how a two-line checklist
+ * starts rendering like four more tasks.
+ */
+export type SubtaskView = {
+  id: string;
+  title: string;
+  status: TaskStatus;
+};
+
 export type TaskView = {
   id: string;
   title: string;
@@ -48,4 +60,8 @@ export type TaskView = {
   /** How many times this has been completed. Only meaningful when recurring;
    *  it is what makes a habit feel like it is going somewhere. */
   doneCount: number;
+
+  /** The checklist under this row, in order. Empty for most tasks — a job that
+   *  is done in one place does not need to be broken into the one place. */
+  subtasks: SubtaskView[];
 };

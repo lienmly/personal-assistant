@@ -5,6 +5,7 @@ import { Check, ExternalLink, Plus, Repeat } from "lucide-react";
 
 import { TaskPanel } from "@/components/board/task-panel";
 import type { AreaView, BoardProjectView, TaskView } from "@/components/board/types";
+import { Checklist, ticksTheLastBox } from "@/components/tasks/checklist";
 import { setTaskStatus } from "@/lib/task-actions";
 import { repeatLabel } from "@/lib/task-view";
 import { trackRank } from "@/lib/tracks";
@@ -145,8 +146,16 @@ export function TaskList({
 
 function TaskRow({ task, onOpen }: { task: TaskView; onOpen: () => void }) {
   const [pending, startTransition] = useTransition();
+  const [subPending, startSubtask] = useTransition();
+  const [subtaskFinishes, setSubtaskFinishes] = useState(false);
   const done = task.status === "done";
   const repeat = repeatLabel(task);
+
+  // Ticking the last box completes the job — but only a one-off actually
+  // leaves; a recurring row re-arms for its next day and stays put.
+  const folding =
+    (pending && !done) ||
+    (subPending && subtaskFinishes && task.recurrence === "none");
 
   return (
     // The fold-out on completion: `grid-template-rows` 1fr → 0fr, with the
@@ -155,16 +164,17 @@ function TaskRow({ task, onOpen }: { task: TaskView; onOpen: () => void }) {
     <div
       className={cn(
         "grid transition-[grid-template-rows] duration-(--duration-slow) ease-soft",
-        pending && !done ? "grid-rows-[0fr] delay-[140ms]" : "grid-rows-[1fr]",
+        folding ? "grid-rows-[0fr] delay-[140ms]" : "grid-rows-[1fr]",
       )}
     >
       <div className="overflow-hidden">
         <div
           className={cn(
-            "flex items-center gap-3 rounded-tile bg-inset px-3.5 py-2.5 transition-[background-color] duration-(--duration-quick) hover:bg-line/50",
+            "rounded-tile bg-inset px-3.5 py-2.5 transition-[background-color] duration-(--duration-quick) hover:bg-line/50",
             done && "opacity-55",
           )}
         >
+        <div className="flex items-center gap-3">
           <button
             type="button"
             aria-label={done ? "Reopen this task" : "Mark as done"}
@@ -239,6 +249,26 @@ function TaskRow({ task, onOpen }: { task: TaskView; onOpen: () => void }) {
               <ExternalLink className="size-3.5" strokeWidth={1.9} />
             </a>
           )}
+        </div>
+
+        {/* Collapsed, like the board: a project page is where you survey the
+            work, and the steps of one job are detail below that. */}
+        {task.subtasks.length > 0 && (
+          <div className="pl-8">
+            <Checklist
+              subtasks={task.subtasks}
+              busy={subPending}
+              onTick={(subtaskId, subtaskDone) => {
+                setSubtaskFinishes(
+                  subtaskDone && ticksTheLastBox(task.subtasks, subtaskId),
+                );
+                startSubtask(() =>
+                  setTaskStatus(subtaskId, subtaskDone ? "done" : "open"),
+                );
+              }}
+            />
+          </div>
+        )}
         </div>
       </div>
     </div>

@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { TOP_LEVEL_ONLY } from "@/lib/task-view";
 
 /** Whole days since a timestamp. Shared so Today and Projects can't disagree
  *  about what "3d since" means. */
@@ -88,8 +89,14 @@ export async function getMomentum() {
       by: ["projectId"],
       // `recurringId: null` excludes the completed snapshots a recurring task
       // leaves behind — they are history, not open work, and counting them
-      // would make a daily habit look like thirty tasks.
-      where: { status: { not: "done" }, projectId: { not: null }, recurringId: null },
+      // would make a daily habit look like thirty tasks. `parentId: null`
+      // excludes checklist items for the mirror reason: a job done in four
+      // places is one open task, not five.
+      where: {
+        status: { not: "done" },
+        projectId: { not: null },
+        ...TOP_LEVEL_ONLY,
+      },
       _count: { _all: true },
     }),
   ]);

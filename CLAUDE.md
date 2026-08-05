@@ -128,7 +128,8 @@ dashboard/UI ecosystem, easy Google auth, and a clean path to embedding an AI as
 /components/projects → the project panel
 /components/areas  → the area page's journal, and the photo picker
 /components/docs   → the Docs tab, shared by a project page and an area page
-/components/tasks  → the by-track task list, shared by both too
+/components/tasks  → the by-track task list, shared by both too, and the checklist
+                     a task's subtasks render as (board, Today and both pages)
 /lib/area-detail.ts → everything one area is, for /areas/[slug]
 /lib/journal.ts    → reading the journal (never selects photo bytes)
 /lib/journal-actions.ts → server actions for entries and photos
@@ -389,6 +390,27 @@ is livable. It is: 58 tasks, all of them asked for._
       them and `forge-vision.md` has two. Pre-existing, untouched, and now the only known
       gap in the renderer.
 
+### Phase 4.10 — A task can have a checklist
+_Built 2026-08-06. The first structural change to `Task` since recurrence, and it came from
+one ask: a daily reminder to post for Utaitai, with a step per account and more accounts to
+come._
+- [x] **`Task.parentId`** (`20260806090000_task_checklist`) — a self-relation, cascade,
+      one level deep. Purely additive. §6, "A task can have a checklist"
+- [x] **Ticking the last box completes the job**, and on a recurring one re-arms the whole
+      checklist for its next day
+- [x] **`TOP_LEVEL_ONLY`** in `lib/task-view.ts` — `recurringId: null` and `parentId: null`
+      bundled, so the six queries that need both cannot drift apart
+- [x] **`components/tasks/checklist.tsx`** — shared by the Hunt Board, Today and a project
+      or area page. Collapsed by default, expanded on Today
+- [x] **A `Steps` editor on the task panel** — add with Enter, rename in place, remove
+- [x] **Utaitai's "Post today's shorts"** — daily, `Content` track, two steps
+      (`TikTok @utaitai_jp`, `TikTok @utaitai_cn`). Written straight to the database, never
+      into `prisma/seed.ts` (§6, "Nothing but you creates a task")
+- [x] `revalidatePath("/areas/[slug]")` added to the task actions' `refresh()` — it was
+      missing, so ticking the Baby area's one task left its page stale
+- [ ] **Reordering steps.** They arrive in the order written, which for a list of accounts
+      is the order you open them in. No drag handle; revisit if a checklist ever gets long.
+
 ### Phase 5 — Montblanc (AI assistant)
 - [ ] Chat drawer with streaming (Claude via AI SDK), available on every surface
 - [ ] Montblanc persona/prompt
@@ -430,7 +452,7 @@ a destination.**
 | **Area** | Life domain. Coarse. Supplies colour + calendar separation, and since 2026-08-05 has a **page** — journal, docs, tasks. | Work, Baby, Hobbies, Home & Money | ~5 ever |
 | **Project** | The thing being pushed forward. Belongs to one Area. | "Utaitai", "Sleepy Cat", "Rental 4B" | Constant |
 | **Brand** | A public identity with an audience and a voice. Owns Channels. | Utaitai, Coding Mom, Sleepy Cat | Rare |
-| **Task** | A task. Belongs to a Project, or floats in an Area for one-offs. | "Fix collision bug" | Constant |
+| **Task** | A task. Belongs to a Project, or floats in an Area for one-offs. Since 2026-08-06 it can carry a **checklist** of subtasks — the same model, one level deep. | "Fix collision bug" | Constant |
 | ~~Sprint~~ | _Retired 2026-08-04. Table kept, nothing reads it — see "The sprint" below._ | — | — |
 | **Content item** | A unit of content going out. Carries a Brand and (optionally) a Project. | "Devlog #7 → X + Threads" | Constant |
 | **Series** | A standing commitment that generates dated Content item slots. | "Daily short, both Utaitai TikToks" | Rare |
@@ -732,7 +754,9 @@ Built ones are in `prisma/schema.prisma`, which is the source of truth; this is 
   sprintId (nullable, **vestigial** — the sprint was retired 2026-08-04 and nothing reads
   or writes this), projectId (nullable), areaId, recurrence
   (`none` | `daily` | `weekdays` | `weekly` | `monthly`), daysOfWeek, repeatUntil,
-  recurringId (set on a completed snapshot, pointing at the live row) ✅
+  recurringId (set on a completed snapshot, pointing at the live row),
+  **parentId** (set on a checklist item, pointing at the job it is a step of —
+  cascade, one level deep) ✅
 - **Doc** — projectId **or** areaId (both nullable, exactly one set — enforced in
   `lib/doc-actions.ts`), slug (minted once, never follows a rename), title, body
   (Markdown), sortOrder. Cascades with its owner — the only relation that does.
@@ -984,6 +1008,59 @@ chosen over an obvious alternative that fails:
    the board and never reaches Today. `saveTask` and the seeder both infer the first
    occurrence rather than demanding one — ticking "every Wednesday" and leaving the date
    blank is the obvious thing to do.
+
+### A task can have a checklist — decided 2026-08-06
+
+Posting to Utaitai is **one job done in several places**, and before this it had two
+equally wrong homes.
+
+- **One task** — "post today's shorts" — cannot record that the Japanese account went up
+  and the Chinese one didn't. You tick it when you are half done and lie, or you leave it
+  open and it says nothing about which half is left.
+- **One task per account** multiplies a single daily commitment by however many accounts
+  exist. Two today, five when Instagram, Facebook and YouTube go live — and "ship the iOS
+  build" is then buried under five rows that are all the same thought.
+
+So `Task` gained `parentId`, a self-relation onto itself. **A subtask is the same model,
+not a `Checklist` table**: it already carries a title, a project, a track and a done state,
+and half a Task's fields being meaningless on a child is cheaper than a second table every
+list query would also have to learn about.
+
+Six things fell out, each chosen over an obvious alternative that fails:
+
+1. **Ticking the last box finishes the job.** `completeParentIfFinished` runs after any
+   subtask completes. The alternative — a row reading "2/2" that still counts as open — is
+   exactly the kind of untrue line this app keeps having to delete: there is nothing left
+   to do on it, and the only thing left to press says the same thing a second time.
+2. **A checklist re-arms with its parent.** On a recurring task, `completeRecurring` sets
+   every step back to `open` and clears its `completedAt`. Tomorrow's post has not been
+   made, so tomorrow's boxes are empty. The one branch that does *not* reset is the rule
+   running out — there the steps are marked done with the parent, because an open step
+   under a finished job is a row nothing will ever ask for again.
+3. **A subtask never gets its own recurrence.** A checklist repeats with the thing it is a
+   checklist for. Two rules on one job is how they come to disagree, and there is no screen
+   that could show the disagreement.
+4. **One level, enforced in `addSubtask`.** A checklist on a checklist item is a tree, and a
+   tree needs collapsing, indenting and re-parenting — none of which the board has, and
+   none of which "post to these accounts" asks for.
+5. **`parentId: null` is the tax, and it is the mirror of `recurringId`'s.** Every list of
+   open work carries both, now bundled as `TOP_LEVEL_ONLY` in `lib/task-view.ts`:
+   `getHuntBoard`, `getProjectBoards`, `getProjectDetail`, `getAreaDetail`, `getMomentum`
+   and the calendar's task layer. Without it the steps appear on the board as tasks in
+   their own right, directly beneath the row that already renders them.
+6. **The contribution map excludes them**, which is the opposite call from the recurring
+   snapshots and worth saying why. Thirty days of reading to her is thirty *days*; posting
+   to three accounts this morning is one morning. Counting the steps would make a job look
+   bigger for having been broken up — a metric you can game by writing longer checklists.
+   The job itself still counts, once, when its last box is ticked.
+
+**Where it is expanded is a per-surface decision.** Today opens it, because that is the
+screen you are on in order to tick. The Hunt Board and a project page keep it collapsed
+behind its own `n/m` count, because those are surfaces for choosing *which job*, and an
+expanded checklist under every row is the "board dumps everything on my face" problem one
+level down. Editing lives in the task panel — one field, Enter to add — for the same reason
+the idea box and the experiment capture exist: adding "and Instagram too" should not require
+answering questions about projects and due dates.
 
 ### "While you're in it" — added 2026-08-02, **removed 2026-08-04**
 
@@ -1594,7 +1671,73 @@ Named animations: `animate-rise` (fade + 8px up — cards, columns, rows arrivin
 
 ---
 
-_Last updated: 2026-08-05 · Status: **Phase 4.9 — Sleepy Cat has a plan.**_
+_Last updated: 2026-08-06 · Status: **Phase 4.10 — a task can have a checklist.**_
+
+_**2026-08-06 — posting to Utaitai is one job done in two places, and the app had no way to
+say that.** The ask was a daily recurring task to post, with a subtask per TikTok account
+and more accounts to come. Subtasks were not a thing this app had, and the two ways to fake
+it both fail in the same direction: one row cannot record that the Japanese account went up
+and the Chinese one didn't, and one row *per account* multiplies a single daily commitment
+by however many accounts exist — five once Instagram, Facebook and YouTube go live, all of
+them the same thought, all of them sitting on the board next to "ship the iOS build"._
+
+_So `Task` gained **`parentId`**, pointing at itself. Same model rather than a `Checklist`
+table, because a step already needs a title, a project, a track and a done state, and half
+a Task's fields being meaningless on a child is cheaper than a second table every list query
+would also have to learn about. The tax is exact and it is the mirror of the one recurrence
+already charges: **every list of open work now filters `parentId: null` as well as
+`recurringId: null`**, or the steps appear on the board as tasks in their own right,
+directly under the row that already renders them. The two are bundled as `TOP_LEVEL_ONLY`
+so the six queries needing both cannot drift apart._
+
+_**Ticking the last box finishes the job**, which is the behaviour the whole thing is for:
+tick @utaitai_jp, tick @utaitai_cn, and the day is recorded and the row comes back tomorrow
+with empty boxes. A "2/2" that still counted as open would be exactly the kind of untrue
+line this app keeps having to delete — nothing left to do on it, and the only control left
+says the same thing twice. **The checklist re-arms with its parent**, cleared `completedAt`
+and all, and that clearing is what keeps the contribution map honest. **The map excludes
+steps**, which is the opposite call from the recurring snapshots and worth saying why:
+thirty days of reading to her is thirty days, but posting to three accounts this morning is
+one morning, and counting the steps would make a job look bigger for having been broken
+up — a metric you can game by writing longer checklists._
+
+_**Where it expands is a per-surface decision.** Today opens it, because that is the screen
+you are on in order to tick. The Hunt Board and a project page keep it collapsed behind its
+own `n/m` count, because those are for choosing *which job*, and an expanded checklist under
+every row is the "board dumps everything on my face" problem one level down. Adding a step
+is one field and Enter, on the task panel — the same argument the idea box and the
+experiment capture are built on. **One level only**, enforced in `addSubtask`: a checklist
+on a checklist item is a tree, and a tree wants collapsing, indenting and re-parenting, none
+of which "post to these accounts" asks for._
+
+_The task itself — **"Post today's shorts"**, daily, `Content` track, `TikTok @utaitai_jp`
+and `TikTok @utaitai_cn` — went **straight to the database and not into `prisma/seed.ts`**,
+per §6's rule that the seed creates structure and never work._
+
+_Verified in a signed-in browser. Ticked the Japanese account and watched the row hold at
+1/2 while Utaitai flipped to "Touched today"; ticked the Chinese one and watched the task
+advance to 6 Aug, both boxes reset to 0/2, and "Ticked off" gain **one** row rather than
+three. Confirmed the project page reads "Open 1" and `Daily · 1`, that the steps appear
+nowhere as loose rows, and that the panel's Steps editor adds, renames and removes.
+`npm run build`, `tsc --noEmit` and `eslint` all pass._
+
+_**One real bug was found there and fixed:** the panel's optimistic add inserted a
+placeholder id, and both the × and the rename-on-blur address a row by id — so removing a
+step you had *just* added threw `PrismaClientKnownRequestError`. `addSubtask` now returns
+the real id. Found only because the round trip was actually done in the browser rather than
+reasoned about._
+
+_Outstanding from this change: **steps cannot be reordered** — they arrive in the order
+written, which for a list of accounts is the order you open them in, and a drag handle is a
+lot of machinery for a list of three. **The migration folder is dated `20260806`** while the
+work was done on the 5th; it is applied, so renaming it would make Prisma try to apply it
+again. And **the phone layout still has not been looked at on a real device** — the
+checklist indents inside the existing rows and adds no new breakpoint, but that is reasoning,
+not a check._
+
+---
+
+_Previously: **Phase 4.9 — Sleepy Cat has a plan.**_
 
 _**2026-08-05 — the first project filled in by hand since the seed stopped creating work.**
 Sleepy Cat had zero tasks, zero docs and no focus line: everything went in the 4th's purge,

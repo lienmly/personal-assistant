@@ -13,6 +13,7 @@ import {
   timeLabel,
 } from "@/lib/calendar-keys";
 import { db } from "@/lib/db";
+import { TOP_LEVEL_ONLY } from "@/lib/task-view";
 import { localDayKey } from "@/lib/utils";
 
 /**
@@ -269,8 +270,10 @@ export async function getCalendar(
             ...areaWhere,
             // The live row only. A recurring task's completed snapshots keep the
             // due date they were for, so without this every past occurrence
-            // would stack up on the day it happened.
-            recurringId: null,
+            // would stack up on the day it happened. Checklist items are
+            // excluded by the same object: a step inherits nothing dated, but
+            // the grid is the last place that should start guessing.
+            ...TOP_LEVEL_ONLY,
             dueDate: { gte: keyToUtc(first), lte: keyToUtc(last) },
           },
           select: {
