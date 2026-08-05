@@ -25,7 +25,15 @@ export function TaskPanel({
   task: TaskView | null;
   projects: BoardProjectView[];
   areas: AreaView[];
-  defaults?: { projectId?: string | null; track?: string | null };
+  /** What a *new* task starts as. `areaId` matters for a task created from an
+   *  area page: without it the select falls back to `areas[0]`, so a task added
+   *  from Baby would quietly file itself under Work. Ignored once a project is
+   *  chosen — the project's area wins, which `saveTask` enforces anyway. */
+  defaults?: {
+    projectId?: string | null;
+    areaId?: string | null;
+    track?: string | null;
+  };
   onClose: () => void;
 }) {
   const [pending, startTransition] = useTransition();
@@ -165,7 +173,9 @@ export function TaskPanel({
                 <select
                   id="task-area"
                   name="areaId"
-                  defaultValue={task?.areaId ?? areas[0]?.id ?? ""}
+                  defaultValue={
+                    task?.areaId ?? defaults?.areaId ?? areas[0]?.id ?? ""
+                  }
                   className={field}
                 >
                   {areas.map((area) => (

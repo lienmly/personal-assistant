@@ -125,7 +125,15 @@ dashboard/UI ecosystem, easy Google auth, and a clean path to embedding an AI as
 /components/today  → the projects card (list + create + archived), project cards,
                      the contribution map, going-out, agenda
 /components/calendar → month grid, week/day time grid, item chips, the event panel
-/components/projects → the project panel, the project page's tabs
+/components/projects → the project panel
+/components/areas  → the area page's journal, and the photo picker
+/components/docs   → the Docs tab, shared by a project page and an area page
+/components/tasks  → the by-track task list, shared by both too
+/lib/area-detail.ts → everything one area is, for /areas/[slug]
+/lib/journal.ts    → reading the journal (never selects photo bytes)
+/lib/journal-actions.ts → server actions for entries and photos
+/lib/photo-store.ts → the **only** module that touches photo bytes (§6)
+/app/api/journal/photo/[id] → serves one photo, auth-gated
 /lib/db.ts         → Prisma client singleton
 /lib/studio.ts     → board queries + series slot generation + batch slots
 /lib/studio-actions.ts → server actions for content items, channels, series, batch save
@@ -317,6 +325,29 @@ the 5th._
 - [ ] Area CRUD — the sidebar's "Add area" and "Manage areas" are *still* disabled, and
       this fold makes it the last surface-level gap
 
+### Phase 4.8 — The Baby area, and areas you can open
+_Built 2026-08-05, immediately after the Multilingual baby removal above and caused by it.
+The area had nothing left, and what it actually needed turned out to be three things none
+of which hung off a Project._
+- [x] **`/areas/[slug]`** — Journal · Docs · Tasks, reached from the sidebar tree, **not**
+      a fifth nav item. §6, "An area is something you can open"
+- [x] **`JournalEntry`** — the first noun in this app that points backwards. No due date,
+      no status, nothing to tick. §6, "The journal"
+- [x] **`JournalPhoto`, stored in Postgres** — downscaled to 1600px in the browser before
+      upload (4MB → 75KB, measured), served auth-gated from `/api/journal/photo/[id]`,
+      and behind a one-file seam so moving to R2 later is cheap. §6, "Photos live in
+      Postgres"
+- [x] **`ProjectDoc` → `Doc`** — a doc hangs off a project *or* an area. Hand-written
+      migration, every statement a RENAME or an additive ALTER. §6
+- [x] The Baby area's **Languages** doc and its one real task ("Figure out a way to teach
+      her Russian and Chinese"), the task written straight to the database rather than
+      into the seed
+- [ ] **Send the journal to her** — an email, a printed year, something. Deliberately not
+      designed; the data is shaped for it (§6, "The journal")
+- [ ] **Captions on photos.** The column exists and is written as `null`; there is no UI.
+- [ ] Area CRUD — *still* the last surface-level gap, and now slightly more awkward: an
+      area has a page but cannot be created or renamed
+
 ### Phase 5 — Montblanc (AI assistant)
 - [ ] Chat drawer with streaming (Claude via AI SDK), available on every surface
 - [ ] Montblanc persona/prompt
@@ -355,7 +386,7 @@ a destination.**
 
 | Noun | What it is | Example | Churn |
 |---|---|---|---|
-| **Area** | Life domain. Coarse. Supplies colour + calendar separation. | Work, Baby, Hobbies, Home & Money | ~5 ever |
+| **Area** | Life domain. Coarse. Supplies colour + calendar separation, and since 2026-08-05 has a **page** — journal, docs, tasks. | Work, Baby, Hobbies, Home & Money | ~5 ever |
 | **Project** | The thing being pushed forward. Belongs to one Area. | "Utaitai", "Sleepy Cat", "Rental 4B" | Constant |
 | **Brand** | A public identity with an audience and a voice. Owns Channels. | Utaitai, Coding Mom, Sleepy Cat | Rare |
 | **Task** | A task. Belongs to a Project, or floats in an Area for one-offs. | "Fix collision bug" | Constant |
@@ -363,6 +394,7 @@ a destination.**
 | **Content item** | A unit of content going out. Carries a Brand and (optionally) a Project. | "Devlog #7 → X + Threads" | Constant |
 | **Series** | A standing commitment that generates dated Content item slots. | "Daily short, both Utaitai TikToks" | Rare |
 | **Event** | Something that *happens at a time*, as opposed to something to do. | "Afternoon nap", "Paediatrician" | Constant |
+| **Journal entry** | Something that *already happened*. The only noun pointing backwards. | "Rolled over, both directions" | Constant |
 
 **Content item is deliberately not a Task.** A Task is binary — open or done. A Content item moves through
 repeating pipeline stages, fans out to several channels from one source asset, and has a
@@ -660,8 +692,16 @@ Built ones are in `prisma/schema.prisma`, which is the source of truth; this is 
   or writes this), projectId (nullable), areaId, recurrence
   (`none` | `daily` | `weekdays` | `weekly` | `monthly`), daysOfWeek, repeatUntil,
   recurringId (set on a completed snapshot, pointing at the live row) ✅
-- **ProjectDoc** — projectId, slug (minted once, never follows a rename), title, body
-  (Markdown), sortOrder. Cascades with its Project — the only relation that does ✅
+- **Doc** — projectId **or** areaId (both nullable, exactly one set — enforced in
+  `lib/doc-actions.ts`), slug (minted once, never follows a rename), title, body
+  (Markdown), sortOrder. Cascades with its owner — the only relation that does.
+  Was `ProjectDoc` until 2026-08-05 ✅
+- **JournalEntry** — areaId, happenedOn (`@db.Date` — the day it is *about*), title
+  (nullable), body (Markdown). Points **backwards**: no due date, no status, nothing to
+  tick. See §6, "The journal" ✅
+- **JournalPhoto** — entryId, data (`BYTEA` — in Postgres on purpose, §6), mimeType, width,
+  height, byteSize, caption, sortOrder. Cascades with its entry. **Nothing but
+  `lib/photo-store.ts` selects `data`** ✅
 - **Event** — id, title, notes, location, start, end (both real timestamps, `end`
   inclusive), allDay, recurrence (`none` | `daily` | `weekdays` | `weekly` |
   `monthly`), daysOfWeek, repeatUntil (`@db.Date`, null = forever), areaId,
@@ -854,8 +894,9 @@ time is the point.
 
 ### The Baby area is a journal, not a backlog — decided 2026-08-05
 
-**Multilingual baby is deleted, and the Baby area now holds nothing on any surface.** That
-is the intended state while what the area is *for* gets worked out.
+**Multilingual baby is deleted.** The Baby area held nothing at all for about an hour, and
+then became the first area with a **page** — see "An area is something you can open" below,
+which is this decision's second half and was built the same day.
 
 The verdict on it was "it's just kind of weird", and the weirdness has a shape. Every other
 project in this app is something that would not otherwise happen — Sleepy Cat does not ship
@@ -877,8 +918,10 @@ anything.
 What the area is heading towards is a **development-milestone journal** — written *after*
 she does a thing, not before. That is a different noun from anything the app currently has:
 Task is binary and forward-looking, Event asserts a time, ContentItem goes out to an
-audience, and none of them is "she rolled over on the 3rd". It has not been designed yet
-and deliberately is not being designed yet. The area sits empty until it is.
+audience, and none of them is "she rolled over on the 3rd".
+
+_That paragraph was written expecting to sit for a while. It sat for about an hour — the
+journal was asked for immediately and is built. See the next two sections._
 
 Three notes on the removal itself:
 
@@ -887,14 +930,148 @@ Three notes on the removal itself:
    job — Coding Mom is who is talking, the project was what it was about. Only the second
    axis went; they are brand-only ideas in the bank now, which is what the other three
    Baby-pillar ideas always were.
-2. **The doc cascaded, which is the rule working as designed** — a doc without a project is
+2. **The doc cascaded, which is the rule working as designed** — a doc without an owner is
    a page about nothing (§6, "The docs moved onto the project"). "Three languages, one
-   unsolved" survives as `prisma/docs/multilingual-baby.md`, which the seed no longer
-   references; the plan is still worth having, it just has nowhere to live yet.
+   unsolved" survived as a file, and is now back in the app as `baby-languages.md` — a
+   **Doc on the Baby area**, which is the thing that did not exist when it was deleted.
+   Its structural claims were rewritten rather than restored: it said "why this is a
+   project and not a list", which would have been a page explaining a shape the app no
+   longer has.
 3. **The row is backed up** to `backups/multilingual-baby-2026-08-05.json`, the same
    courtesy the 78 seeded tasks got, and the seed entry is deleted rather than commented
    out — for the reason §6 gives about `seedTasks`, a landmine with a safety catch is still
    a landmine.
+
+### An area is something you can open — decided 2026-08-05
+
+`/areas/[slug]`, with **Journal · Docs · Tasks**, reached from the sidebar tree.
+
+For five phases an Area was a colour, a heading, and a foreign key. That was fine while
+everything inside one was a project, because a project has a page and the area was just the
+folder above it. **The Baby area broke it**: it has no projects by design (previous
+section), and yet it has a journal, a vision worth writing down, and one genuine task —
+all three of which had nowhere to live, because every home in this app hung off a Project.
+
+**This is not a fifth nav surface, and the rule against those still stands.** "Never one
+nav item per area" (§6, Navigation) exists because that list grows forever and makes you
+recall which bucket a thing is in. An area *page* is the same thing a project page is: a
+destination you reach from the tree, not an item in the rail. The rail is still four icons.
+The shape is deliberately copied from `/projects/[slug]` — same tab strip, same
+one-query-per-section — and the Docs tab is now literally the same component.
+
+Three decisions inside it:
+
+1. **It opens on Journal, not on an Overview.** A project page opens on Overview because
+   "where does this stand" is the question; an area does not stand anywhere, and an
+   overview tab here would be a summary of the two tabs beside it. The reason to open an
+   area is almost always to write something down.
+2. **Only the active tab's heavy read runs.** The journal pulls every entry and its photo
+   metadata for the area, and it is the one query on the page that grows without bound.
+   Rendering the Docs tab should not pay for it.
+3. **The area name in the sidebar became a link, and the "All areas" filter chip is
+   gone.** That chip and the per-area selection had been cosmetic since Phase 1 — nothing
+   ever read the selection. Leaving a dead toggle beside a live link is worse than either;
+   the name now goes where a project's name already goes.
+
+### The journal — added 2026-08-05
+
+**A `JournalEntry` is something that happened.** It is the first row in this app that
+points backwards, and that is the whole justification for a new noun rather than reusing
+one.
+
+Everything else points forwards: a Task is owed, an Event is scheduled, a ContentItem is
+going out. "She rolled over on the 3rd" is none of those — and when the only available
+nouns point forwards, recording the past means filing it as something you owe, which is
+precisely how the Baby area became a chore list. So an entry **cannot be overdue** (no due
+date), **cannot be ticked** (no status), and **is never counted against anything** (no
+target, no streak, no pace). Nothing here can be fallen behind on, which is the feature and
+not an omission.
+
+It hangs off an **Area**, not a Project — the Baby area should not need to invent a project
+in order to be written about, and Area is the coarse ~5-ever noun, which is the right grain
+for "a journal".
+
+Four things fell out:
+
+1. **The composer sits open, not behind a button.** Every other write goes through a panel,
+   which is right for a form you fill in deliberately. This is the opposite case: the thing
+   being recorded happened thirty seconds ago and you are holding a baby, so one tap before
+   the cursor exists is the entry not getting written. Same argument as Today's idea box,
+   one size up.
+2. **`happenedOn` is the day it is *about*, not the day it was typed** — `@db.Date`, so all
+   of §6's "Dates are a trap here" applies, formatted `timeZone: "UTC"`. The two dates
+   differ whenever you write up Tuesday on Thursday, which with a baby is most of the time.
+3. **An entry with neither text nor a photo is refused.** A journal that can hold a blank
+   dated row is one you scroll past a blank dated row in, and it reads as a day you failed
+   to record rather than a save you fumbled.
+4. **The seed will never create one**, for the general reason in "Nothing but you creates a
+   task": an entry is a claim about her life, and it is the *strongest* form of that claim
+   in the app. An invented milestone would be considerably worse than an invented task.
+
+**Sending them to her one day** is not built and is deliberately not designed. The data is
+the right shape for it — every entry has a date and a body, and photos are addressable by
+URL — so it is a job that reads rows rather than a schema change.
+
+### Photos live in Postgres — decided 2026-08-05
+
+`JournalPhoto.data` is `BYTEA`. Chosen over a Railway volume and over S3/R2, and the
+deciding argument is not cost.
+
+**These are the one kind of row in this app that genuinely cannot be recreated.** Every
+other table holds decisions, which can be re-made, or work, which can be re-typed. A photo
+of her at four months cannot be. A volume is not in the database backup and an object store
+is a second account that has to stay alive and paid; bytes in the DB are covered by whatever
+covers the DB, and behave identically in local dev and on Railway.
+
+The honest cost is size — roughly 300MB per thousand photos — and it was accepted knowing
+the database is the expensive place to keep them. So the reversal is made cheap on purpose:
+
+- **`lib/photo-store.ts` is the only module that touches bytes.** Moving to R2 means adding
+  a nullable `storageKey`, reimplementing three functions, and backfilling. Nothing else in
+  the app reads `data`.
+- **Every other query names its columns.** Postgres stores a column this size out-of-line,
+  so one unqualified `findMany` on that table would drag every image into memory to render
+  a list of thumbnails. This is a real footgun and the reason the model carries a comment.
+- **The browser downscales before uploading** — 1600px on the long edge, JPEG at 0.82. A
+  2400×1800 / 4MB source lands at 1600×1200 / 75KB, measured. This is not an optimisation:
+  a server action's default body cap is 1MB, which one phone photo clears before the file
+  has finished being read. `serverActions.bodySizeLimit` is 8MB for headroom and
+  `MAX_PHOTO_BYTES` is 6MB, deliberately below it, so an oversized image gets a message
+  rather than a truncated request.
+- **The browser also measures the image**, and sends the dimensions along as `dim:<name>`.
+  It has already decoded the file, so this is free — and the alternative is a native image
+  library in the dependency list to learn two integers the client had in hand.
+- **`/api/journal/photo/[id]` re-checks the session.** A route handler is its own public
+  endpoint, the same rule every server action follows. Without it this would be the one
+  genuinely public thing in the app, and it would be pictures of a baby. The cache header
+  is `private`, and `immutable` is honest: a photo row's bytes are written once, so editing
+  means uploading another and deleting this one, which mints a new id.
+
+### `ProjectDoc` became `Doc` — decided 2026-08-05
+
+A doc now hangs off a Project **or** an Area, exactly one of the two. The Baby area needed
+somewhere to keep a vision that isn't a backlog, and the alternative was a second, identical
+`AreaDoc` model — two parallel doc systems, which is how one of them silently rots while
+the other gets the improvements.
+
+- **The migration is hand-written and every statement is a RENAME or an additive ALTER**,
+  for the same reason `20260801120000_plain_names` is: `prisma migrate dev` diffs a model
+  rename as a drop plus a create, which here would have taken the Coding Mom brief, the
+  Forge vision and the Utaitai pricing note with it. Applied with `migrate deploy`, which
+  runs the SQL as written rather than diffing. Backed up first to
+  `backups/project-docs-pre-rename-2026-08-05.json`.
+- **Both owner columns are nullable and exactly one is set.** Postgres cannot be asked for
+  "exactly one of these" without a check constraint Prisma can't express, so it is enforced
+  in `lib/doc-actions.ts` — as a **union type**, `{projectId} | {areaId}`, so "both" and
+  "neither" are unspellable rather than merely rejected. That file is the only writer.
+- **Two unique indexes**, `[projectId, slug]` and `[areaId, slug]`. NULLs are distinct in a
+  Postgres unique index, so every project doc coexists with every area doc untouched.
+- **An edit cannot re-own a doc.** `saveDoc` reads the owner only when creating, so a stray
+  `areaId` posted alongside an `id` is inert rather than a silent move.
+
+`ProjectDocs` → `DocsTab` and `ProjectTasks` → `TaskList` followed, both moved out of
+`components/projects/`. Neither component changed except in what it is handed, which is the
+argument for having generalised the model rather than duplicating it.
 
 ### The sprint rolls itself — added 2026-08-02, **removed 2026-08-04**
 
@@ -1139,7 +1316,9 @@ originally — shifts every publish time by the machine's offset.
     Written 2026-08-02.
   - `docs/calendar.md` — the three things that can go on the grid and how they differ,
     why only events show by default, getting around the views, and repeating events.
-    Written 2026-08-01, updated 2026-08-04.
+    Written 2026-08-01, updated 2026-08-05.
+  - `docs/areas.md` — the area page, the journal, how photos work and where they live,
+    and why the Baby area has no projects. Written 2026-08-05.
   **Project docs are no longer here.** The Coding Mom brief, the Forge vision and the
   Utaitai pricing note live on their projects' **Docs tabs** in the app, and their
   source files sit in `prisma/docs/` as seed material only. See §6, "The docs moved onto
@@ -1254,8 +1433,62 @@ Named animations: `animate-rise` (fade + 8px up — cards, columns, rows arrivin
 
 ---
 
-_Last updated: 2026-08-05 · Status: **Phase 4.7, and an area-by-area pass over what's
-actually in the app.**_
+_Last updated: 2026-08-05 · Status: **Phase 4.8 — areas you can open, and a journal.**_
+
+_**2026-08-05 — the Baby area got a journal, and areas became openable.** Straight after
+the removal below, and caused by it: the area had nothing left, and what it actually needed
+was three things, none of which hung off a Project — somewhere to record what she did,
+somewhere to keep what I want for her, and one real task. So **an Area is now something you
+can open**: `/areas/[slug]`, Journal · Docs · Tasks, reached by clicking its name in the
+sidebar. Not a fifth nav item — that rule holds, and this is the same kind of destination a
+project page is._
+
+_**`JournalEntry` is the first noun in this app that points backwards.** Everything else
+points forward — a Task is owed, an Event is scheduled, a ContentItem is going out — and
+"she rolled over on the 3rd" is none of those, which is exactly how recording the past
+turned into a chore list. So an entry cannot be overdue, cannot be ticked, and is never
+counted against anything. The composer sits open rather than behind a button, because the
+thing being recorded happened thirty seconds ago and you are holding her. It files under
+the day it is **about**, not the day it was typed._
+
+_**Photos are in Postgres, and the argument isn't cost.** These are the one kind of row
+here that genuinely cannot be recreated: a volume isn't in the database backup and an
+object store is a second account to keep alive. The price is size, so the reversal was made
+cheap on purpose — `lib/photo-store.ts` is the only module that touches bytes, and moving
+to R2 later is that file plus a backfill. The browser downscales to 1600px before anything
+is sent: a 2400×1800 / 4MB source landed at 1600×1200 / **75KB**, measured end to end.
+That is not tidiness — a server action's default body cap is 1MB, which one phone photo
+clears before the file has finished being read. `/api/journal/photo/[id]` re-checks the
+session, because without it that route would be the one genuinely public thing in the app._
+
+_**`ProjectDoc` became `Doc`**, hanging off a project *or* an area, on a hand-written
+migration where every statement is a RENAME or an additive ALTER — the `plain_names`
+precedent, for the same reason: an auto-diffed rename would have dropped the Coding Mom
+brief, the Forge vision and the Utaitai pricing note. The alternative was a parallel
+`AreaDoc`, which is how one of two identical systems silently rots. `ProjectDocs` →
+`DocsTab` and `ProjectTasks` → `TaskList` followed; **neither component changed except in
+what it is handed**, which is the whole argument for generalising rather than duplicating._
+
+_The Baby area now holds the **Languages** doc — the Vietnamese/English plan, the three
+Russian leads, and Chinese as the open question it currently is — and one task, "Figure out
+a way to teach her Russian and Chinese", written straight to the database rather than into
+the seed, per §6's rule that the seed creates structure and never work. The doc's old
+structural claims were rewritten rather than restored: it used to explain "why this is a
+project and not a list", which would have been a page describing a shape the app no longer
+has._
+
+_Verified in a signed-in browser: wrote a real entry with a photo and watched the 4MB PNG
+arrive as a 75KB 1600×1200 JPEG; confirmed the photo serves from the API route, all three
+tabs render, the sidebar marks the current area, the task shows under One-offs on Today,
+and Forge's Docs tab still works after the rename. `npm run build`, `tsc --noEmit` and
+`eslint` all pass, and `db:seed` reports `Docs: imported 1`._
+
+_**Not verified: the phone layout.** The new surfaces are built to the existing
+breakpoints and the composer drops its headline to its own line below `sm`, but the browser
+here would not take a sub-768px viewport — `resize_window` reports success and the renderer
+stays at 2560px. This is the same gap CLAUDE.md has carried for a week. The dev server
+prints a **Network URL** (`http://192.168.1.36:3000`); opening that on the phone on the same
+wifi is the honest check and takes ten seconds._
 
 _**2026-08-05 — the Baby area is empty on purpose now.** First stop on a project-by-project
 review, and the verdict on "Multilingual baby" was that it was **just kind of weird**. The

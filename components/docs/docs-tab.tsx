@@ -17,6 +17,23 @@ export type DocView = {
 };
 
 /**
+ * Who the doc hangs off. Exactly one of the two, mirroring `DocOwner` in
+ * `lib/doc-actions.ts` — a union rather than two optional strings so "both" and
+ * "neither" are unspellable here as well as there.
+ */
+export type DocOwner = { projectId: string } | { areaId: string };
+
+/** The owner as hidden form fields, so `saveDoc` reads it out of the FormData
+ *  exactly as it does for every other field. */
+function OwnerFields({ owner }: { owner: DocOwner }) {
+  return "projectId" in owner ? (
+    <input type="hidden" name="projectId" value={owner.projectId} />
+  ) : (
+    <input type="hidden" name="areaId" value={owner.areaId} />
+  );
+}
+
+/**
  * The Docs tab. A list on the left, one doc on the right, an editor in place.
  *
  * Editing happens *here* rather than in a slide-over panel — unlike a task or a
@@ -24,18 +41,26 @@ export type DocView = {
  * that covers the page you are writing about is the wrong shape. The panel
  * pattern stays where it belongs: short forms over a list you need to keep
  * seeing.
+ *
+ * Was `ProjectDocs` until 2026-08-05, when docs learned to hang off an Area as
+ * well. Nothing about the component changed except *whose* docs it is handed —
+ * which is the argument for having generalised `Doc` rather than adding a
+ * parallel `AreaDoc`: this screen is good, and there is one of it.
  */
-export function ProjectDocs({
-  projectId,
+export function DocsTab({
+  owner,
   docs,
+  emptyHint,
 }: {
-  projectId: string;
+  owner: DocOwner;
   docs: DocView[];
+  /** What this doc list is *for*, in the empty state. A project's docs and an
+   *  area's docs are genuinely different kinds of writing, and "no docs yet" on
+   *  its own tells you nothing about what to put here. */
+  emptyHint?: string;
 }) {
   const [selected, setSelected] = useState<string | null>(docs[0]?.id ?? null);
-  const [editing, setEditing] = useState<"new" | string | null>(
-    docs.length === 0 ? null : null,
-  );
+  const [editing, setEditing] = useState<"new" | string | null>(null);
 
   const doc = docs.find((row) => row.id === selected) ?? null;
 
@@ -80,7 +105,7 @@ export function ProjectDocs({
       <div className="min-w-0">
         {editing !== null ? (
           <DocEditor
-            projectId={projectId}
+            owner={owner}
             doc={editing === "new" ? null : (doc ?? null)}
             onDone={() => setEditing(null)}
           />
@@ -93,8 +118,8 @@ export function ProjectDocs({
             </span>
             <p className="text-sm font-medium text-ink">No docs yet</p>
             <p className="mt-1 max-w-xs text-[13px] leading-relaxed text-muted">
-              The brief, the pillars, the running list of ideas — whatever you
-              would otherwise write in a file you never open again.
+              {emptyHint ??
+                "The brief, the pillars, the running list of ideas — whatever you would otherwise write in a file you never open again."}
             </p>
           </div>
         )}
@@ -163,11 +188,11 @@ const field =
   "w-full rounded-chip bg-inset px-3 py-2 text-[13px] text-ink outline-none transition-[background-color,box-shadow] duration-(--duration-base) ease-soft placeholder:text-faint hover:bg-line/60 focus:bg-card focus:ring-2 focus:ring-accent/25";
 
 function DocEditor({
-  projectId,
+  owner,
   doc,
   onDone,
 }: {
-  projectId: string;
+  owner: DocOwner;
   doc: DocView | null;
   onDone: () => void;
 }) {
@@ -196,7 +221,7 @@ function DocEditor({
         pending && "pointer-events-none opacity-45",
       )}
     >
-      <input type="hidden" name="projectId" value={projectId} />
+      <OwnerFields owner={owner} />
       {doc && <input type="hidden" name="id" value={doc.id} />}
 
       <div className="mb-3 flex items-center gap-2">

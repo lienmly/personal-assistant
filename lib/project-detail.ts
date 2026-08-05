@@ -45,7 +45,7 @@ export async function getProjectDetail(slug: string) {
         brand: { select: { name: true, color: true } },
       },
     }),
-    db.projectDoc.findMany({
+    db.doc.findMany({
       where: { projectId: project.id },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
     }),

@@ -152,6 +152,10 @@ model Area {
   projects Project[]
   tasks    Task[]
   events   Event[]
+  /// Added 2026-08-05. An Area is now something you can open — `/areas/[slug]`,
+  /// with Journal · Docs · Tasks — rather than only a filter and a colour.
+  docs     Doc[]
+  journal  JournalEntry[]
 
   @@index([sortOrder])
 }
@@ -193,29 +197,38 @@ model Project {
   series Series[]
   tasks  Task[]
   events Event[]
-  docs   ProjectDoc[]
+  docs   Doc[]
 
   @@index([areaId, sortOrder])
   @@index([status, lastTouchedAt])
   @@index([priority, sortOrder])
 }
 
-/// A written page belonging to one project: the vision brief, the content
-/// pillars, a running scratchpad of ideas.
+/// A written page: the vision brief, the content pillars, a running scratchpad
+/// of ideas — or, since 2026-08-05, what you want for your daughter.
 ///
 /// The alternative was rendering the repo's `/docs/*.md` read-only, and it
 /// fails the only test that matters — the notes worth keeping are the ones
 /// thought of at 3am on a phone, and a git commit is not available then.
-/// `/docs` keeps the guides that are about the *app*; anything about a
-/// *project* lives here.
+/// `/docs` keeps the guides that are about the *app*; anything about a *thing
+/// you are doing* lives here.
 ///
-/// Cascades with the project, unlike every other relation, which is `SetNull`.
-/// A doc without a project isn't an orphan with a home elsewhere — it's a page
+/// **It hangs off a Project or an Area, exactly one of the two** (renamed from
+/// `ProjectDoc` on 2026-08-05). The Baby area needed somewhere to keep a vision
+/// that isn't a backlog, and it has no project by design — so the choice was
+/// this or a second, identical `AreaDoc` model, and two parallel doc systems is
+/// how one of them silently rots. Both columns are nullable and exactly one is
+/// set; that invariant is enforced in `lib/doc-actions.ts` rather than by a
+/// check constraint, because Prisma cannot express one and the only writer is
+/// that file.
+///
+/// Cascades with its owner, unlike every other relation, which is `SetNull`. A
+/// doc without an owner isn't an orphan with a home elsewhere — it's a page
 /// about nothing. `deleteProject` counts docs among what blocks a delete, so
 /// nothing written can be lost without being named first.
-model ProjectDoc {
+model Doc {
   id    String @id @default(cuid())
-  /// Stable within a project, so a doc keeps its URL across a rename — the
+  /// Stable within its owner, so a doc keeps its URL across a rename — the
   /// same rule the Project slug follows, for the same reason.
   slug  String
   title String
@@ -228,11 +241,92 @@ model ProjectDoc {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  projectId String
-  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  areaId String?
+  area   Area?   @relation(fields: [areaId], references: [id], onDelete: Cascade)
 
   @@unique([projectId, slug])
+  @@unique([areaId, slug])
   @@index([projectId, sortOrder])
+  @@index([areaId, sortOrder])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Journal
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Something that *happened*, written down after the fact — the noun this app
+/// did not have until 2026-08-05.
+///
+/// Every other row here points forward: a Task is owed, an Event is scheduled, a
+/// ContentItem is going out. "She rolled over on the 3rd" is none of those, and
+/// filing it as any of them is what made the Baby area feel like a chore list
+/// (§6, "The Baby area is a journal, not a backlog"). A journal entry is the
+/// opposite shape: it cannot be overdue, it has no status, and there is nothing
+/// to tick.
+///
+/// It hangs off an **Area**, not a Project, and that is deliberate: the Baby
+/// area has no project and should not need one to be written about. Areas are
+/// the coarse, ~5-ever noun, which is the right grain for "a journal".
+model JournalEntry {
+  /// The day it is *about*, not the day it was typed — the two differ whenever
+  /// you write up Tuesday on Thursday, which with a baby is most of the time.
+  /// `@db.Date` for the same reason `Task.dueDate` is: it stands in for a
+  /// calendar day, so it is UTC midnight and formats with `timeZone: "UTC"`
+  /// (CLAUDE.md §6, "Dates are a trap here").
+  happenedOn DateTime @db.Date
+  /// Optional. "First time she laughed" earns one; most days the body is the
+  /// whole entry and a required title is just a second thing to compose.
+  title      String?
+  /// Markdown, same small renderer as Doc.
+  body       String   @default("")
+
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  areaId String
+  area   Area   @relation(fields: [areaId], references: [id], onDelete: Cascade)
+
+  photos JournalPhoto[]
+
+  @@index([areaId, happenedOn])
+}
+
+/// A photo on a journal entry, stored **in Postgres** as bytes.
+///
+/// Decided 2026-08-05 over a Railway volume and over S3/R2. The deciding
+/// argument is not cost, it is that these are the one kind of row in this app
+/// that genuinely cannot be recreated: a volume is not in the database backup
+/// and an object store is a second account to keep alive. Bytes in the DB are
+/// covered by whatever backs up the DB, and behave identically in local dev and
+/// on Railway. The honest cost is size, which is why uploads are downscaled to
+/// ~1600px in the browser before they are ever sent.
+///
+/// **Nothing reads `data` except `lib/photo-store.ts`.** Postgres stores a
+/// column this size out-of-line, so an unqualified `findMany` on this table
+/// would drag every image into memory to render a list of thumbnails. Every
+/// other query must name its columns.
+model JournalPhoto {
+  id String @id @default(cuid())
+
+  /// The image itself. See the note above: select this only to serve it.
+  data     Bytes
+  mimeType String
+  width    Int
+  height   Int
+  byteSize Int
+  caption  String?
+
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  entryId String
+  entry   JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  @@index([entryId, sortOrder])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -11,23 +11,31 @@ import { trackRank } from "@/lib/tracks";
 import { cn } from "@/lib/utils";
 
 /**
- * The project's own task list, grouped by track.
+ * One owner's task list, grouped by track.
  *
  * Not the Hunt Board with a filter applied: the board's job is *choosing*
  * across projects, so it carries scope pills and a capture box, neither of
  * which means anything once you have already decided which project you are in. What is left is the list and the tracks — which is the whole of what
  * "open Sleepy Cat and see where it stands" needs.
+ *
+ * Was `ProjectTasks` until 2026-08-05. An area page needs the identical screen —
+ * the Baby area has tasks and no project to hang them off — and the only thing
+ * that differed was what a *new* row defaults to, which is now a prop.
  */
-export function ProjectTasks({
+export function TaskList({
   tasks,
-  project,
+  defaults,
   projects,
   areas,
+  emptyHint,
 }: {
   tasks: TaskView[];
-  project: BoardProjectView;
+  /** What the panel pre-fills when you add a row here: a project on a project
+   *  page, an area on an area page. */
+  defaults: { projectId?: string; areaId?: string };
   projects: BoardProjectView[];
   areas: AreaView[];
+  emptyHint?: string;
 }) {
   const [showDone, setShowDone] = useState(false);
   const [panel, setPanel] = useState<
@@ -80,7 +88,8 @@ export function ProjectTasks({
 
       {groups.length === 0 ? (
         <p className="rounded-tile bg-inset px-4 py-8 text-center text-[13px] text-muted">
-          Nothing open on this project. Add the next thing before you forget it.
+          {emptyHint ??
+            "Nothing open on this project. Add the next thing before you forget it."}
         </p>
       ) : (
         <div className="flex flex-col gap-5">
@@ -125,9 +134,7 @@ export function ProjectTasks({
           projects={projects}
           areas={areas}
           defaults={
-            panel.mode === "new"
-              ? { projectId: project.id, track: panel.track }
-              : undefined
+            panel.mode === "new" ? { ...defaults, track: panel.track } : undefined
           }
           onClose={() => setPanel(null)}
         />

@@ -28,12 +28,46 @@ function str(form: FormData, key: string): string | null {
  * and a slug that chased the title would break it every time you tidied the
  * heading.
  */
-async function mintSlug(projectId: string, title: string): Promise<string> {
+/**
+ * A doc hangs off a Project **or** an Area, exactly one of the two — the
+ * invariant the schema comment on `Doc` describes and cannot express. This file
+ * is the only writer, so this type is where it is actually enforced: there is no
+ * way to spell "both" or "neither".
+ */
+type DocOwner = { projectId: string } | { areaId: string };
+
+function ownerOf(form: FormData): DocOwner {
+  const projectId = str(form, "projectId");
+  const areaId = str(form, "areaId");
+
+  if (projectId && areaId)
+    throw new Error("A doc belongs to a project or an area, not both");
+  if (projectId) return { projectId };
+  if (areaId) return { areaId };
+  throw new Error("A doc needs a project or an area");
+}
+
+/** The page to revalidate after a write — whichever surface shows this doc. */
+function pathFor(doc: {
+  project: { slug: string } | null;
+  area: { slug: string } | null;
+}): string {
+  if (doc.project) return `/projects/${doc.project.slug}`;
+  if (doc.area) return `/areas/${doc.area.slug}`;
+  throw new Error("An orphaned doc — this should be unreachable");
+}
+
+const OWNER_SELECT = {
+  project: { select: { slug: true } },
+  area: { select: { slug: true } },
+} as const;
+
+async function mintSlug(owner: DocOwner, title: string): Promise<string> {
   const base = slugify(title) || "note";
   const taken = new Set(
     (
-      await db.projectDoc.findMany({
-        where: { projectId, slug: { startsWith: base } },
+      await db.doc.findMany({
+        where: { ...owner, slug: { startsWith: base } },
         select: { slug: true },
       })
     ).map((row) => row.slug),
@@ -49,41 +83,44 @@ export async function saveDoc(form: FormData) {
   await requireSession();
 
   const id = str(form, "id");
-  const projectId = str(form, "projectId");
   const title = str(form, "title") ?? "Untitled";
   // Not `str` — an emptied doc is a legitimate save, and `str` turns "" into
   // null, which would silently keep the previous body.
   const bodyRaw = form.get("body");
   const body = typeof bodyRaw === "string" ? bodyRaw : "";
 
-  if (!projectId) throw new Error("A doc needs a project");
-
+  // An edit must not be able to re-own the doc, so the owner is read only when
+  // creating. Passing a stray `areaId` alongside an `id` is then inert rather
+  // than a silent move.
   const doc = id
-    ? await db.projectDoc.update({ where: { id }, data: { title, body } })
-    : await db.projectDoc.create({
-        data: {
-          projectId,
-          title,
-          body,
-          slug: await mintSlug(projectId, title),
-          sortOrder: await db.projectDoc.count({ where: { projectId } }),
-        },
-      });
+    ? await db.doc.update({
+        where: { id },
+        data: { title, body },
+        select: { id: true, slug: true, ...OWNER_SELECT },
+      })
+    : await (async () => {
+        const owner = ownerOf(form);
+        return db.doc.create({
+          data: {
+            ...owner,
+            title,
+            body,
+            slug: await mintSlug(owner, title),
+            sortOrder: await db.doc.count({ where: owner }),
+          },
+          select: { id: true, slug: true, ...OWNER_SELECT },
+        });
+      })();
 
-  const project = await db.projectDoc.findUniqueOrThrow({
-    where: { id: doc.id },
-    select: { project: { select: { slug: true } } },
-  });
-
-  revalidatePath(`/projects/${project.project.slug}`);
+  revalidatePath(pathFor(doc));
   return doc.slug;
 }
 
 export async function deleteDoc(id: string) {
   await requireSession();
-  const doc = await db.projectDoc.delete({
+  const doc = await db.doc.delete({
     where: { id },
-    select: { project: { select: { slug: true } } },
+    select: OWNER_SELECT,
   });
-  revalidatePath(`/projects/${doc.project.slug}`);
+  revalidatePath(pathFor(doc));
 }

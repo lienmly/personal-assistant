@@ -29,7 +29,7 @@ const db = new PrismaClient();
  */
 
 /**
- * Project docs, bootstrapped from `prisma/docs/*.md`.
+ * Docs, bootstrapped from `prisma/docs/*.md`.
  *
  * These files used to live in `/docs` next to the guides that are about the
  * *app*, which is one folder away from the project they describe and a git
@@ -42,7 +42,17 @@ const db = new PrismaClient();
  * re-seed that reverted last night's writing is exactly the failure this
  * whole move was meant to end.
  */
-const PROJECT_DOCS: { projectSlug: string; file: string; title: string }[] = [
+/**
+ * A doc hangs off a project or an area (2026-08-05), so its seed entry names
+ * one or the other. `baby-languages.md` is the first area doc: the Baby area has
+ * no project by design, and what I want for her still has to live somewhere.
+ */
+type SeedDoc = { file: string; title: string } & (
+  | { projectSlug: string; areaSlug?: never }
+  | { areaSlug: string; projectSlug?: never }
+);
+
+const DOCS: SeedDoc[] = [
   {
     projectSlug: "coding-mom",
     file: "coding-mom.md",
@@ -54,32 +64,41 @@ const PROJECT_DOCS: { projectSlug: string; file: string; title: string }[] = [
     file: "utaitai-pricing.md",
     title: "What Utaitai charges",
   },
-  // `multilingual-baby.md` is deliberately not listed — the project it belonged
-  // to was removed on 2026-08-05 (§6, "The Baby area is a journal, not a
-  // backlog"). The file is kept as the written plan; it has no project to seed
-  // onto, and `seedDocs` skips any entry whose project is missing anyway.
+  { areaSlug: "baby", file: "baby-languages.md", title: "Languages" },
 ];
 
 async function seedDocs(): Promise<number> {
   let created = 0;
 
-  for (const entry of PROJECT_DOCS) {
-    const project = await db.project.findUnique({
-      where: { slug: entry.projectSlug },
-      select: { id: true },
-    });
-    if (!project) continue;
+  for (const entry of DOCS) {
+    const owner = entry.projectSlug
+      ? await db.project
+          .findUnique({
+            where: { slug: entry.projectSlug },
+            select: { id: true },
+          })
+          .then((row) => (row ? { projectId: row.id } : null))
+      : await db.area
+          .findUnique({
+            where: { slug: entry.areaSlug },
+            select: { id: true },
+          })
+          .then((row) => (row ? { areaId: row.id } : null));
+    if (!owner) continue;
 
     const slug = entry.file.replace(/\.md$/, "");
-    const existing = await db.projectDoc.findUnique({
-      where: { projectId_slug: { projectId: project.id, slug } },
+    // `findFirst` rather than a compound `findUnique`: the two unique keys are
+    // `[projectId, slug]` and `[areaId, slug]`, and which one applies depends on
+    // the owner. This is the same lookup either way.
+    const existing = await db.doc.findFirst({
+      where: { ...owner, slug },
       select: { id: true },
     });
     if (existing) continue;
 
-    await db.projectDoc.create({
+    await db.doc.create({
       data: {
-        projectId: project.id,
+        ...owner,
         slug,
         title: entry.title,
         body: readFileSync(join(__dirname, "docs", entry.file), "utf8"),

@@ -3,8 +3,8 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, CalendarDays, Radio, Repeat } from "lucide-react";
 
 import type { AreaView, BoardProjectView, TaskView } from "@/components/board/types";
-import { ProjectDocs, type DocView } from "@/components/projects/project-docs";
-import { ProjectTasks } from "@/components/projects/project-tasks";
+import { DocsTab, type DocView } from "@/components/docs/docs-tab";
+import { TaskList } from "@/components/tasks/task-list";
 import { Card, CardHeader, StatTile } from "@/components/ui/card";
 import { Markdown } from "@/components/ui/markdown";
 import { db } from "@/lib/db";
@@ -387,9 +387,9 @@ export default async function ProjectPage({
 
       {tab === "tasks" && (
         <Card>
-          <ProjectTasks
+          <TaskList
             tasks={taskViews}
-            project={self}
+            defaults={{ projectId: project.id }}
             projects={panelProjects}
             areas={areas as AreaView[]}
           />
@@ -451,7 +451,7 @@ export default async function ProjectPage({
 
       {tab === "docs" && (
         <Card>
-          <ProjectDocs projectId={project.id} docs={docViews} />
+          <DocsTab owner={{ projectId: project.id }} docs={docViews} />
         </Card>
       )}
     </>

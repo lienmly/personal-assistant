@@ -16,12 +16,16 @@ export type SidebarArea = {
 };
 
 /**
- * The sidebar is the *area filter*, not a second set of destinations. Areas
- * cut across every surface, so this panel stays put while the rail switches
- * what you're looking at.
+ * The sidebar is the tree, not a second set of destinations. Areas cut across
+ * every surface, so this panel stays put while the rail switches what you're
+ * looking at.
  *
- * Selecting an area is still cosmetic — the surfaces don't read the selection
- * yet. The tree itself is real data now.
+ * **An area name is a link as of 2026-08-05.** It used to be a filter toggle
+ * that nothing read — selecting one was cosmetic, and had been since Phase 1.
+ * Now that an area is something you can open (`/areas/[slug]` — journal, docs,
+ * tasks), the name goes where the name of a project already goes, and the
+ * pretend filter is gone rather than left sitting next to a real control doing
+ * nothing.
  */
 export function Sidebar({
   areas,
@@ -33,7 +37,6 @@ export function Sidebar({
   onClose: () => void;
 }) {
   const pathname = usePathname();
-  const [selectedArea, setSelectedArea] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   const toggle = (id: string) =>
@@ -74,20 +77,6 @@ export function Sidebar({
           </button>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setSelectedArea(null)}
-          className={cn(
-            "mb-6 flex w-full items-center gap-2.5 rounded-chip px-3 py-2 text-left text-sm transition-colors",
-            selectedArea === null
-              ? "font-medium text-ink"
-              : "text-muted hover:text-ink",
-          )}
-        >
-          <span className="size-2 rounded-full bg-ink/70" />
-          All areas
-        </button>
-
         <div className="mb-2 flex items-center justify-between px-3">
           <span className="text-[11px] font-semibold uppercase tracking-[0.09em] text-faint">
             Areas
@@ -107,18 +96,19 @@ export function Sidebar({
           {areas.map((area) => {
             const projects = area.projects;
             const isCollapsed = collapsed[area.id];
-            const isSelected = selectedArea === area.id;
+            const here = pathname === `/areas/${area.slug}`;
 
             return (
               <div key={area.id} className="mb-0.5">
                 <div className="group flex items-center">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedArea(isSelected ? null : area.id)}
+                  <Link
+                    href={`/areas/${area.slug}`}
+                    onClick={onClose}
+                    aria-current={here ? "page" : undefined}
                     className={cn(
-                      "flex flex-1 items-center gap-2.5 rounded-chip px-3 py-2 text-left text-sm transition-colors",
-                      isSelected
-                        ? "font-medium text-accent"
+                      "flex min-w-0 flex-1 items-center gap-2.5 rounded-chip px-3 py-2 text-left text-sm transition-colors duration-(--duration-quick)",
+                      here
+                        ? "bg-card font-medium text-ink shadow-card"
                         : "text-ink/80 hover:text-ink",
                     )}
                   >
@@ -126,8 +116,8 @@ export function Sidebar({
                       className="size-2 shrink-0 rounded-full"
                       style={{ background: area.color }}
                     />
-                    {area.name}
-                  </button>
+                    <span className="truncate">{area.name}</span>
+                  </Link>
                   {projects.length > 0 && (
                     <button
                       type="button"

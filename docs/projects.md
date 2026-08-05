@@ -57,10 +57,13 @@ Two that came across automatically:
 | Coding Mom | The brand and the project — the account chain, the seven pillars |
 | Forge | The startup brief |
 
-There was a third — "Three languages, one unsolved", on the Multilingual baby project.
-That project was removed on 4 August 2026, and a doc cascades with its project, so the
-doc went with it. The writing survives at `prisma/docs/multilingual-baby.md`; paste it
-into a new doc if the Baby area ever gets a project again.
+**Docs aren't only for projects any more.** Since 5 August 2026 one can hang off an
+**area** instead — same tab, same editor — which is where the Baby area's *Languages* page
+lives. See `areas.md`. A doc belongs to a project or an area, never both.
+
+There was a third project doc — "Three languages, one unsolved", on the Multilingual baby
+project. That project was removed on 4 August 2026 and a doc cascades with its owner, so it
+went too; the writing came back the next day as the Baby area's *Languages* doc.
 
 The markdown files still exist at `prisma/docs/`, but only as **seed material** — how an
 empty database gets its first copy. Once a doc is in the app, the app's copy is the real

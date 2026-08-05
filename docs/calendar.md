@@ -155,9 +155,11 @@ lived on a **Multilingual baby** project as recurring **tasks**. That project we
 the main thing happening every day, so a backlog about it was a list asking to be worked
 rather than a record of anything.
 
-So the Baby area currently holds nothing at all, on any surface. What it's *for* is still
-being decided — the direction is a development-milestone journal, something you write
-*after* she does a thing, rather than a list of things to do.
+What her area holds instead, as of 5 August 2026, is a **journal** — open the Baby area
+from the sidebar. That is the honest home for all of this: an entry is something that
+already happened, so it has no due date, no status and nothing to tick. The calendar is for
+things that happen *at a time*; the journal is for things that happened. Neither is a list
+of things to do. See `areas.md`.
 
 Real appointments still belong here. A paediatrician slot is an event — it has a time,
 and the time is the point. Add it when you have one.
