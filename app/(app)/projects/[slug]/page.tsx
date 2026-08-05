@@ -123,12 +123,15 @@ export default async function ProjectPage({
 
   return (
     <>
+      {/* Back to Today, not to a roster — the roster was folded into Today on
+          2026-08-05 and `/projects` no longer resolves. Today's project cards
+          are what links here in the first place. */}
       <Link
-        href="/projects"
+        href="/today"
         className="mb-4 inline-flex items-center gap-1.5 text-[13px] text-muted transition-colors duration-(--duration-quick) hover:text-ink"
       >
         <ArrowLeft className="size-3.5" strokeWidth={2} />
-        Projects
+        Today
       </Link>
 
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">

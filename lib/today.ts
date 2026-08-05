@@ -1,3 +1,4 @@
+import type { ProjectEditView } from "@/components/projects/types";
 import { addDays, startOfWeek } from "@/lib/calendar-keys";
 import { db } from "@/lib/db";
 import { daysSince } from "@/lib/projects";
@@ -71,6 +72,18 @@ function reasonFor(
 export type ProjectBoard = Awaited<ReturnType<typeof getProjectBoards>>[number];
 
 /**
+ * Identity, but it *declares* the nullable type — which a plain annotation
+ * cannot do here.
+ *
+ * `const edit: ProjectEditView | null = { … }` is narrowed straight back to
+ * non-null by control-flow analysis, so the board rows would infer
+ * `edit: ProjectEditView` and the "One-offs" pseudo-board below — which has no
+ * project row behind it and so nothing to edit — would fail to match the
+ * element type. A function's *return* type is not narrowed at the call site.
+ */
+const nullable = (project: ProjectEditView): ProjectEditView | null => project;
+
+/**
  * Every project you are actually running, each with its few most pressing rows.
  *
  * **A project with nothing open still appears.** That is deliberate and it is
@@ -107,6 +120,7 @@ export async function getProjectBoards(perProject = 5) {
         status: true,
         priority: true,
         cadenceDays: true,
+        areaId: true,
         lastTouchedAt: true,
         area: { select: { name: true, color: true } },
       },
@@ -150,6 +164,20 @@ export async function getProjectBoards(perProject = 5) {
     const rows = shape(byProject.get(project.id) ?? []);
     const idle = daysSince(project.lastTouchedAt);
 
+    // Everything the settings panel edits, carried on the card so the pencil
+    // can open it without a second round trip. Since 2026-08-05 this is the
+    // only way in — the roster page it used to live on is gone.
+    const edit = nullable({
+      id: project.id,
+      name: project.name,
+      description: project.description,
+      focus: project.focus,
+      status: project.status,
+      priority: project.priority,
+      cadenceDays: project.cadenceDays,
+      areaId: project.areaId,
+    });
+
     return {
       id: project.id,
       name: project.name,
@@ -169,6 +197,7 @@ export async function getProjectBoards(perProject = 5) {
         project.status === "active" &&
         project.cadenceDays !== null &&
         idle > project.cadenceDays,
+      edit,
       tasks: rows.slice(0, perProject),
       openTotal: rows.length,
       // Counted across the whole project rather than the visible slice, so the
@@ -193,6 +222,8 @@ export async function getProjectBoards(perProject = 5) {
       idle: 0,
       touchedLabel: "",
       drifting: false,
+      // Not a project, so there is nothing to edit and no pencil on the card.
+      edit: null,
       tasks: unfiled.slice(0, perProject),
       openTotal: unfiled.length,
       overdue: unfiled.filter((task) => task.reason === "overdue").length,

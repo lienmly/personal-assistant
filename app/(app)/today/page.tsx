@@ -1,11 +1,10 @@
 import Link from "next/link";
-import { CalendarClock, FolderOpen, Radio } from "lucide-react";
+import { CalendarClock, Radio } from "lucide-react";
 
 import { Agenda } from "@/components/today/agenda";
 import { DoneMap } from "@/components/today/done-map";
 import { GoingOut } from "@/components/today/going-out";
-import { ProjectBoard } from "@/components/today/project-board";
-import { QuickCapture } from "@/components/today/quick-capture";
+import { ProjectsCard } from "@/components/today/projects-card";
 import type {
   GoingOutView,
   ProjectBoardView,
@@ -16,6 +15,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { SurfaceHeader } from "@/components/ui/surface-header";
 import { getAgenda } from "@/lib/calendar";
 import { minutesOfDay } from "@/lib/calendar-keys";
+import { db } from "@/lib/db";
+import { getDormantProjects } from "@/lib/projects";
 import { repeatLabel } from "@/lib/task-view";
 import { getCompletionMap, getProjectBoards } from "@/lib/today";
 import { ensureSeriesSlots, getGoingOutToday } from "@/lib/studio";
@@ -60,6 +61,12 @@ const timeFormat = new Intl.DateTimeFormat("en-GB", {
  *   there is a contribution map of what you actually ticked off. It cannot
  *   report a shortfall, because there is no target to fall short of — the only
  *   thing it can say is what you did.
+ *
+ * **The Projects roster folded in here on 2026-08-05**, one day later and for
+ * the same reason the Momentum card did: it listed every project beside a
+ * screen that already listed every project. Creating, editing and archiving a
+ * project now happen on the cards below, so this is the only surface those
+ * actions have. See `components/today/projects-card.tsx`.
  */
 export default async function TodayPage() {
   // Today is the screen that actually gets opened, so it's the honest place to
@@ -68,11 +75,18 @@ export default async function TodayPage() {
 
   const today = todayKey();
 
-  const [boards, history, items, agenda] = await Promise.all([
+  const [boards, history, items, agenda, dormant, areas] = await Promise.all([
     getProjectBoards(),
     getCompletionMap(),
     getGoingOutToday(),
     getAgenda(today),
+    // Both only exist for the settings panel, which moved onto this screen when
+    // the Projects roster was folded in (CLAUDE.md §6).
+    getDormantProjects(),
+    db.area.findMany({
+      orderBy: { sortOrder: "asc" },
+      select: { id: true, name: true, color: true },
+    }),
   ]);
 
   const dateLabel = new Intl.DateTimeFormat("en-GB", {
@@ -92,6 +106,7 @@ export default async function TodayPage() {
     areaColor: board.areaColor,
     touchedLabel: board.touchedLabel,
     drifting: board.drifting,
+    edit: board.edit,
     openTotal: board.openTotal,
     overdue: board.overdue,
     tasks: board.tasks.map((task) => ({
@@ -188,29 +203,11 @@ export default async function TodayPage() {
               title="Your projects"
               count={`${boardViews.filter((b) => b.slug).length} on the go`}
             />
-            {boardViews.length > 0 ? (
-              <div className="flex flex-col gap-3">
-                {boardViews.map((board, index) => (
-                  <ProjectBoard
-                    key={board.id}
-                    board={board}
-                    delay={60 + Math.min(index, 8) * 40}
-                  />
-                ))}
-              </div>
-            ) : (
-              <EmptyState
-                icon={FolderOpen}
-                title="No projects yet"
-                body="A project is the thing being pushed forward. Create one on the Projects surface and it will show up here with whatever you put on it."
-              />
-            )}
-
-            {/* Last thing in the card on purpose: capturing an idea must never
-                be above the work, and it must never be a screen away either. */}
-            <div className="mt-4 border-t border-line/60 pt-4">
-              <QuickCapture />
-            </div>
+            <ProjectsCard
+              boards={boardViews}
+              areas={areas}
+              dormant={dormant}
+            />
           </Card>
 
           <Card>

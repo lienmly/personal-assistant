@@ -113,7 +113,7 @@ dashboard/UI ecosystem, easy Google auth, and a clean path to embedding an AI as
 
 ### Folder layout
 ```
-/app/(app)/…       → the five authenticated surfaces + their shared layout
+/app/(app)/…       → the four authenticated surfaces + their shared layout
 /app/login         → public sign-in page
 /app/api/auth/…    → Auth.js route handler
 /components/shell  → icon rail, sidebar, topbar, mobile tab bar
@@ -122,16 +122,17 @@ dashboard/UI ecosystem, easy Google auth, and a clean path to embedding an AI as
 /lib               → auth config, nav config, server actions, utils
 /components/studio → the content item board, daily queue, batch composer, content item panel, channel manager
 /components/board  → the hunt board, task panel, experiment capture
-/components/today  → project cards, the contribution map, going-out, agenda
+/components/today  → the projects card (list + create + archived), project cards,
+                     the contribution map, going-out, agenda
 /components/calendar → month grid, week/day time grid, item chips, the event panel
-/components/projects → the roster, the project panel
+/components/projects → the project panel, the project page's tabs
 /lib/db.ts         → Prisma client singleton
 /lib/studio.ts     → board queries + series slot generation + batch slots
 /lib/studio-actions.ts → server actions for content items, channels, series, batch save
 /lib/tasks.ts      → hunt board query
 /lib/task-actions.ts → server actions for tasks
 /lib/today.ts      → the project cards and the contribution map (Today)
-/lib/projects.ts   → the roster query + `daysSince`
+/lib/projects.ts   → `getDormantProjects` (paused + archived) + `daysSince`
 /lib/project-actions.ts → create / edit / re-tier / archive / delete a project
 /lib/tracks.ts     → workstream names (client-safe: no Prisma import)
 /lib/calendar.ts   → the window query, recurrence expansion, the three-source merge
@@ -265,6 +266,8 @@ turned out to be wrong once the app had been lived in for two days._
       occurrence. §6, "Tasks that come back"
 - [x] **The baby routine deleted.** Nine seeded events gone; a "Multilingual baby"
       project replaces them. §6, "Followed, not scheduled"
+      _(and that project was itself removed on 2026-08-05 — §6, "The Baby area is a
+      journal, not a backlog". The Baby area is empty on purpose.)_
 - [x] **Utaitai batches twice a week** — a recurring Wed/Sun task pointing at
       `/studio/batch`, and "While you're in it" on Today
 - [x] **Sprints roll over by themselves** — `ensureActiveSprint`, and a pre-filled
@@ -297,6 +300,22 @@ and every item is the same shape — **the app was asserting things nobody had t
 - [ ] Area CRUD — still the only noun without an editor
 - [ ] Multi-select delete on the Hunt Board. Clearing 78 rows needed a script; clearing the
       next batch shouldn't.
+
+### Phase 4.7 — The roster folded into Today
+_Built 2026-08-05, and it is Phase 4.6 finishing its own sentence: Today became
+project-first on the 4th, which made a second screen listing the same projects redundant on
+the 5th._
+- [x] **The Projects surface is retired** — four nav items, not five. §6, "The roster
+      folded into Today"
+- [x] **Project CRUD moved onto Today's cards** — the pencil beside a project's name opens
+      the same `ProjectPanel`; "New project" sits at the foot of the card
+- [x] **"N put away"** — a collapsed list of paused and archived projects, which
+      `getProjectBoards` filters out and which would otherwise be unreachable
+- [x] `ProjectRowView` → `ProjectEditView`; `getRoster` → `getDormantProjects`
+- [x] **The sidebar tree marks the current project**, replacing the "you are here" signal
+      the rail's Projects icon used to give on `/projects/[slug]`
+- [ ] Area CRUD — the sidebar's "Add area" and "Manage areas" are *still* disabled, and
+      this fold makes it the last surface-level gap
 
 ### Phase 5 — Montblanc (AI assistant)
 - [ ] Chat drawer with streaming (Claude via AI SDK), available on every surface
@@ -429,7 +448,10 @@ it hasn't. `priority` drives which sections the Hunt Board opens expanded, which
 `priority` is editable from the project panel as of 2026-07-31, so re-tiering Forge the day
 Sleepy Cat launches is two taps rather than a seed edit.
 
-### The roster is the editor — decided 2026-07-31
+### The roster is the editor — decided 2026-07-31, **moved onto Today 2026-08-05**
+
+_Everything below still holds; only its address changed. The three rules are the point and
+they are unaffected. See "The roster folded into Today" for where the panel lives now._
 
 Projects were the last noun with no way to create one. Adding Coding Mom and Forge meant
 editing `prisma/seed.ts` and running `db:seed`, so for a week every Coding Mom setup task
@@ -463,6 +485,54 @@ left. And `project-actions.ts` revalidates `("/", "layout")` rather than a list 
 because the area tree lives in the app layout: a new project that appeared on the roster
 but not in the sidebar reads as a save that half-failed.
 
+### The roster folded into Today — decided 2026-08-05
+
+**Two surfaces were listing the same projects, and the one that also listed their work was
+the better copy.** That is the whole diagnosis. The complaint that started it was "there's
+a Hunt Board and a Projects tab, what's the difference" — and the honest answer was that
+Hunt Board is a list of *tasks* (projects appear only as headings), while Projects was a
+list of *projects*. A real distinction, and it stopped being load-bearing the day before,
+when Today was rebuilt project-first: after that, `/projects` was five cards saying
+name · description · open count · last touched, beside a screen already showing five cards
+saying name · **focus** · the actual rows · overdue · last touched.
+
+This is the same fold as the Momentum card one section up, one noun larger. Momentum was a
+list of every project's last-touched date sitting beside a list of every project; the
+roster was a list of every project sitting beside a list of every project.
+
+What the roster **uniquely owned** — and so what had to move rather than be deleted:
+
+1. **Creating a project.** Now a quiet "New project" at the foot of Today's projects card,
+   beside the idea box. Deliberately **not** crimson: it was the roster's primary action
+   and it is not Today's, and §9 allows one accent per region.
+2. **Editing one.** The pencil now sits beside each project's name on its Today card, and
+   opens the same `ProjectPanel` unchanged. This makes a project card on Today the only
+   route to renaming, re-tiering or archiving anything.
+3. **Seeing what isn't active.** `getProjectBoards` shows `active` and `simmering` only, so
+   without this an archived project would be *unreachable* — un-archiving would be
+   impossible from the app at all. A collapsed "N put away" line opens
+   `getDormantProjects()` (paused + archived), each row opening the panel. Off the card
+   proper because a paused project is parked, not owed.
+
+Three smaller things fell out:
+
+- **A project page's back link goes to Today**, and the sidebar tree gained an active
+  state. A project page used to light the "Projects" icon in the rail; with that surface
+  gone nothing said where you were, and `/projects/[slug]` is not one of the four remaining
+  surfaces to claim. The tree is the honest place for it — it is where you were already
+  clicking to get there.
+- **`ProjectRowView` became `ProjectEditView`** — exactly the eight columns the panel
+  edits. The roster's shape carried counts and a preformatted touched label because it
+  *displayed* a project; Today has both already, and making the panel demand them would
+  have meant assembling a shape with no other use.
+- **`getRoster` is deleted**, replaced by `getDormantProjects`. `getMomentum` in the same
+  file has had no callers since 2026-08-04 and is left alone — it went dead with the
+  Momentum card, not with this.
+
+What was **kept**: `/projects/[slug]` entirely — Overview · Tasks · Social media · Docs is
+where a project's docs live and there is no second copy of it. The route did not move, so
+every existing link still resolves.
+
 ### Repurposing is two different things
 
 Calling both of these "repurposing" is what made the whole thing feel unmanageable:
@@ -494,8 +564,10 @@ row. Left icon rail on desktop, bottom tab bar on mobile — same IA, no redesig
 | **Hunt Board** | Every open Task, grouped by Project and track. The complete list, in full. |
 | **Calendar** | Time. Events only by default; Task due dates and content are layers. |
 | **Social Media** | Cross-project content pipeline. Kanban by stage. (Route is still `/studio`.) |
-| **Projects** | The roster. Health and momentum at a glance. |
 | **Montblanc** | A drawer on every surface, so it always knows what you're looking at. |
+
+~~**Projects**~~ — _retired 2026-08-05. See "The roster folded into Today" below. Project
+**pages** are untouched at `/projects/[slug]`; only the roster listing them is gone._
 
 Future **Ledger** (bank + property audit, §5 Phase 6) slots in as one more surface without
 disturbing anything. That's the test the IA is built to pass.
@@ -773,8 +845,56 @@ three concrete leads, because "find a solution" alone is the kind of row that si
 a year for want of a first move. Its content items carry the Coding Mom brand and this
 project, so the two axes (§6) do the work again.
 
+_That project was **removed on 2026-08-04** — see the next section. The half of this
+decision that holds is the first two paragraphs: the routine was a fiction and had to go.
+The replacement was the part that didn't survive contact._
+
 Real appointments still belong on the calendar. A paediatrician slot has a time, and the
 time is the point.
+
+### The Baby area is a journal, not a backlog — decided 2026-08-05
+
+**Multilingual baby is deleted, and the Baby area now holds nothing on any surface.** That
+is the intended state while what the area is *for* gets worked out.
+
+The verdict on it was "it's just kind of weird", and the weirdness has a shape. Every other
+project in this app is something that would not otherwise happen — Sleepy Cat does not ship
+itself, Coding Mom's accounts do not create themselves, so a list of rows is the right
+instrument and an untouched project genuinely is drift. **Caring for a four-month-old is
+not in that category.** It is the main thing happening every day whether or not anything is
+written down, so a project about it can only ever report on something already guaranteed:
+`cadenceDays: 2` on the most-attended-to thing in the house is a drift warning that can
+never fire honestly, and "read her a Vietnamese book" as a tickable row adds an audit to a
+thing that was never at risk of being skipped.
+
+This is one notch subtler than "Followed, not scheduled" above, and it is the same family
+of error — the third instance now, after the baby routine and the seeded events. That one
+was **a task drawn as an event**; this one is **a life drawn as a backlog.** In both cases
+the app asserted a structure nobody had asked it for, and in both cases the tell was the
+same: it produced rows you had to stop and disprove rather than rows that told you
+anything.
+
+What the area is heading towards is a **development-milestone journal** — written *after*
+she does a thing, not before. That is a different noun from anything the app currently has:
+Task is binary and forward-looking, Event asserts a time, ContentItem goes out to an
+audience, and none of them is "she rolled over on the 3rd". It has not been designed yet
+and deliberately is not being designed yet. The area sits empty until it is.
+
+Three notes on the removal itself:
+
+1. **The three content ideas were detached, not deleted.** "Raising her in two languages
+   when only one of them is easy" and its two siblings were the two axes (§6) doing their
+   job — Coding Mom is who is talking, the project was what it was about. Only the second
+   axis went; they are brand-only ideas in the bank now, which is what the other three
+   Baby-pillar ideas always were.
+2. **The doc cascaded, which is the rule working as designed** — a doc without a project is
+   a page about nothing (§6, "The docs moved onto the project"). "Three languages, one
+   unsolved" survives as `prisma/docs/multilingual-baby.md`, which the seed no longer
+   references; the plan is still worth having, it just has nowhere to live yet.
+3. **The row is backed up** to `backups/multilingual-baby-2026-08-05.json`, the same
+   courtesy the 78 seeded tasks got, and the seed entry is deleted rather than commented
+   out — for the reason §6 gives about `seedTasks`, a landmine with a safety catch is still
+   a landmine.
 
 ### The sprint rolls itself — added 2026-08-02, **removed 2026-08-04**
 
@@ -1021,9 +1141,11 @@ originally — shifts every publish time by the machine's offset.
     why only events show by default, getting around the views, and repeating events.
     Written 2026-08-01, updated 2026-08-04.
   **Project docs are no longer here.** The Coding Mom brief, the Forge vision and the
-  multilingual-baby plan live on their projects' **Docs tabs** in the app, and their
+  Utaitai pricing note live on their projects' **Docs tabs** in the app, and their
   source files sit in `prisma/docs/` as seed material only. See §6, "The docs moved onto
   the project" — and edit them in the app, not in the file.
+  `prisma/docs/multilingual-baby.md` is the exception: its project was removed on
+  2026-08-04, so the file is the only copy and the seed no longer points at it.
 
 ---
 
@@ -1132,7 +1254,67 @@ Named animations: `animate-rise` (fade + 8px up — cards, columns, rows arrivin
 
 ---
 
-_Last updated: 2026-08-04 · Status: **Phase 4.6 — the pressure came out.**_
+_Last updated: 2026-08-05 · Status: **Phase 4.7, and an area-by-area pass over what's
+actually in the app.**_
+
+_**2026-08-05 — the Baby area is empty on purpose now.** First stop on a project-by-project
+review, and the verdict on "Multilingual baby" was that it was **just kind of weird**. The
+shape of the weirdness: every other project here is something that would not otherwise
+happen — Sleepy Cat does not ship itself — so rows are the right instrument and an
+untouched project genuinely is drift. Caring for a four-month-old is not in that category.
+It is the main thing happening every day whether or not anything is written down, so
+`cadenceDays: 2` on it was a drift warning that could never fire honestly, and "read her a
+Vietnamese book" as a tickable row put an audit on the one thing never at risk of being
+skipped. Same family as "Followed, not scheduled" and one notch subtler — that was a task
+drawn as an event, this is **a life drawn as a backlog**. The project is deleted (it held
+no tasks), its three content ideas were **detached rather than deleted** because Coding Mom
+was still the one talking, and its doc cascaded as designed, surviving as
+`prisma/docs/multilingual-baby.md`. The seed entries went with it so a re-seed can't bring
+it back, and the row is in `backups/multilingual-baby-2026-08-05.json`. Where the area is
+heading is a **development-milestone journal** — written after she does a thing, not
+before — which is a noun the app does not have: Task is binary and forward-looking, Event
+asserts a time, ContentItem goes to an audience, and none of them is "she rolled over on
+the 3rd". Not designed yet, deliberately. §6, "The Baby area is a journal, not a backlog"._
+
+_**2026-08-05 — there were two screens listing the same projects.** The question was "there
+is a Hunt Board and a Projects tab, what's the difference" and the answer only sounded good
+for a day. Hunt Board is a list of **tasks**, where projects are just the headings you group
+by; Projects was a list of **projects**. A real distinction — which stopped mattering on
+2026-08-04, when Today was rebuilt project-first. After that the roster was five cards
+reading name · description · open count · last touched, sitting one tap from a screen
+already showing five cards reading name · **focus** · the actual rows · overdue · last
+touched. The same fold as the Momentum card, one noun larger._
+
+_**So the Projects surface is gone and its three real jobs moved onto Today's cards.** The
+pencil beside a project's name opens the settings panel unchanged — rename, re-area,
+re-tier, focus line, cadence, archive, delete. "New project" sits at the foot of the card
+next to the idea box, deliberately **not** crimson: it was the roster's primary action and
+it is not Today's, and §9 allows one accent per region. And **"N put away"** opens the
+paused and archived ones, which is the part that could not simply be deleted —
+`getProjectBoards` shows `active` and `simmering` only, so without it an archived project
+is unreachable and un-archiving it is impossible from the app at all._
+
+_**Project pages are untouched.** `/projects/[slug]` — Overview · Tasks · Social media ·
+Docs — is where a project's docs live and there was never a second copy of it. The route
+did not move, so every existing link still resolves; only the roster listing them is gone.
+Two things fell out of that: the page's back link now reads "← Today", and **the sidebar
+tree marks the current project**, because a project page used to light the "Projects" icon
+in the rail and with that surface gone nothing said where you were._
+
+_Verified in a signed-in browser on Windows. Round-tripped a throwaway project end to end
+through the new controls — created it from Today, edited it via the pencil, set it to
+Archived and watched it leave both the card list and the sidebar while "1 put away"
+appeared, reopened it from that list, deleted it, and watched the disclosure vanish with
+it. Confirmed `/projects` now 404s, `/projects/sleepy-cat` renders with "← Today" and a
+highlighted sidebar row, the rail carries four icons, and the console is clean.
+`npm run build`, `tsc --noEmit` and `eslint` all pass._
+
+_Outstanding from this change: **the phone layout still hasn't been looked at on a real
+device** — the tab bar is four items now instead of five and the new footer row is
+`justify-between`, both of which should be fine and neither of which has been seen small.
+**Area CRUD is now the last surface-level gap** — the sidebar's "Add area" and "Manage
+areas" are still disabled. `getMomentum` in `lib/projects.ts` has had no callers since
+2026-08-04 and was left alone; it went dead with the Momentum card, not with this._
 
 _**2026-08-04 — the app stopped telling me things I hadn't told it.** Four complaints
 arrived together and they turned out to be one complaint. **The sprint is gone** — it

@@ -19,7 +19,6 @@ async function requireSession() {
 function refresh() {
   revalidatePath("/board");
   revalidatePath("/today");
-  revalidatePath("/projects");
   // The project page reads tasks, content and momentum, so every one of
   // these actions changes it. A dynamic segment is revalidated by its route
   // pattern, not by each concrete slug.

@@ -149,11 +149,15 @@ is mostly a machine for feeling behind, and worse, things started to *depend* on
 fiction: the Sunday filming block was parked "inside the long nap", which is planning
 against something that was never reliably true.
 
-The one part of the baby's day that genuinely is deliberate — reading to her in
-Vietnamese and English — lives on the **Multilingual baby** project as recurring
-**tasks**, not events. That's the right distinction and it's the one this whole app is
-built on: an event is something that *happens at a time*, a task is something you *owe*.
-Reading to her is owed. It happens in whatever gap the day leaves.
+For a while the deliberate part of her day — reading to her in Vietnamese and English —
+lived on a **Multilingual baby** project as recurring **tasks**. That project went too, on
+4 August 2026, and for a plainer reason than the routine did: caring for her is already
+the main thing happening every day, so a backlog about it was a list asking to be worked
+rather than a record of anything.
+
+So the Baby area currently holds nothing at all, on any surface. What it's *for* is still
+being decided — the direction is a development-milestone journal, something you write
+*after* she does a thing, rather than a list of things to do.
 
 Real appointments still belong here. A paediatrician slot is an event — it has a time,
 and the time is the point. Add it when you have one.

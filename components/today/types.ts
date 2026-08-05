@@ -1,5 +1,7 @@
 import type { ChannelPostState, ContentStage, Platform } from "@prisma/client";
 
+import type { ProjectEditView } from "@/components/projects/types";
+
 /** Plain view types — the Today lists are client components, so they must not
  *  pull `lib/db` into the bundle. Same rule as studio/ and board/. */
 
@@ -39,6 +41,9 @@ export type ProjectBoardView = {
   /** "3d ago" — folded in from the retired Momentum card. */
   touchedLabel: string;
   drifting: boolean;
+  /** What the pencil opens. Null on the "One-offs" pseudo-project, which has
+   *  no row behind it to edit. */
+  edit: ProjectEditView | null;
   tasks: TaskLineView[];
   openTotal: number;
   overdue: number;

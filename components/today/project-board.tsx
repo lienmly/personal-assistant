@@ -6,6 +6,7 @@ import {
   ArrowRight,
   Check,
   ExternalLink,
+  Pencil,
   Play,
   Plus,
   Repeat,
@@ -31,18 +32,29 @@ import { cn } from "@/lib/utils";
  *
  * Nothing here counts down or reports a shortfall. That is the point: the
  * pressure was the complaint.
+ *
+ * **Since 2026-08-05 this card is also the project's editor.** The Projects
+ * roster was a second list of the same projects and it is gone (CLAUDE.md §6),
+ * so the pencil here opens the settings panel that used to live on it — which
+ * makes this the only place a project can be renamed, re-tiered or archived.
  */
 export function ProjectBoard({
   board,
   delay,
+  onEdit,
 }: {
   board: ProjectBoardView;
   delay: number;
+  /** Opens the settings panel. Not called for "One-offs", which has no row. */
+  onEdit: () => void;
 }) {
   return (
     <div
       style={{ animationDelay: `${delay}ms` }}
-      className="animate-rise rounded-tile bg-inset/60 p-4"
+      // A *named* group. `TaskLine` below uses the unnamed `group` for its
+      // play button, and an unnamed `group-hover` matches any ancestor — so
+      // sharing one would light up every row's controls on card hover.
+      className="group/card animate-rise rounded-tile bg-inset/60 p-4"
     >
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="min-w-0">
@@ -67,6 +79,20 @@ export function ProjectBoard({
               <span className="rounded-full bg-card px-2 py-px text-[10px] font-medium text-muted">
                 main
               </span>
+            )}
+            {/* Visible outright on touch, revealed on hover on a pointer
+                device — CLAUDE.md §9. A hover-only control does not exist on a
+                phone, and this one is now the only route to archiving. */}
+            {board.edit && (
+              <button
+                type="button"
+                onClick={onEdit}
+                aria-label={`Edit ${board.name}`}
+                title={`Edit ${board.name}`}
+                className="shrink-0 text-faint transition-[color,opacity,transform] duration-(--duration-base) ease-soft hover:text-ink active:scale-90 sm:opacity-0 sm:group-hover/card:opacity-100"
+              >
+                <Pencil className="size-3" strokeWidth={2} />
+              </button>
             )}
           </div>
 

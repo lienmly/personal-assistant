@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { ChevronDown, Plus, Settings2, X } from "lucide-react";
 
@@ -31,6 +32,7 @@ export function Sidebar({
   open: boolean;
   onClose: () => void;
 }) {
+  const pathname = usePathname();
   const [selectedArea, setSelectedArea] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
@@ -151,16 +153,31 @@ export function Sidebar({
                 {!isCollapsed && (
                   <div className="tree-branch ml-[18px] pl-3">
                     {projects.length > 0 ? (
-                      projects.map((project) => (
-                        <Link
-                          key={project.id}
-                          href={`/projects/${project.slug}`}
-                          onClick={onClose}
-                          className="block truncate rounded-chip px-3 py-1.5 text-[13px] text-muted transition-colors duration-(--duration-quick) hover:text-ink"
-                        >
-                          {project.name}
-                        </Link>
-                      ))
+                      projects.map((project) => {
+                        // Added 2026-08-05, with the Projects surface. A
+                        // project page used to light the "Projects" icon in
+                        // the rail; with that surface gone, nothing said where
+                        // you were, and a project page is not any of the four
+                        // remaining surfaces to claim.
+                        const here =
+                          pathname === `/projects/${project.slug}`;
+                        return (
+                          <Link
+                            key={project.id}
+                            href={`/projects/${project.slug}`}
+                            onClick={onClose}
+                            aria-current={here ? "page" : undefined}
+                            className={cn(
+                              "block truncate rounded-chip px-3 py-1.5 text-[13px] transition-colors duration-(--duration-quick)",
+                              here
+                                ? "bg-card font-medium text-ink shadow-card"
+                                : "text-muted hover:text-ink",
+                            )}
+                          >
+                            {project.name}
+                          </Link>
+                        );
+                      })
                     ) : (
                       <div className="px-3 py-1.5 text-[13px] text-faint">
                         No projects yet

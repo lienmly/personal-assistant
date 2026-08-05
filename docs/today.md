@@ -61,8 +61,8 @@ Loose tasks with no project collect at the bottom under **One-offs**.
 
 ### The focus line
 
-New field, set on the project's settings panel (the pencil on the Projects roster) under
-**"What it's aiming at right now"**.
+New field, set on the project's settings panel — the pencil beside the project's name on
+its card here — under **"What it's aiming at right now"**.
 
 It is separate from the description on purpose. The description says what the project
 *is* — "a short cozy game made with my husband" — which you already know and which almost
@@ -116,9 +116,11 @@ Today's calendar events. Empty unless you've put something in the calendar — s
   box. This is the full list; Today is the readable slice of it. Nothing is held back from
   it any more now that there is no committed subset.
 - **A project's page** — Overview, Tasks, Social media, Docs. Where you add and edit tasks
-  for one project, and where its docs live.
-- **Projects roster** — create, rename, re-tier, archive. The pencil opens the settings
-  panel with the focus field.
+  for one project, and where its docs live. Reached from a card here, or from the sidebar.
+- **There is no Projects tab any more** (gone 5 August). It was a second list of the same
+  projects. Creating, renaming, re-tiering and archiving all happen on the cards here — the
+  pencil beside a project's name — and **"N put away"** at the foot of the card is where
+  the paused and archived ones went.
 
 ---
 

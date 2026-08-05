@@ -1,0 +1,50 @@
+{
+  "id": "cmsbgeptl000b5jkcnio8oh58",
+  "slug": "multilingual-baby",
+  "name": "Multilingual baby",
+  "description": "Vietnamese and English every day. Russian is the open problem — her dad speaks it and won't teach her.",
+  "focus": null,
+  "status": "active",
+  "priority": "main",
+  "cadenceDays": 2,
+  "lastTouchedAt": "2026-08-03T02:23:55.032Z",
+  "sortOrder": 4,
+  "createdAt": "2026-08-02T07:03:23.961Z",
+  "updatedAt": "2026-08-03T02:23:55.032Z",
+  "areaId": "cms8efbw40002ee40r5njqk4k",
+  "docs": [
+    {
+      "id": "cmsbgfknc001g5jl572wx4342",
+      "slug": "multilingual-baby",
+      "title": "Three languages, one unsolved",
+      "body": "# Three languages, one of them unsolved\n\nShe is four months old. Nothing here is a schedule — she is followed, not\nscheduled — but three things are deliberate.\n\n## Vietnamese and English\n\nBoth, every day, out loud, from books. That's it. It is two recurring tasks\nrather than a calendar block because it is something **owed**, not something\nthat happens at a fixed time — it gets done in whatever gap the day leaves.\n\nTicking one records the day and moves it to tomorrow. Missing a day is missing\na day; it does not come back as a backlog.\n\n## Russian is the open problem\n\nHer dad is Russian. He won't teach her. That is the constraint, and no amount\nof planning changes it — so the language has to come from somewhere that isn't\nhim.\n\nThree leads, in the order they're worth trying:\n\n1. **A Russian-speaking sitter or playgroup.** A few hours a week of a real\n   speaker beats any amount of screen time. Highest effort, and the only one\n   that could actually work on its own.\n2. **His family, on video call, regularly.** Costs nothing and needs no buy-in\n   from him. Wants to be a standing slot rather than an ask each time, or it\n   quietly stops happening.\n3. **A Russian shelf** — songs, cartoons, board books. Lowest effort. Won't\n   make her fluent; will make the sound of it ordinary rather than foreign,\n   which is most of what the first years are for.\n\n## Why this is a project and not a list\n\nBecause it feeds the content. \"Raising her in two languages when only one of\nthem is easy\" and \"her dad is Russian and won't teach her\" are both real Coding\nMom posts, and this is where the footage and the ending come from. Those items\ncarry the Coding Mom brand and *this* project — the two axes, so posting one\ncounts as this project moving.\n",
+      "sortOrder": 0,
+      "createdAt": "2026-08-02T07:04:03.913Z",
+      "updatedAt": "2026-08-02T07:04:03.913Z",
+      "projectId": "cmsbgeptl000b5jkcnio8oh58"
+    }
+  ],
+  "items": [
+    {
+      "id": "cmsbgev7g001n5jkcbs8anfm5",
+      "title": "Raising her in two languages when only one of them is easy",
+      "stage": "idea",
+      "brandId": "cms8efcgj000jee40py8zsi06"
+    },
+    {
+      "id": "cmsbgev7g001o5jkcqq73n21y",
+      "title": "Her dad is Russian and won't teach her. Here's what I'm doing.",
+      "stage": "idea",
+      "brandId": "cms8efcgj000jee40py8zsi06"
+    },
+    {
+      "id": "cmsbgev7g001p5jkcmv6rwayy",
+      "title": "What reading to a four-month-old in Vietnamese actually looks like",
+      "stage": "idea",
+      "brandId": "cms8efcgj000jee40py8zsi06"
+    }
+  ],
+  "tasks": [],
+  "series": [],
+  "events": []
+}

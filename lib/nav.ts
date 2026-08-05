@@ -1,17 +1,19 @@
 import type { LucideIcon } from "lucide-react";
-import {
-  CalendarDays,
-  Clapperboard,
-  FolderKanban,
-  Sunrise,
-  Swords,
-} from "lucide-react";
+import { CalendarDays, Clapperboard, Sunrise, Swords } from "lucide-react";
 
 /**
- * The five surfaces from CLAUDE.md §6. This list is deliberately fixed —
+ * The surfaces from CLAUDE.md §6. This list is deliberately fixed —
  * navigation is by verb and time, never one entry per life area. Areas are a
- * filter that cuts across all of these. A sixth surface (Ledger) arrives in
+ * filter that cuts across all of these. A further surface (Ledger) arrives in
  * Phase 6 without disturbing anything here.
+ *
+ * **Projects came off on 2026-08-05.** It was the roster — a list of every
+ * project with its counts and last-touched date — and once Today was rebuilt
+ * project-first the day before, it was that same list a nav item away. Project
+ * *pages* are untouched and still live at `/projects/[slug]`; they are reached
+ * from the cards on Today and from the sidebar tree, which is where you were
+ * already going for them. The roster's own jobs — create, edit, archive — moved
+ * onto Today's cards, so nothing lost a home.
  */
 export type Surface = {
   href: string;
@@ -44,12 +46,6 @@ export const SURFACES: Surface[] = [
     label: "Social Media",
     icon: Clapperboard,
     tagline: "Content moving toward publication",
-  },
-  {
-    href: "/projects",
-    label: "Projects",
-    icon: FolderKanban,
-    tagline: "The roster, and how much momentum each one has",
   },
 ];
 

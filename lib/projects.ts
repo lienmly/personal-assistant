@@ -12,73 +12,49 @@ const dayFormat = new Intl.DateTimeFormat("en-GB", {
 });
 
 /**
- * The Projects surface. Every project, including archived ones — the roster is
- * the complete record, and the status chips filter it.
+ * The projects that are *not* what you have on: paused and archived.
  *
- * Tier first: "which of these actually matters" is the question the roster is
- * opened with, and status-then-recency answered a different one — an active
- * side project sorted above a main one that had been quiet for a week.
+ * This is what is left of the Projects roster, which was folded into Today on
+ * 2026-08-05 (CLAUDE.md §6). The roster listed every project with its counts
+ * and its last-touched date — which, once Today became project-first, was the
+ * same list of the same projects a second time. What did not survive the fold
+ * is the only part worth keeping: `getProjectBoards` shows `active` and
+ * `simmering` only, so without this query an archived project is unreachable
+ * and un-archiving it is impossible from the app at all.
  *
  * `lastTouchedAt` is a real timestamp, not a `@db.Date`, so it formats in local
  * time (CLAUDE.md §6, "Dates are a trap here").
  */
-export async function getRoster() {
-  const [projects, openTasks] = await Promise.all([
-    db.project.findMany({
-      orderBy: [
-        { priority: "asc" },
-        { status: "asc" },
-        { lastTouchedAt: "desc" },
-      ],
-      include: {
-        area: { select: { name: true, color: true } },
-        _count: { select: { items: true } },
-      },
-    }),
-    db.task.groupBy({
-      by: ["projectId"],
-      // `recurringId: null` excludes the completed snapshots a recurring task
-      // leaves behind — they are history, not open work, and counting them
-      // would make a daily habit look like thirty tasks.
-      where: { status: { not: "done" }, projectId: { not: null }, recurringId: null },
-      _count: { _all: true },
-    }),
-  ]);
-
-  const openByProject = new Map(
-    openTasks.map((row) => [row.projectId, row._count._all]),
-  );
-
-  return projects.map((project) => {
-    const idle = daysSince(project.lastTouchedAt);
-    return {
-      id: project.id,
-      name: project.name,
-      slug: project.slug,
-      description: project.description,
-      focus: project.focus,
-      status: project.status,
-      priority: project.priority,
-      cadenceDays: project.cadenceDays,
-      areaId: project.areaId,
-      areaName: project.area.name,
-      areaColor: project.area.color,
-      idle,
-      touchedLabel:
-        idle === 0
-          ? "Touched today"
-          : `${idle}d since ${dayFormat.format(project.lastTouchedAt)}`,
-      // Only an *active* project can drift — same rule as `getMomentum`, and
-      // for the same reason: demoting to simmering has to actually silence the
-      // warning or the nagging becomes unquittable.
-      drifting:
-        project.status === "active" &&
-        project.cadenceDays !== null &&
-        idle > project.cadenceDays,
-      openTasks: openByProject.get(project.id) ?? 0,
-      items: project._count.items,
-    };
+export async function getDormantProjects() {
+  const projects = await db.project.findMany({
+    where: { status: { in: ["paused", "archived"] } },
+    orderBy: [{ status: "asc" }, { lastTouchedAt: "desc" }],
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      focus: true,
+      status: true,
+      priority: true,
+      cadenceDays: true,
+      areaId: true,
+      lastTouchedAt: true,
+      area: { select: { color: true } },
+    },
   });
+
+  return projects.map((project) => ({
+    id: project.id,
+    name: project.name,
+    description: project.description,
+    focus: project.focus,
+    status: project.status,
+    priority: project.priority,
+    cadenceDays: project.cadenceDays,
+    areaId: project.areaId,
+    areaColor: project.area.color,
+    touchedLabel: `${dayFormat.format(project.lastTouchedAt)}`,
+  }));
 }
 
 /**

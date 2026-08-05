@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { Trash2, X } from "lucide-react";
 
-import type { AreaOption, ProjectRowView } from "@/components/projects/types";
+import type { AreaOption, ProjectEditView } from "@/components/projects/types";
 import { deleteProject, saveProject } from "@/lib/project-actions";
 import { cn } from "@/lib/utils";
 
@@ -34,7 +34,7 @@ export function ProjectPanel({
   onClose,
 }: {
   /** null opens the panel empty, as "New project". */
-  project: ProjectRowView | null;
+  project: ProjectEditView | null;
   areas: AreaOption[];
   onClose: () => void;
 }) {

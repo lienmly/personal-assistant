@@ -17,9 +17,9 @@ async function requireSession() {
  * `"layout"` rather than a list of pages, unlike the other action files.
  *
  * The area tree in the sidebar is rendered by `app/(app)/layout.tsx`, so a new
- * project that only revalidated `/projects` would appear on the roster and
- * *not* in the sidebar until a full reload — which reads as the save having
- * half failed. Creating and renaming projects is rare enough that the wider
+ * project that only revalidated `/today` would appear on its cards and *not*
+ * in the sidebar until a full reload — which reads as the save having half
+ * failed. Creating and renaming projects is rare enough that the wider
  * invalidation costs nothing.
  */
 function refresh() {

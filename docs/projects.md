@@ -1,17 +1,26 @@
 # Project pages
 
-_Written 2 August 2026, the day docs stopped living in a folder._
+_Written 2 August 2026, the day docs stopped living in a folder.
+Updated 5 August 2026, when the roster went._
 
 ## Every project has a page now
 
-`/projects` is still the roster — the "which of these matters" screen. Clicking a card no
-longer opens the settings form; it opens **the project**, at `/projects/<slug>`. Sidebar
-project names go there too.
+Every project lives at `/projects/<slug>`. You get there from **its card on Today**, or
+from its name in the sidebar tree — which highlights so you can see where you are.
 
-The settings form is still there: it's the little pencil on the top-right of a card. On a
-phone it's always visible; on a laptop it appears when you hover. That split is the point —
-before this, the first thing you ever saw of a project was a form asking you what tier it
-was, which is not what you opened it to find out.
+**There is no longer a Projects tab.** It was the roster: a list of every project with its
+description, open count and last-touched date. Once Today was rebuilt project-first on
+4 August, that was the same list of the same projects one tap away, and the cards on Today
+were the better copy — they carry the focus line and the actual tasks. So the roster's own
+three jobs moved onto those cards rather than going with it:
+
+- **The pencil** beside a project's name on Today opens the settings form — rename,
+  re-area, re-tier, set the focus line and cadence, archive, delete. On a phone it's always
+  visible; on a laptop it appears when you hover.
+- **New project** sits at the foot of the projects card, under the idea box.
+- **"N put away"**, next to it, opens the paused and archived ones. They're kept off the
+  card proper because a paused project is parked, not owed — but this is the only way back
+  to one, so un-archiving means opening it from there and changing its status.
 
 ## The four tabs
 
@@ -41,13 +50,17 @@ the left, the doc on the right, **Edit** puts you straight into a textarea. It's
 headings, lists, **bold**, `code`, links. Nothing exotic; it's a deliberately small
 renderer rather than a library.
 
-Three that came across automatically:
+Two that came across automatically:
 
 | Project | Doc |
 |---|---|
 | Coding Mom | The brand and the project — the account chain, the seven pillars |
 | Forge | The startup brief |
-| Multilingual baby | Three languages, one unsolved |
+
+There was a third — "Three languages, one unsolved", on the Multilingual baby project.
+That project was removed on 4 August 2026, and a doc cascades with its project, so the
+doc went with it. The writing survives at `prisma/docs/multilingual-baby.md`; paste it
+into a new doc if the Baby area ever gets a project again.
 
 The markdown files still exist at `prisma/docs/`, but only as **seed material** — how an
 empty database gets its first copy. Once a doc is in the app, the app's copy is the real

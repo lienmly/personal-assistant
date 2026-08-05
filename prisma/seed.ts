@@ -54,11 +54,10 @@ const PROJECT_DOCS: { projectSlug: string; file: string; title: string }[] = [
     file: "utaitai-pricing.md",
     title: "What Utaitai charges",
   },
-  {
-    projectSlug: "multilingual-baby",
-    file: "multilingual-baby.md",
-    title: "Three languages, one unsolved",
-  },
+  // `multilingual-baby.md` is deliberately not listed — the project it belonged
+  // to was removed on 2026-08-05 (§6, "The Baby area is a journal, not a
+  // backlog"). The file is kept as the written plan; it has no project to seed
+  // onto, and `seedDocs` skips any entry whose project is missing anyway.
 ];
 
 async function seedDocs(): Promise<number> {
@@ -115,6 +114,15 @@ const AREAS = [
  * `simmering` would have been the obvious shortcut and it lies twice: it hides
  * the project from the drift check it still deserves, and it says the content
  * stopped, which it hasn't.
+ *
+ * **All four are in the Work area, and the Baby area's emptiness is the decision
+ * rather than a gap (2026-08-05).** "Multilingual baby" lived there and was
+ * removed: caring for her is the main thing already happening every day, so a
+ * backlog about it could only ever report on something already guaranteed — a
+ * cadence of 2 on the most-attended-to thing in the house is a drift warning
+ * that can never fire honestly. What the area is *for* is still being worked
+ * out; a development-milestone journal is the direction, and it is a noun this
+ * app does not have yet. See §6, "The Baby area is a journal, not a backlog".
  */
 const PROJECTS = [
   {
@@ -161,22 +169,6 @@ const PROJECTS = [
     cadenceDays: 14,
     sortOrder: 2,
     priority: "side",
-    status: "active",
-  },
-  // The one deliberate thing in the Baby area, and the reason there is a
-  // project rather than a handful of loose tasks: it has a backlog (Russian is
-  // an unsolved problem, not a task), it has a cadence worth drifting against,
-  // and it feeds the Coding Mom content bank — the bilingual-reading angle is
-  // a pillar, so the project and the brand are the two axes again (§6).
-  {
-    slug: "multilingual-baby",
-    name: "Multilingual baby",
-    description:
-      "Vietnamese and English every day. Russian is the open problem — her dad speaks it and won't teach her.",
-    areaSlug: "baby",
-    cadenceDays: 2,
-    sortOrder: 4,
-    priority: "main",
     status: "active",
   },
   // Maintenance mode. Still shipping its daily shorts — which is why it stays
@@ -388,27 +380,24 @@ const CODING_MOM_DROPS: SeedDrop[] = [
     title: "The five baby purchases that actually earned their place",
     format: "short_video",
   },
-  // These three carry `projectSlug: "multilingual-baby"` — the two axes doing
-  // their job (§6). Coding Mom is who is talking; the multilingual project is
-  // what it's about, and posting one bumps *that* project's lastTouchedAt, so
-  // Momentum stops reporting it as drifting on a day it actually moved.
+  // These three used to carry `projectSlug: "multilingual-baby"`. The project
+  // went on 2026-08-04 and they stayed, which is the two axes (§6) surviving
+  // the loss of one of them: Coding Mom is who is talking, and that half was
+  // never in question. They are brand-only ideas now, like the three above.
   {
     pillar: "Baby",
     title: "Raising her in two languages when only one of them is easy",
     format: "short_video",
-    projectSlug: "multilingual-baby",
   },
   {
     pillar: "Baby",
     title: "Her dad is Russian and won't teach her. Here's what I'm doing.",
     format: "short_video",
-    projectSlug: "multilingual-baby",
   },
   {
     pillar: "Baby",
     title: "What reading to a four-month-old in Vietnamese actually looks like",
     format: "short_video",
-    projectSlug: "multilingual-baby",
   },
 
   // ── Pillar: Build — what I'm making and how ───────────────────────────────

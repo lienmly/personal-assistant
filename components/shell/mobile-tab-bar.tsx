@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { SURFACES } from "@/lib/nav";
 import { cn } from "@/lib/utils";
 
-/** The same five surfaces as the desktop rail — identical IA, different shape. */
+/** The same surfaces as the desktop rail — identical IA, different shape. */
 export function MobileTabBar() {
   const pathname = usePathname();
 
