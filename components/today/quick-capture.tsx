@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
  *
  * Deliberately without a project picker. Filing is a decision, and a decision
  * is the thing that stops this being instant; it lands on the Experiments
- * track, where "Next up" reads from, and gets filed later if it earns it.
+ * track as a one-off, and gets filed to a project later if it earns it.
  */
 export function QuickCapture({ projectId }: { projectId?: string | null }) {
   const [pending, startTransition] = useTransition();

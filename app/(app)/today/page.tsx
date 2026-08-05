@@ -1,43 +1,24 @@
 import Link from "next/link";
-import { CalendarClock, Flag, Radio, TrendingUp } from "lucide-react";
+import { CalendarClock, FolderOpen, Radio } from "lucide-react";
 
 import { Agenda } from "@/components/today/agenda";
-import {
-  Bandwidth,
-  type BandwidthGroupView,
-} from "@/components/today/bandwidth";
-import { FocusList } from "@/components/today/focus-list";
+import { DoneMap } from "@/components/today/done-map";
 import { GoingOut } from "@/components/today/going-out";
-import { Momentum, type MomentumView } from "@/components/today/momentum";
-import type {
-  FocusTaskView,
-  GoingOutView,
-  NextGroupView,
-  NextTaskView,
-} from "@/components/today/types";
+import { ProjectBoard } from "@/components/today/project-board";
 import { QuickCapture } from "@/components/today/quick-capture";
-import { UpNext } from "@/components/today/up-next";
-import {
-  SprintPlanner,
-  type SuggestionView,
-} from "@/components/sprint/sprint-planner";
+import type {
+  GoingOutView,
+  ProjectBoardView,
+  TaskReason,
+} from "@/components/today/types";
 import { Card, CardHeader, StatTile } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SurfaceHeader } from "@/components/ui/surface-header";
 import { getAgenda } from "@/lib/calendar";
 import { minutesOfDay } from "@/lib/calendar-keys";
-import { getMomentum } from "@/lib/projects";
-import {
-  dayKey,
-  ensureActiveSprint,
-  getActiveSprint,
-  getBandwidth,
-  getFocus,
-  getSprintSuggestion,
-  getUpNext,
-} from "@/lib/sprints";
-import { ensureSeriesSlots, getGoingOutToday } from "@/lib/studio";
 import { repeatLabel } from "@/lib/task-view";
+import { getCompletionMap, getProjectBoards } from "@/lib/today";
+import { ensureSeriesSlots, getGoingOutToday } from "@/lib/studio";
 import { todayKey } from "@/lib/utils";
 
 export const metadata = { title: "Today · Clan Centurio" };
@@ -58,40 +39,41 @@ const timeFormat = new Intl.DateTimeFormat("en-GB", {
 });
 
 /**
- * Today: what needs you right now, and nothing else.
+ * Today: everything you have on, laid out so you can choose.
  *
- * The screen is built around the sprint (CLAUDE.md §6). Before it existed, the
- * top card was "every task with a due date" — which meant it was either empty
- * or the one project that happened to have due dates, and the *real* answer to
- * "what am I doing today" was sixty rows away on the Hunt Board. Now the top
- * card is the week's commitment, ordered so the first row is the answer, and
- * the backlog is one deliberate click below it.
+ * **Rebuilt project-first on 2026-08-04, and the sprint is gone.** The sprint
+ * was a good answer to "what is the one next thing" and the wrong instrument
+ * here. It committed you to a fixed set of work a week ahead, then measured you
+ * against it daily — and on a week where the baby takes the week, that stops
+ * being a plan and becomes a running tally of your shortfall. The screen you
+ * open twenty times a day cannot be the one that tells you you're behind.
+ *
+ * What replaces it is not a smaller list; it is a different unit. Each project
+ * gets a card carrying the one line saying what it is aiming at and the few
+ * rows most worth seeing, and the choice of what to do is left where it
+ * belongs. Two consequences worth stating:
+ *
+ * - **The old Momentum card is folded in.** A list of every project's
+ *   last-touched date sitting beside a list of every project was the same
+ *   information twice; it is now a quiet line on each card.
+ * - **Progress is shown backwards.** Instead of "3 of 8 done, 2 behind pace",
+ *   there is a contribution map of what you actually ticked off. It cannot
+ *   report a shortfall, because there is no target to fall short of — the only
+ *   thing it can say is what you did.
  */
 export default async function TodayPage() {
   // Today is the screen that actually gets opened, so it's the honest place to
-  // keep the daily cadence materialised — not just Studio.
+  // keep the posting cadence materialised — not just the Social Media board.
   await ensureSeriesSlots();
-  // Close last week and open this one if the date has moved past it. Today is
-  // the screen that actually gets opened, so it is the honest place to do this
-  // — the rollover only has to have happened by the time someone looks.
-  const rollover = await ensureActiveSprint();
 
-  const sprint = await getActiveSprint();
   const today = todayKey();
 
-  const [focus, upNext, items, momentum, agenda, bandwidth] = await Promise.all([
-    getFocus(sprint?.id ?? null),
-    getUpNext(sprint?.id ?? null),
+  const [boards, history, items, agenda] = await Promise.all([
+    getProjectBoards(),
+    getCompletionMap(),
     getGoingOutToday(),
-    getMomentum(),
     getAgenda(today),
-    getBandwidth(),
   ]);
-
-  // Only asked for when there is nothing to show — a suggestion list computed
-  // on a full sprint is four queries nobody reads.
-  const suggestion =
-    sprint && sprint.total === 0 ? await getSprintSuggestion(sprint) : [];
 
   const dateLabel = new Intl.DateTimeFormat("en-GB", {
     weekday: "long",
@@ -99,85 +81,35 @@ export default async function TodayPage() {
     month: "long",
   }).format(new Date());
 
-  const focusViews: FocusTaskView[] = focus.tasks.map((task) => ({
-    id: task.id,
-    title: task.title,
-    link: task.link,
-    track: task.track,
-    status: task.status,
-    dueLabel: task.dueDate
-      ? dayKey(task.dueDate) === today
-        ? "Today"
-        : dueFormat.format(task.dueDate)
-      : null,
-    reason: task.reason,
-    inSprint: sprint !== null && task.sprintId === sprint.id,
-    projectName: task.project?.name ?? null,
-    areaColor: task.area.color,
-    repeatLabel: repeatLabel(task),
+  const boardViews: ProjectBoardView[] = boards.map((board) => ({
+    id: board.id,
+    name: board.name,
+    slug: board.slug,
+    focus: board.focus,
+    description: board.description,
+    priority: board.priority,
+    areaName: board.areaName,
+    areaColor: board.areaColor,
+    touchedLabel: board.touchedLabel,
+    drifting: board.drifting,
+    openTotal: board.openTotal,
+    overdue: board.overdue,
+    tasks: board.tasks.map((task) => ({
+      id: task.id,
+      title: task.title,
+      link: task.link,
+      track: task.track,
+      status: task.status,
+      dueLabel: task.dueDate
+        ? task.due === today
+          ? "Today"
+          : dueFormat.format(task.dueDate)
+        : null,
+      reason: task.reason as TaskReason,
+      areaColor: task.area.color,
+      repeatLabel: repeatLabel(task),
+    })),
   }));
-
-  const toNextView = (task: {
-    id: string;
-    title: string;
-    track: string | null;
-    link: string | null;
-  }): NextTaskView => ({
-    id: task.id,
-    title: task.title,
-    track: task.track,
-    link: task.link,
-  });
-
-  const nextGroups: NextGroupView[] = upNext.groups.map((group) => ({
-    projectName: group.projectName,
-    color: group.color,
-    tasks: group.tasks.map(toNextView),
-  }));
-
-  const bandwidthGroups: BandwidthGroupView[] = bandwidth.map((group) => ({
-    anchorTitle: group.anchorTitle,
-    projectName: group.projectName,
-    projectSlug: group.projectSlug,
-    color: group.color,
-    tasks: group.tasks.map(toNextView),
-  }));
-
-  const suggestionViews: SuggestionView[] = suggestion.map((task) => ({
-    id: task.id,
-    title: task.title,
-    track: task.track,
-    projectName: task.project?.name ?? null,
-    dueLabel: task.dueDate
-      ? dayKey(task.dueDate) === today
-        ? "Today"
-        : dueFormat.format(task.dueDate)
-      : null,
-    overdue: task.overdue,
-    color: task.area.color,
-  }));
-
-  /**
-   * The one-line answer to "am I on track", which is most of why this screen
-   * gets opened. Pace is done-so-far against days-elapsed: a sprint four days
-   * into seven with half its rows ticked is fine, and the same sprint on the
-   * last day is not. Saying only "3 days left" leaves that sum to be done in
-   * your head every morning, which is the work the tile is supposed to save.
-   */
-  const sprintNote = (() => {
-    if (!sprint) return "Nothing committed — plan one on the Hunt Board";
-    if (sprint.daysLeft < 0) return `Ended ${-sprint.daysLeft}d ago`;
-    if (sprint.total === 0) return "Empty — pick this week's few below";
-
-    const left = sprint.daysLeft === 0 ? "last day" : `${sprint.daysLeft}d left`;
-    if (sprint.done === sprint.total) return `Done — ${left}`;
-
-    // Where you'd be if the week were spread evenly. Elapsed rather than
-    // remaining, so day one is never "behind".
-    const expected = (sprint.dayNumber / sprint.totalDays) * sprint.total;
-    const behind = Math.ceil(expected - sprint.done);
-    return behind > 0 ? `${behind} behind pace · ${left}` : `On track · ${left}`;
-  })();
 
   const contentViews: GoingOutView[] = items.map((item) => ({
     id: item.id,
@@ -197,27 +129,8 @@ export default async function TodayPage() {
     })),
   }));
 
-  const momentumViews: MomentumView[] = momentum.map((project) => ({
-    id: project.id,
-    name: project.name,
-    areaName: project.area.name,
-    areaColor: project.area.color,
-    status: project.status,
-    priority: project.priority,
-    touchedLabel:
-      project.idle === 0
-        ? "Today"
-        : project.idle === 1
-          ? "Yesterday"
-          : `${project.idle}d ago`,
-    idle: project.idle,
-    openTasks: project.openTasks,
-    cadenceDays: project.cadenceDays,
-    drifting: project.drifting,
-  }));
-
-  const drifting = momentumViews.filter((project) => project.drifting).length;
-  const late = focusViews.filter((task) => task.reason === "overdue").length;
+  const openTotal = boardViews.reduce((sum, board) => sum + board.openTotal, 0);
+  const overdue = boardViews.reduce((sum, board) => sum + board.overdue, 0);
   const outstanding = contentViews.filter((item) =>
     item.channels.some((channel) => channel.state !== "published"),
   ).length;
@@ -226,51 +139,45 @@ export default async function TodayPage() {
     <>
       <SurfaceHeader
         title="Today"
-        tagline="What needs you right now — nothing else."
+        tagline="Everything you have on. Pick what fits the day."
         meta={dateLabel}
       />
 
       <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {/* The one dark tile on the screen. The sprint is the frame everything
-            else on Today hangs off, so it gets the single hero treatment the
-            reference reserves for the most important number. */}
+        {/* The one dark tile on the screen (§9's budget of one). It used to be
+            the sprint's done-against-committed; it is now simply what you got
+            through today. The hero number should be an achievement, not a
+            deficit — that swap is most of the point of this rebuild. */}
         <StatTile
-          label={sprint ? `Sprint · ${sprint.name}` : "Sprint"}
-          value={sprint ? String(sprint.done) : "—"}
-          tail={sprint ? `/${sprint.total}` : undefined}
+          label="Ticked off today"
+          value={String(history.todayCount)}
           tone="dark"
-          note={sprintNote}
-        />
-        <StatTile
-          label="On the list"
-          value={String(focus.total)}
           note={
-            late > 0
-              ? `${late} overdue`
-              : focus.total === 0
-                ? "Clear"
-                : "Nothing overdue"
+            history.streak > 0
+              ? `${history.streak} day${history.streak === 1 ? "" : "s"} in a row`
+              : "Whenever you get to it"
           }
         />
         <StatTile
-          label="Content going out"
+          label="Projects on the go"
+          value={String(boardViews.filter((b) => b.slug).length)}
+          note={`${openTotal} open task${openTotal === 1 ? "" : "s"}`}
+        />
+        <StatTile
+          label="Social media content"
           value={String(contentViews.length)}
           note={
             contentViews.length === 0
-              ? "No content scheduled"
+              ? "Nothing scheduled"
               : outstanding === 0
                 ? "All posted"
                 : `${outstanding} still to post`
           }
         />
         <StatTile
-          label="Needs attention"
-          value={String(drifting)}
-          note={
-            drifting === 0
-              ? "Nothing drifting"
-              : `${drifting === 1 ? "project is" : "projects are"} past cadence`
-          }
+          label="Overdue"
+          value={String(overdue)}
+          note={overdue === 0 ? "Nothing late" : "Across all projects"}
         />
       </div>
 
@@ -278,60 +185,37 @@ export default async function TodayPage() {
         <div className="flex flex-col gap-5 lg:col-span-2">
           <Card>
             <CardHeader
-              title={sprint ? "This sprint" : "Due and overdue"}
-              count={`${focus.total} open`}
+              title="Your projects"
+              count={`${boardViews.filter((b) => b.slug).length} on the go`}
             />
-            {sprint && sprint.total === 0 && (
-              <div className="mb-4">
-                <SprintPlanner
-                  sprintId={sprint.id}
-                  sprintName={sprint.name}
-                  suggestions={suggestionViews}
-                  rollover={rollover}
-                />
+            {boardViews.length > 0 ? (
+              <div className="flex flex-col gap-3">
+                {boardViews.map((board, index) => (
+                  <ProjectBoard
+                    key={board.id}
+                    board={board}
+                    delay={60 + Math.min(index, 8) * 40}
+                  />
+                ))}
               </div>
-            )}
-            {sprint?.goal && (
-              <p className="-mt-2 mb-3 text-[13px] leading-relaxed text-muted">
-                {sprint.goal}
-              </p>
-            )}
-            {focusViews.length > 0 ? (
-              <FocusList
-                tasks={focusViews}
-                total={focus.total}
-                sprintId={sprint?.id ?? null}
-              />
             ) : (
               <EmptyState
-                icon={Flag}
-                title={sprint ? "Sprint's clear" : "No sprint running"}
-                body={
-                  sprint
-                    ? "Everything you committed to this week is done. Have a look at what's next below, or close the sprint out and plan the next one."
-                    : "A sprint is the handful of tasks that are actually this week's work. Start one on the Hunt Board and this becomes the only list you need to read."
-                }
+                icon={FolderOpen}
+                title="No projects yet"
+                body="A project is the thing being pushed forward. Create one on the Projects surface and it will show up here with whatever you put on it."
               />
             )}
+
+            {/* Last thing in the card on purpose: capturing an idea must never
+                be above the work, and it must never be a screen away either. */}
             <div className="mt-4 border-t border-line/60 pt-4">
-              <UpNext
-                groups={nextGroups}
-                ideas={upNext.ideas.map(toNextView)}
-                backlogTotal={upNext.backlogTotal}
-                sprintId={sprint?.id ?? null}
-              />
-              {/* Last thing in the card on purpose: capturing an idea must
-                  never be above the work, and it must never be a screen away
-                  either — which is where it was. */}
-              <div className="mt-3">
-                <QuickCapture />
-              </div>
+              <QuickCapture />
             </div>
           </Card>
 
           <Card>
             <CardHeader
-              title="Going out today"
+              title="Social media content going out today"
               count={`${contentViews.length} ${contentViews.length === 1 ? "item" : "items"}`}
             />
             {contentViews.length > 0 ? (
@@ -340,34 +224,29 @@ export default async function TodayPage() {
               <EmptyState
                 icon={Radio}
                 title="Nothing publishing today"
-                body="Content publishing today shows up here with its channels. Tap a channel to mark it posted."
+                body="Social media content publishing today shows up here with its channels. Tap a channel to mark it posted."
               />
             )}
             <Link
               href="/studio"
               className="mt-3 inline-block text-[12px] text-muted transition-colors duration-(--duration-quick) hover:text-ink"
             >
-              Open the Content Studio →
+              Open Social Media →
             </Link>
           </Card>
-
-          {/* Only on the days a recurring task has already put you inside a
-              project — otherwise this card does not exist. See getBandwidth. */}
-          {bandwidthGroups.length > 0 && (
-            <Card>
-              <CardHeader
-                title="While you’re in it"
-                hint="If you have the bandwidth"
-              />
-              <Bandwidth
-                groups={bandwidthGroups}
-                sprintId={sprint?.id ?? null}
-              />
-            </Card>
-          )}
         </div>
 
         <div className="flex flex-col gap-5">
+          <Card>
+            <CardHeader title="Ticked off" hint="Last 6 months" />
+            <DoneMap
+              days={history.days}
+              weeks={history.weeks}
+              streak={history.streak}
+              todayList={history.todayList}
+            />
+          </Card>
+
           <Card>
             <CardHeader
               title="Agenda"
@@ -383,7 +262,7 @@ export default async function TodayPage() {
               <EmptyState
                 icon={CalendarClock}
                 title="Nothing on today"
-                body="Appointments, standing blocks and anything else that happens at a set time. Add one from the calendar."
+                body="Appointments and anything else that happens at a set time. Nothing but you puts something here."
               />
             )}
             <Link
@@ -392,19 +271,6 @@ export default async function TodayPage() {
             >
               Open the calendar →
             </Link>
-          </Card>
-
-          <Card>
-            <CardHeader title="Momentum" hint="Last touched" />
-            {momentumViews.length > 0 ? (
-              <Momentum projects={momentumViews} />
-            ) : (
-              <EmptyState
-                icon={TrendingUp}
-                title="No projects to track"
-                body="Every project's last-touched date lands here, so the quiet ones surface before they drift."
-              />
-            )}
           </Card>
         </div>
       </div>

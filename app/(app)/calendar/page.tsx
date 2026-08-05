@@ -117,7 +117,7 @@ export default async function CalendarPage({
     <>
       <SurfaceHeader
         title="Calendar"
-        tagline="Events and task due dates. Content publish times are a layer you can switch on."
+        tagline="Only what actually happens at a time. Task due dates and social media content are layers you can switch on."
         meta={periodLabel}
       />
 

@@ -5,7 +5,6 @@ import { Check, ExternalLink, Plus, Repeat } from "lucide-react";
 
 import { TaskPanel } from "@/components/board/task-panel";
 import type { AreaView, BoardProjectView, TaskView } from "@/components/board/types";
-import type { SprintView } from "@/components/sprint/types";
 import { setTaskStatus } from "@/lib/task-actions";
 import { repeatLabel } from "@/lib/task-view";
 import { trackRank } from "@/lib/tracks";
@@ -15,9 +14,8 @@ import { cn } from "@/lib/utils";
  * The project's own task list, grouped by track.
  *
  * Not the Hunt Board with a filter applied: the board's job is *choosing*
- * across projects, so it carries scope pills, a sprint bar and a capture box,
- * none of which mean anything once you have already decided which project you
- * are in. What is left is the list and the tracks — which is the whole of what
+ * across projects, so it carries scope pills and a capture box, neither of
+ * which means anything once you have already decided which project you are in. What is left is the list and the tracks — which is the whole of what
  * "open Sleepy Cat and see where it stands" needs.
  */
 export function ProjectTasks({
@@ -25,13 +23,11 @@ export function ProjectTasks({
   project,
   projects,
   areas,
-  sprint,
 }: {
   tasks: TaskView[];
   project: BoardProjectView;
   projects: BoardProjectView[];
   areas: AreaView[];
-  sprint: SprintView | null;
 }) {
   const [showDone, setShowDone] = useState(false);
   const [panel, setPanel] = useState<
@@ -128,7 +124,6 @@ export function ProjectTasks({
           task={panel.mode === "edit" ? panel.task : null}
           projects={projects}
           areas={areas}
-          sprint={sprint}
           defaults={
             panel.mode === "new"
               ? { projectId: project.id, track: panel.track }

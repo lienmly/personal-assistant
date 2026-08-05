@@ -21,21 +21,26 @@ export function isCalendarView(value: string | undefined): value is CalendarView
 
 /**
  * Which of the three sources the grid draws — a URL parameter, like the view
- * and the cursor, so "the month with content shown" is a link you can return to.
+ * and the cursor, so "the month with tasks shown" is a link you can return to.
  *
- * **Content is off by default, and that is the considered position.** The two
- * Utaitai dailies alone put 34 empty slot cards on an August grid — two dots a
- * day, every day, most of them untitled and reading "Daily short — Japanese
- * slot". A calendar that repetitive stops being read at all, which costs you
- * the five things on it that actually mattered. The dopamine of ticking a post
- * off already lives on Today's "Going out today" card, one tick per channel;
- * the calendar was only ever showing it a second, worse time.
+ * **Only events are on by default**, as of 2026-08-04. Social media content
+ * came off on 2026-08-03 (two Utaitai dailies were laying 34 untitled slot dots
+ * across an August grid); tasks followed for a different and better reason.
  *
- * Off, not gone: a publish time is still a real time, and the day you want to
- * see the week's posting laid out against everything else it is one tap in the
- * legend.
+ * A task is a thing you **owe**; an event is a thing that **happens**. Drawing
+ * the first as though it were the second is a category error the grid makes
+ * look reasonable — a due date rendered as a square on Thursday reads as an
+ * appointment on Thursday, so a calendar full of them is a week that appears
+ * fully booked when in truth nothing at all is scheduled. That is the same
+ * mistake the seeded baby routine made (§6, "Followed, not scheduled") and the
+ * same one the seeded events made, one noun further out.
+ *
+ * So the calendar starts empty and stays empty until something genuinely
+ * *happens at a time* is put in it. Off, not gone: a due date is still a date,
+ * and the day you want the month laid out against your deadlines it is one tap
+ * in the legend.
  */
-export const DEFAULT_LAYERS: CalendarKind[] = ["event", "task"];
+export const DEFAULT_LAYERS: CalendarKind[] = ["event"];
 
 /** Canonical order, so the same set always serialises to the same URL. */
 const LAYER_ORDER: CalendarKind[] = ["event", "task", "item"];

@@ -1,12 +1,11 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { Check, ExternalLink, Trash2, X } from "lucide-react";
+import { ExternalLink, Trash2, X } from "lucide-react";
 
 import type { Recurrence } from "@prisma/client";
 
 import type { AreaView, BoardProjectView, TaskView } from "@/components/board/types";
-import type { SprintView } from "@/components/sprint/types";
 import { deleteTask, saveTask } from "@/lib/task-actions";
 import { TRACKS } from "@/lib/tracks";
 import { cn } from "@/lib/utils";
@@ -20,26 +19,18 @@ export function TaskPanel({
   task,
   projects,
   areas,
-  sprint,
   defaults,
   onClose,
 }: {
   task: TaskView | null;
   projects: BoardProjectView[];
   areas: AreaView[];
-  /** The running sprint, or null — the commit toggle hides without one. */
-  sprint: SprintView | null;
   defaults?: { projectId?: string | null; track?: string | null };
   onClose: () => void;
 }) {
   const [pending, startTransition] = useTransition();
   const [projectId, setProjectId] = useState(
     task?.projectId ?? defaults?.projectId ?? "",
-  );
-  // A new task starts *out* of the sprint. Everything you write down landing
-  // straight in this week's commitment is how the sprint stops being one.
-  const [committed, setCommitted] = useState(
-    sprint !== null && task?.sprintId === sprint.id,
   );
   const [recurrence, setRecurrence] = useState(task?.recurrence ?? "none");
   const [days, setDays] = useState<number[]>(task?.daysOfWeek ?? []);
@@ -223,40 +214,6 @@ export function TaskPanel({
               setDays={setDays}
               repeatUntil={task?.repeatUntil ?? ""}
             />
-
-            {sprint && (
-              <div>
-                <input
-                  type="hidden"
-                  name="sprintId"
-                  value={committed ? sprint.id : ""}
-                />
-                <button
-                  type="button"
-                  onClick={() => setCommitted((value) => !value)}
-                  className={cn(
-                    "flex w-full items-center gap-3 rounded-tile px-3 py-2.5 text-left transition-[background-color,transform] duration-(--duration-base) ease-soft active:scale-[0.985]",
-                    committed ? "bg-obsidian text-white" : "bg-inset text-muted",
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "grid size-5 shrink-0 place-items-center rounded-full transition-colors duration-(--duration-base)",
-                      committed ? "bg-white text-ink" : "bg-card text-transparent",
-                    )}
-                  >
-                    <Check
-                      key={committed ? "in" : "out"}
-                      className={cn("size-3", committed && "animate-pop")}
-                      strokeWidth={3}
-                    />
-                  </span>
-                  <span className="min-w-0 flex-1 text-[13px]">
-                    {committed ? "In" : "Not in"} {sprint.name}
-                  </span>
-                </button>
-              </div>
-            )}
 
             <div>
               <label className={labelCls} htmlFor="task-link">

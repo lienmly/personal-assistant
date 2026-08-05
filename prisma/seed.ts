@@ -3,21 +3,25 @@ import { join } from "node:path";
 
 import { PrismaClient } from "@prisma/client";
 
-import { nextOccurrence } from "../lib/calendar-keys";
-import { todayKey } from "../lib/utils";
 import type {
   ContentFormat,
   ProjectPriority,
   ProjectStatus,
-  Recurrence,
 } from "@prisma/client";
 
 const db = new PrismaClient();
 
 /**
- * Seeds the real world as of 2026-07-30. Idempotent — every write is an upsert
+ * Seeds the **scaffolding** as of 2026-07-30: areas, projects, brands,
+ * channels, series and the project docs. Idempotent — every write is an upsert
  * keyed on something stable, so `npm run db:seed` is safe to re-run after a
  * schema change without wiping the items you've since typed in.
+ *
+ * It does **not** seed tasks, sprints or events (2026-08-04). All three used to
+ * be invented here, and all three failed the same way: a row you did not write
+ * is one you have to stop and disprove before you may dismiss it, and matching
+ * on title meant deleting one only bought you until the next `db:seed`.
+ * Structure is seeded; the work that hangs off it is yours.
  *
  * Handles are best guesses where I didn't have them. Edit them in Studio →
  * Channels rather than here; this file is a starting point, not the source of
@@ -326,681 +330,24 @@ const SERIES = [
 ] as const;
 
 /**
- * Utaitai's non-content work, which is most of what "the project" actually is.
- * Grouped by track so the Hunt Board doesn't render one flat wall of twenty.
+ * **The seed does not create tasks.** It used to create seventy-eight of them
+ * across five projects, and matched on title so that anything you deleted came
+ * straight back on the next run — which is why the board filled with work
+ * nobody remembered typing.
  *
- * Bootstrap only — see `seedMarks`. Tasks get completed and deleted, so unlike
- * everything above these are written once and never reconciled.
+ * This is the same rule the calendar already reached on 2026-08-03 for Events,
+ * one noun over: a task is a thing you owe, and a thing you owe cannot be
+ * invented for you. A seeded task you did not write is worse than an empty
+ * board, because you have to stop and work out whether it was yours before you
+ * are allowed to dismiss it.
+ *
+ * What the seed still does is bootstrap the *scaffolding* — areas, projects,
+ * brands, channels, series and the project docs. Those are structure. The work
+ * that hangs off them is yours.
+ *
+ * The tasks that were here are in `backups/tasks-2026-08-04.json` and in git
+ * history, if any of them is ever wanted back.
  */
-type SeedMark = {
-  track: string;
-  title: string;
-  notes?: string;
-  link?: string;
-  /** Makes this a recurring task: one live row that advances each time it is
-   *  ticked, rather than a one-off. See the `Task` model's recurrence block. */
-  recurrence?: Recurrence;
-  /** ISO weekdays for a `weekly` rule, 1 = Monday … 7 = Sunday. */
-  daysOfWeek?: number[];
-  /** "YYYY-MM-DD", read as a *local* calendar day. `dueDate` is `@db.Date`, so
-   *  it is stored as UTC midnight standing in for that day (§6). */
-  dueDate?: string;
-};
-
-/** The first day a seeded recurrence rule fires, counting from today. Null for
- *  a one-off, which is the overwhelming majority. */
-function firstOccurrence(
-  recurrence: Recurrence | undefined,
-  daysOfWeek: number[] | undefined,
-): Date | null {
-  if (!recurrence || recurrence === "none") return null;
-  const today = todayKey();
-  const first = nextOccurrence(today, recurrence, daysOfWeek ?? [], null, today);
-  return first ? new Date(`${first}T00:00:00.000Z`) : null;
-}
-
-/** The `@db.Date` convention, applied to a hand-written day string. */
-function dateOnly(day: string): Date {
-  return new Date(`${day}T00:00:00.000Z`);
-}
-
-const UTAITAI_MARKS: SeedMark[] = [
-  // ── Content: the batch, and the reason the rest of this list is reachable ─
-  //
-  // Utaitai posts daily on two accounts. Filling ~14 slots one card at a time
-  // never happens, so the cadence is produced in two sittings a week and the
-  // *sitting* is the task — one recurring row on Wednesday and Sunday, which
-  // deep-links to the batch composer where a whole week goes in from one grid.
-  //
-  // These two days are also when the rest of the Utaitai backlog gets a look
-  // in: Today shows the project's other open tasks underneath a batch day
-  // ("While you're in it"), because the context is already loaded and the
-  // alternative is that maintenance work never surfaces at all.
-  {
-    track: "Content",
-    title: "Batch the Utaitai week",
-    recurrence: "weekly",
-    daysOfWeek: [3, 7],
-    link: "/studio/batch",
-    notes:
-      "Fill every upcoming slot from one grid. Screen-record the songs, paste the refs, advance the row.",
-  },
-
-  // ── Ship ──────────────────────────────────────────────────────────────────
-  {
-    track: "Ship",
-    title: "Get the iOS build onto TestFlight",
-    notes: "Signing, capabilities, a build that installs on a real phone.",
-  },
-  {
-    track: "Ship",
-    title: "Get the Android build onto the internal testing track",
-    notes: "Signing key in a safe place — losing it means a new listing.",
-  },
-  {
-    track: "Ship",
-    title: "App Store Connect: listing, screenshots, privacy labels",
-  },
-  {
-    track: "Ship",
-    title: "Play Console: listing, screenshots, data safety form",
-  },
-  { track: "Ship", title: "Submit the iOS build for review" },
-  { track: "Ship", title: "Submit the Android build for review" },
-
-  // ── Monetization: the paid week ───────────────────────────────────────────
-  //
-  // Added 2026-08-03. $1 for 7 days, then $7.99 a month automatically. The
-  // $7.99 price already exists in Stripe and there is one subscriber on it;
-  // what changes is only the way someone arrives. The reasoning, the mechanism
-  // and the open questions are on the project's "What Utaitai charges" doc —
-  // this is the work that falls out of it.
-  //
-  // The first three are the whole change and are in the sprint. The rest are
-  // what makes charging automatically defensible rather than merely possible,
-  // and they are backlog on purpose: none of them blocks the first $1.
-  {
-    track: "Monetization",
-    title: "Charge $1 for the 7-day trial, then $7.99 monthly automatically",
-    notes:
-      "Subscription on the existing $7.99 monthly price with a 7-day trial, and the $1 on the first invoice so it collects immediately. Check the current Stripe docs for the exact shape before building — a one-time line item on a trialing subscription, or a two-phase schedule. Prefer the first: one subscription, one price, and every later query stays simple. Trialing must count as fully entitled — the week was paid for.",
-  },
-  {
-    track: "Monetization",
-    title: "Paywall copy: $1 for 7 days, then $7.99/month, cancel anytime",
-    notes:
-      "Next to the button, same size as the rest of the sentence, not in a footer. A trial that charges by default is the pattern people feel tricked by, and one refund is cheaper than one person saying they were charged without warning.",
-  },
-  {
-    track: "Monetization",
-    title: "Decide and code what happens at day 7 — charged, failed, cancelled",
-    notes:
-      "Three outcomes and all three need an answer. Charged: nothing. Failed: Stripe retries on its own schedule, so say out loud whether access stays on in between rather than letting the entitlement check decide by accident. Cancelled during the week: access runs to the end of the paid 7 days, because they paid for 7 days.",
-  },
-  {
-    track: "Monetization",
-    title: "Leave the one existing subscriber on their current terms",
-    notes:
-      "A Stripe subscription keeps the price it was created with, so the new trial path shouldn't touch them. Confirm that in the dashboard rather than assuming it. Do not migrate — handing someone who already pays a trial, or changing their terms without asking, is how one subscriber becomes zero.",
-  },
-  {
-    track: "Monetization",
-    title: "Put Stripe's customer portal behind a Cancel link in the app",
-    notes:
-      "About a day's work, and without it the paywall copy is a lie. If the only way out is emailing me, 'cancel anytime' isn't true.",
-  },
-  {
-    track: "Monetization",
-    title: "Reminder e-mail on trial_will_end, three days before the charge",
-    notes:
-      "The webhook fires three days out, which on a 7-day trial is day 4. It costs a few conversions and buys the right to charge automatically at all.",
-  },
-  {
-    track: "Monetization",
-    title: "Write the refund line for the $1 and the first month",
-    notes: "Before the first person asks, not during.",
-  },
-  {
-    track: "Monetization",
-    title: "Track trial starts and day-7 conversion",
-    notes:
-      "The $1 week is a bet against a free one. Without this number the bet never resolves and there is nothing to tune.",
-  },
-  {
-    track: "Monetization",
-    title: "Resolve Stripe vs in-app purchase before the iOS submission",
-    notes:
-      "A Stripe paywall inside an iOS app that unlocks digital content is a rejection under guideline 3.1.1 — Apple wants IAP, at its cut and with its own trial mechanics. Six Ship tasks lead to that submission. Doesn't block the web checkout; does block the iOS one. Decide before building the paywall screen twice.",
-  },
-
-  // ── Marketing: store presence ─────────────────────────────────────────────
-  {
-    track: "Marketing",
-    title: "ASO pass — title, subtitle and keywords for both stores",
-    notes:
-      "The one marketing job that keeps paying after you stop doing it. Aim at what learners search: song names, 'learn Japanese with music'.",
-  },
-  {
-    track: "Marketing",
-    title: "Screenshots + a preview video for both stores",
-    notes: "The daily TikToks are already this footage — cut them down.",
-  },
-  {
-    track: "Marketing",
-    title: "Landing page with both store links",
-    notes: "Needed before Product Hunt and before any creator can link you.",
-  },
-  {
-    track: "Marketing",
-    title: "Pitch Apple and Google for editorial featuring",
-    notes: "Both have submission forms. Free, and the upside is enormous.",
-  },
-
-  // ── Marketing: creators & launch ──────────────────────────────────────────
-  {
-    track: "Marketing",
-    title: "Line up 3 language-learning creators for a collab",
-    notes:
-      "Look for JP/CN learning accounts already doing song breakdowns — the overlap with the app is exact.",
-  },
-  {
-    track: "Marketing",
-    title: "Product Hunt launch",
-    notes: "Blocked on the landing page and the store listings being live.",
-  },
-  {
-    track: "Marketing",
-    title: "Build-in-public thread from Coding Mom about shipping Utaitai",
-    notes:
-      "Different brand, same work — this is exactly the item that carries a brand and no project.",
-  },
-
-  // ── Users ─────────────────────────────────────────────────────────────────
-  {
-    track: "Users",
-    title: "In-app feedback button that emails me",
-    notes:
-      "The cheapest possible way to hear from users. One button, one mailto or form endpoint.",
-  },
-  {
-    track: "Users",
-    title: "Reply to every comment on both TikToks for a week",
-    notes:
-      "The audience is already there and already talking. This is the highest-signal user research available today, at zero cost.",
-  },
-  {
-    track: "Users",
-    title: "Book 5 user interviews with people who commented",
-    notes: "20 minutes each. Ask what they were doing before they found you.",
-  },
-  {
-    track: "Users",
-    title: "Open a Discord (or Line group) for early users",
-    notes: "Somewhere they can talk to you and to each other.",
-  },
-  {
-    track: "Users",
-    title: "Prompt for an App Store review after N songs learned",
-    notes: "Ratings gate everything else in the stores. Ask at the good moment.",
-  },
-
-  // ── Content ───────────────────────────────────────────────────────────────
-  {
-    track: "Content",
-    title: "Batch day — 7 songs each for JP + CN, recorded from the app",
-    notes:
-      "The weekly ritual. Find the songs, screen-record the clips, then fill the week in Studio → Fill the week.",
-  },
-];
-
-/**
- * Sleepy Cat's road to Steam. Four tracks, because the two halves the game
- * actually needs — gameplay polish and art — are different people's work on
- * different days, and collapsing them into one "Ship" list hides that half of
- * it isn't mine to do.
- *
- * Marketing runs on two brands at once, which is the two-axis model (§6) doing
- * its job: @sleepycatgame talks to players, Coding Mom talks about building it.
- */
-const SLEEPY_CAT_MARKS: SeedMark[] = [
-  // ── Build: polish gameplay + levels ───────────────────────────────────────
-  {
-    track: "Build",
-    title: "Inventory every level — which are finished, which are still rough",
-    notes:
-      "Do this first. 'Polish the levels' is unstartable as a task; 'fix these four' isn't.",
-  },
-  {
-    track: "Build",
-    title: "Fix the top 5 feel problems — controls, camera, collision",
-    notes:
-      "The things that make a cozy game feel cheap. Write the list while playing, fix it after.",
-  },
-  {
-    track: "Build",
-    title: "Difficulty curve pass over the level order",
-    notes: "Reorder before building anything new — it's free and usually enough.",
-  },
-  {
-    track: "Build",
-    title: "Pause, settings and save",
-    notes:
-      "A player on Steam will alt-tab, change the volume and quit mid-level. Without these that session ends badly.",
-  },
-  {
-    track: "Build",
-    title: "Controller support",
-    notes: "Steam players expect it, and Valve asks about it on the store page.",
-  },
-  {
-    track: "Build",
-    title: "Watch 3 people play it without saying anything",
-    notes:
-      "Silently. Every instinct to explain the controls is a note about the tutorial.",
-  },
-
-  // ── Art ───────────────────────────────────────────────────────────────────
-  {
-    track: "Art",
-    title: "Agree the full asset list with husband — one checklist, both of us",
-    notes:
-      "The handoff, not the drawing, is what stalls. One list means neither of us is guessing what's outstanding.",
-  },
-  {
-    track: "Art",
-    title: "Replace the placeholder sprites in the shipped levels",
-  },
-  {
-    track: "Art",
-    title: "UI and menu art pass",
-    notes: "Menus are what the screenshots show, and screenshots sell the page.",
-  },
-  { track: "Art", title: "Title screen and logo" },
-  {
-    track: "Art",
-    title: "Steam capsule art — main, small, header",
-    notes:
-      "Valve's sizes are exact and the capsule is most of your click-through. Not a last-week job.",
-    link: "https://partner.steamgames.com/doc/store/assets/standard",
-  },
-
-  // ── Ship: Steam ───────────────────────────────────────────────────────────
-  {
-    track: "Ship",
-    title: "Register Steamworks and pay the $100 app fee",
-    notes: "Blocks everything else on this track. There's a ~30-day wait after it too.",
-    link: "https://partner.steamgames.com/",
-  },
-  {
-    track: "Ship",
-    title: "Draft the store page — description, tags, screenshots, trailer",
-  },
-  {
-    track: "Ship",
-    title: "Build a depot and push a test build to Steam",
-    notes: "Do it early with a rough build. The first upload is never the smooth one.",
-  },
-  {
-    track: "Ship",
-    title: "Get the store page live for wishlists",
-    notes:
-      "Wishlists before launch are the whole game on Steam. Every week the page isn't up is a week of them not accruing.",
-  },
-  {
-    track: "Ship",
-    title: "Set a release date",
-    notes: "Valve wants ~2 weeks' notice, and the date is what makes the rest real.",
-  },
-
-  // ── Marketing ─────────────────────────────────────────────────────────────
-  {
-    track: "Marketing",
-    title: "Create @sleepycatgame on X and Threads",
-    notes:
-      "Both are sitting in Studio → Channels as `planned`. Flip them to `live` once they exist.",
-  },
-  // "Create the Coding Mom TikTok account" used to live here, because Coding Mom
-  // was only a brand and its chores had nowhere else to go. It now sits on the
-  // Coding Mom project with the rest of the account chain — see `reseatMarks`.
-  {
-    track: "Marketing",
-    title: "Cut a trailer — Steam page and socials off the same edit",
-  },
-];
-
-/**
- * Coding Mom's own work, added 2026-07-31 when it stopped being only a brand.
- *
- * The Setup track is a strict chain and it is the only place in this file with
- * real due dates: create the e-mail, create the account, then *do not post for a
- * week*. A brand-new TikTok that posts on day one gets throttled, and a warm-up
- * is a thing you either do on specific days or don't do at all — so it is the one
- * piece of this that a date genuinely helps with. Everything downstream is dated
- * off the end of that week rather than off "soon".
- *
- * Dates assume a start of 2026-08-01. Move them; they're a spine, not a promise.
- */
-const CODING_MOM_MARKS: SeedMark[] = [
-  // ── Setup: the account chain ──────────────────────────────────────────────
-  {
-    track: "Setup",
-    title: "Create the dedicated Coding Mom e-mail account",
-    notes:
-      "First, because every account below hangs off it — TikTok, Instagram, Facebook, YouTube, Threads, Medium. Doing this after the fact means migrating accounts instead of creating them.",
-    dueDate: "2026-08-01",
-  },
-  {
-    track: "Setup",
-    title: "Create the Coding Mom TikTok account with that e-mail",
-    notes:
-      "The channel already exists in Studio → Channels as `planned`. Flip it to `live` once the account is real.",
-    dueDate: "2026-08-01",
-  },
-  {
-    track: "Setup",
-    title: "Warm up the TikTok for a week — no posting until 2026-08-09",
-    notes:
-      "15 minutes a day: scroll, watch to the end, like, follow and comment in the mom / build / AIoT niche. This is what teaches the algorithm who you are before you ask it for anything, and it doubles as the best possible research for the content bank.",
-    dueDate: "2026-08-08",
-  },
-  {
-    track: "Setup",
-    title: "Claim @codingmom on Instagram, Facebook, YouTube and Threads",
-    notes:
-      "Same e-mail, same handle. Claiming costs nothing today and is impossible later — all four are already sitting in Studio → Channels as `planned`.",
-    dueDate: "2026-08-02",
-  },
-  {
-    track: "Setup",
-    title: "Write the bio — one line that says who this is and points at Forge",
-    notes:
-      "The bio is the only place Coding Mom converts an audience into Forge's waitlist. Worth 20 minutes now rather than a rewrite at 10k followers.",
-  },
-  {
-    track: "Setup",
-    title: "Flip the Coding Mom channels to `live` and switch on the Daily short",
-    notes:
-      "The series is seeded `isActive: false` because slots you cannot fill are worse than no slots. Turning it on is the last step of the warm-up week, not the first.",
-    dueDate: "2026-08-09",
-  },
-
-  // ── Content ───────────────────────────────────────────────────────────────
-  {
-    track: "Content",
-    title: "Brain-dump the rest of the app ideas before they're gone again",
-    notes:
-      "There were 'a ton' and most of them are already lost. Sit with a 15-minute timer and empty your head into the idea column — the roster of on-brand apps is a whole content pillar on its own, and you cannot post about ideas you can't remember.",
-  },
-  {
-    track: "Content",
-    title: "Decide what BLM stands for in 'BLM recipe app'",
-    notes:
-      "Written down from the brain-dump exactly as it was said. Expand it before it becomes a post — the idea is in the bank with the same warning on it.",
-  },
-  {
-    track: "Content",
-    title: "Set the pillar rotation — which pillar posts on which day",
-    notes:
-      "Seven pillars, one post a day. Deciding the rotation once is what stops the daily question 'what do I post today', which is the thing that actually kills a daily cadence.",
-    dueDate: "2026-08-07",
-  },
-  {
-    track: "Content",
-    title: "Batch-film the first week of shorts during the warm-up",
-    notes:
-      "Day one of posting must not also be day one of filming. Fill them in Studio → Fill the week once the series is on.",
-    dueDate: "2026-08-08",
-  },
-
-  // ── Users ─────────────────────────────────────────────────────────────────
-  {
-    track: "Users",
-    title: "Find and follow 20 mom-builder / multilingual-parenting accounts",
-    notes:
-      "Do it inside the warm-up week — it counts as warming and it maps the niche you are about to post into.",
-    dueDate: "2026-08-08",
-  },
-  {
-    track: "Users",
-    title: "Reply to every comment for the first month",
-    notes:
-      "Small accounts grow on replies. It is also where the Forge interviews come from — the people who comment on a SIDS-monitor video are exactly who you need to talk to.",
-  },
-
-  // ── Marketing ─────────────────────────────────────────────────────────────
-  {
-    track: "Marketing",
-    title: "Stand up a Forge waitlist page for the bio to point at",
-    notes:
-      "Coding Mom is the community-building for Forge (§ docs/forge-vision.md). Until there is somewhere to send people, the audience doesn't compound into anything.",
-  },
-];
-
-/**
- * Forge — the startup Coding Mom is the on-ramp to. Simmering by design: this is
- * the destination, and the work that gets you there is the audience and the two
- * prototypes, which are already tasks below.
- *
- * The full brief lives in `docs/forge-vision.md`; these are only the next real
- * moves, so the project reads as a thing you could start on a Tuesday rather
- * than as a pitch deck.
- */
-const FORGE_MARKS: SeedMark[] = [
-  // ── Build: the two flagship prototypes ────────────────────────────────────
-  {
-    track: "Build",
-    title: "Spec the multilingual book reader — what it clips to, what it reads",
-    notes:
-      "The flagship. Start from the actual use: a Russian children's book, a Vietnamese-English household, a toddler who cannot read yet. One page of what it must do beats three months of what it could do.",
-  },
-  {
-    track: "Build",
-    title: "Breadboard version of the book reader — camera, speaker, off-the-shelf parts",
-    notes:
-      "Ugly and wired to a laptop is fine. The point is to learn whether it reads a real page in a real room, which no amount of design settles.",
-  },
-  {
-    track: "Build",
-    title: "Spec the baby breathing tracker as the comfortable alternative to the sock",
-    notes:
-      "The complaint is comfort and price, so those are the spec — not more sensors. Owlet already owns 'more sensors'.",
-  },
-  {
-    track: "Build",
-    title: "Price a $200 prototype run end to end with one manufacturer",
-    notes:
-      "The $200 sample credit is the load-bearing promise of the whole pitch. Find out what $200 actually buys before it goes on a landing page.",
-  },
-
-  // ── Users: the research the pitch assumes ─────────────────────────────────
-  {
-    track: "Users",
-    title: "Interview 5 multilingual parents about reading to their kids",
-    notes: "Recruit them from the Coding Mom comments — that is what the audience is for.",
-  },
-  {
-    track: "Users",
-    title: "Interview a pediatrician and a speech therapist",
-    notes:
-      "Both flagship products make claims about babies. Two conversations decide whether they are claims you can make.",
-  },
-  {
-    track: "Users",
-    title: "Talk to 3 manufacturers about small-run AIoT samples",
-    notes:
-      "The marketplace half of Forge is manufacturing partnerships. Nothing about it is real until someone on that side says yes.",
-  },
-
-  // ── Marketing ─────────────────────────────────────────────────────────────
-  {
-    track: "Marketing",
-    title: "Document every prototype build as Coding Mom content",
-    notes:
-      "Phase 1 of the go-to-market *is* the content plan — the build videos are the marketing, so nothing gets built off-camera.",
-  },
-  {
-    track: "Marketing",
-    title: "Pick the real name — 'Forge' is a placeholder",
-    notes:
-      "ForgeMarket / ImpactForge / LuminaForge were the shortlist. Check the domain and the handles at the same time, and rename the project when it lands.",
-  },
-
-  // ── Ship ──────────────────────────────────────────────────────────────────
-  {
-    track: "Ship",
-    title: "Draft the YC application against the current vision doc",
-    notes:
-      "Draft it early even if you apply late — the questions are the fastest way to find which parts of the vision are still hand-waving.",
-    link: "https://www.ycombinator.com/apply",
-  },
-];
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Events (Phase 4) — deliberately none. See below.
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * **The seed no longer creates any events, and that is the whole point.**
- *
- * It used to create five: a Sunday batch-film block, a Monday "fill the slots"
- * block, a Sunday playtest, a monthly "check the rent has landed" and a
- * four-day "In-laws visiting". Every one of them was invented in Phase 4 to
- * give the freshly-built grid something to draw.
- *
- * That is the same mistake as the baby routine, which this file removed on
- * 2026-08-02 for lying about how the day goes — and it failed *worse*, because
- * a nap you don't take is at least recognisably yours. An in-law visit you
- * never arranged and a rent cheque on a property you may not own are rows you
- * have to stop and disprove before you can dismiss them. A calendar's only job
- * is to be trusted on sight; demo data on it costs more than an empty grid ever
- * could. Deleted 2026-08-03.
- *
- * Two of the five were duplicates on top of that: "Batch-film the week's
- * shorts" and "Fill the week's slots in Studio" restate the recurring *task*
- * "Batch the Utaitai week", which links straight to the batch composer. A
- * commitment stated in two places is a commitment you get to ignore in both.
- *
- * So: **an event is something you were there for.** Nothing else may create
- * one. If the calendar looks empty on a fresh database, it is telling the
- * truth. What the seed still fills is Tasks (owed), ContentItems (going out)
- * and Series (the cadence) — the three things that are genuinely knowable
- * without asking.
- */
-
-/**
- * Bootstrap, not reconciliation: tasks are seeded only into a project that has
- * none. Upserting them would resurrect every task you'd since completed and
- * deleted, which is the opposite of useful.
- */
-/**
- * The multilingual work. Two habits and one unsolved problem.
- *
- * The reading rows are `recurrence: "daily"` rather than seven dated tasks or a
- * calendar event: they are owed rather than scheduled, they happen whenever the
- * day allows, and a single live row that advances is the only shape that
- * doesn't either vanish when ticked or pile up when missed.
- *
- * Russian is deliberately one umbrella task plus three concrete leads. "Find a
- * solution" alone is the kind of task that sits open for a year because there
- * is no first move in it; the leads are the first moves, and any that turn out
- * to be wrong get deleted in a tap.
- */
-const MULTILINGUAL_MARKS: SeedMark[] = [
-  {
-    track: "Vietnamese",
-    title: "Read her a Vietnamese book",
-    recurrence: "daily",
-    notes: "Any length. The point is the sound of it, daily.",
-  },
-  {
-    track: "English",
-    title: "Read her an English book",
-    recurrence: "daily",
-  },
-  {
-    track: "Russian",
-    title: "Work out how she gets Russian",
-    notes:
-      "Her dad is Russian and won't teach her, so it has to come from somewhere else. The three below are the leads worth trying first — this row is the decision, not the doing.",
-  },
-  {
-    track: "Russian",
-    title: "Find a Russian-speaking sitter or playgroup nearby",
-    notes: "A few hours a week of a real speaker beats any amount of screen.",
-  },
-  {
-    track: "Russian",
-    title: "Ask his family to video-call her in Russian, regularly",
-    notes:
-      "Costs nothing and needs no buy-in from him. Wants to be a standing slot, not an ask each time.",
-  },
-  {
-    track: "Russian",
-    title: "Build a Russian shelf — songs, cartoons, board books",
-    notes: "Lowest-effort lead. Won't make her fluent; will make it familiar.",
-  },
-  {
-    track: "Content",
-    title: "Film the two-language reading routine for Coding Mom",
-    notes:
-      "The bilingual-baby angle is a Coding Mom pillar and this project is where the footage comes from.",
-  },
-  {
-    track: "Content",
-    title: "Write up the Russian problem once it has an answer",
-    notes:
-      "'My daughter's dad is Russian and won't teach her' is a real post, and it needs the ending first.",
-  },
-];
-
-async function seedMarks(slug: string, tasks: SeedMark[]) {
-  const project = await db.project.findUnique({ where: { slug } });
-  if (!project) return 0;
-
-  // Per-title, not "does this project have any tasks at all". The old
-  // all-or-nothing count meant a project could never gain a seeded task after
-  // its first run — adding "Batch the Utaitai week" to a project holding
-  // twenty rows was a silent no-op. Same fix as `seedDrops`.
-  //
-  // Completed tasks count as present, so ticking one doesn't bring it back.
-  // A *deleted* one does return on the next seed; that is the honest cost of
-  // matching on title, and re-deleting it is one tap.
-  const seeded = new Set(
-    (
-      await db.task.findMany({
-        where: { projectId: project.id },
-        select: { title: true },
-      })
-    ).map((row) => row.title),
-  );
-  const fresh = tasks.filter((task) => !seeded.has(task.title));
-  if (fresh.length === 0) return 0;
-
-  const offset = seeded.size;
-
-  await db.task.createMany({
-    data: fresh.map((task, index) => ({
-      title: task.title,
-      notes: task.notes ?? null,
-      link: task.link ?? null,
-      track: task.track,
-      // A recurring task with no due date has a rule that never fires — see
-      // `saveTask`, which infers the same first date for one created in the UI.
-      dueDate: task.dueDate
-        ? dateOnly(task.dueDate)
-        : firstOccurrence(task.recurrence, task.daysOfWeek),
-      recurrence: task.recurrence ?? "none",
-      daysOfWeek: task.daysOfWeek ?? [],
-      projectId: project.id,
-      areaId: project.areaId,
-      // Appended rather than renumbered from zero, so a task added later
-      // doesn't jump above the ones already on the board.
-      sortOrder: offset + index,
-    })),
-  });
-
-  return fresh.length;
-}
 
 /**
  * Coding Mom's content bank — seven pillars, written down once so the daily
@@ -1212,29 +559,28 @@ const CODING_MOM_DROPS: SeedDrop[] = [
 ];
 
 /**
- * Bootstrap only, on the same principle as `seedMarks`: seeded once, into a brand
- * with no free-standing items. Re-running must not resurrect an idea you looked
- * at and threw away. Series slots are excluded from the check — those are
- * generated, and they exist for Coding Mom already.
+ * The idea bank, bootstrapped into a brand that has none.
+ *
+ * **This is an all-or-nothing check, and the per-title version it replaces was
+ * the same bug that filled the task board.** Matching on title means the seed
+ * cannot tell "you never had this" from "you had it and threw it away", so
+ * every idea you deleted came back on the next run. The cost of the stricter
+ * guard is that the bank can no longer *grow* from this file — a new idea gets
+ * typed into the Social Media board, which is where ideas are had anyway.
+ *
+ * Series slots are excluded from the count: those are generated rather than
+ * seeded, so a brand whose only rows are empty slots still counts as bankless.
  */
 async function seedDrops(brandSlug: string, items: SeedDrop[]) {
   const brand = await db.brand.findUnique({ where: { slug: brandSlug } });
   if (!brand) return 0;
 
-  // Per-title rather than "has this brand any content at all". The all-or-
-  // nothing count meant the bank could never *grow*: adding three multilingual
-  // ideas to a file that had already seeded twenty-five was a silent no-op.
-  // Titles are the stable key here — there is no slug on a content item, and
-  // an idea whose title you rewrote is one you have already made yours.
-  const seeded = new Set(
-    (
-      await db.contentItem.findMany({
-        where: { brandId: brand.id, seriesId: null },
-        select: { title: true },
-      })
-    ).map((row) => row.title),
-  );
-  const fresh = items.filter((item) => !seeded.has(item.title));
+  const existing = await db.contentItem.count({
+    where: { brandId: brand.id, seriesId: null },
+  });
+  if (existing > 0) return 0;
+
+  const fresh = items;
   if (fresh.length === 0) return 0;
 
   const projects = await db.project.findMany({ select: { id: true, slug: true } });
@@ -1255,123 +601,6 @@ async function seedDrops(brandSlug: string, items: SeedDrop[]) {
   });
 
   return fresh.length;
-}
-
-/**
- * The one piece of reconciliation in this file. "Create the Coding Mom TikTok
- * account" was seeded under Sleepy Cat because Coding Mom had no project to hang
- * it on; it does now, and the account chain there supersedes it. Only removed
- * while it is still untouched — a task you have started or finished is yours.
- */
-async function reseatMarks() {
-  const codingMom = await db.project.findUnique({ where: { slug: "coding-mom" } });
-  const sleepyCat = await db.project.findUnique({ where: { slug: "sleepy-cat" } });
-  if (!codingMom || !sleepyCat) return 0;
-
-  const { count } = await db.task.deleteMany({
-    where: {
-      projectId: sleepyCat.id,
-      status: "open",
-      title: "Create the Coding Mom TikTok account",
-    },
-  });
-
-  // Changing a Series' project doesn't retouch the slots it already generated,
-  // so an empty slot made before Coding Mom was a project would publish without
-  // bumping it. Restricted to *unfilled* slots — an empty title and no project is
-  // the definition of untouched, and it leaves the 2026-08-02 essay (which
-  // deliberately carries Sleepy Cat) exactly where it is.
-  await db.contentItem.updateMany({
-    where: {
-      title: "",
-      projectId: null,
-      series: { brand: { slug: "coding-mom" } },
-    },
-    data: { projectId: codingMom.id },
-  });
-
-  return count;
-}
-
-/**
- * The first sprint, so the app never opens on an empty focus list.
- *
- * Bootstrap, not reconciliation — same rule as `seedMarks`. It runs only when
- * *no* sprint has ever existed, so it can't reach into a week you've already
- * planned. After this the sprint is planned in the app, on the Hunt Board.
- *
- * What goes in: everything already due inside the window (a due date is a
- * commitment the sprint has to honour, whatever else is going on), then the top
- * open tasks of the `main` projects until the sprint holds eight. Eight is a
- * week's worth alongside a daily posting cadence and a baby; the number matters
- * far less than the fact that there *is* one.
- */
-async function seedFirstSprint() {
-  if ((await db.sprint.count()) > 0) return null;
-
-  const now = new Date();
-  // `@db.Date`, so UTC midnight standing in for the local calendar day — see
-  // CLAUDE.md §6, "Dates are a trap here".
-  const startsOn = new Date(
-    Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()),
-  );
-  const endsOn = new Date(startsOn);
-  endsOn.setUTCDate(endsOn.getUTCDate() + 6);
-
-  const sprint = await db.sprint.create({
-    data: {
-      name: "Week 1",
-      goal: "Get Coding Mom's accounts standing up and Sleepy Cat honestly assessed.",
-      startsOn,
-      endsOn,
-      status: "active",
-    },
-  });
-
-  const due = await db.task.findMany({
-    where: { status: { not: "done" }, dueDate: { lte: endsOn } },
-    select: { id: true },
-    orderBy: [{ dueDate: "asc" }, { sortOrder: "asc" }],
-  });
-
-  // Round-robin across the main projects rather than straight down the sorted
-  // list. Ordering by project and taking the first five hands you five tasks
-  // from whichever project sorts first, which is a week spent on one thing —
-  // the opposite of what a two-main-project roster is asking for.
-  const mainProjects = await db.project.findMany({
-    where: { priority: "main", status: "active" },
-    select: { id: true },
-    orderBy: { sortOrder: "asc" },
-  });
-
-  const queues = await Promise.all(
-    mainProjects.map((project) =>
-      db.task.findMany({
-        where: { status: { not: "done" }, dueDate: null, projectId: project.id },
-        select: { id: true },
-        orderBy: { sortOrder: "asc" },
-        take: 8,
-      }),
-    ),
-  );
-
-  const filler: { id: string }[] = [];
-  for (let round = 0; filler.length < 8 - due.length; round += 1) {
-    const before = filler.length;
-    for (const queue of queues) {
-      if (filler.length >= 8 - due.length) break;
-      if (queue[round]) filler.push(queue[round]);
-    }
-    if (filler.length === before) break; // every queue is exhausted
-  }
-
-  const ids = [...due, ...filler].map((task) => task.id);
-  await db.task.updateMany({
-    where: { id: { in: ids } },
-    data: { sprintId: sprint.id },
-  });
-
-  return ids.length;
 }
 
 async function main() {
@@ -1454,12 +683,17 @@ async function main() {
 
     const saved = await db.series.upsert({
       where: { brandId_name: { brandId: brand.id, name: series.name } },
+      // `isActive` is deliberately **not** reasserted. Switching a series off
+      // is a decision made in the app — the two Utaitai dailies were turned off
+      // on 2026-08-04 because fourteen empty slots a week is data entry nobody
+      // has time for — and a re-seed that flipped them back on would start the
+      // slots generating again with no visible cause. Same rule as the Project
+      // upsert's `update: {}`, for the same reason.
       update: {
         format: series.format,
         cadence: series.cadence,
         daysOfWeek: [...series.daysOfWeek],
         timeOfDay: series.timeOfDay,
-        isActive: series.isActive,
         projectId: project?.id ?? null,
       },
       create: {
@@ -1490,17 +724,7 @@ async function main() {
   }
 
   const docsCreated = await seedDocs();
-  const reseated = await reseatMarks();
-
-  const marksCreated =
-    (await seedMarks("utaitai", UTAITAI_MARKS)) +
-    (await seedMarks("sleepy-cat", SLEEPY_CAT_MARKS)) +
-    (await seedMarks("coding-mom", CODING_MOM_MARKS)) +
-    (await seedMarks("forge", FORGE_MARKS)) +
-    (await seedMarks("multilingual-baby", MULTILINGUAL_MARKS));
-
   const dropsCreated = await seedDrops("coding-mom", CODING_MOM_DROPS);
-  const sprintMarks = await seedFirstSprint();
 
   const counts = {
     areas: await db.area.count(),
@@ -1513,18 +737,13 @@ async function main() {
     events: await db.event.count(),
   };
   console.log("Seeded:", counts);
-  console.log(`Tasks created: ${marksCreated}, ideas banked: ${dropsCreated}`);
-  if (reseated > 0) {
-    console.log("Moved 'Create the Coding Mom TikTok account' off Sleepy Cat.");
-  }
-  if (marksCreated === 0) {
-    console.log("Tasks: left alone — every project already has some.");
-  }
   console.log(
-    sprintMarks === null
-      ? "Sprint: left alone — one already exists."
-      : `Sprint: created 'Week 1' with ${sprintMarks} tasks.`,
+    dropsCreated === 0
+      ? "Ideas: left alone — the bank already has something in it."
+      : `Ideas: banked ${dropsCreated} for Coding Mom.`,
   );
+  console.log("Tasks: none — nothing but you creates a task.");
+  console.log("Sprints: none — the sprint was retired on 2026-08-04.");
   console.log(
     "Events: none — the calendar only ever holds what you put there.",
   );

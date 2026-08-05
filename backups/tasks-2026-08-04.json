@@ -1,0 +1,2382 @@
+[
+  {
+    "id": "cms9brw7a0019eexoiduiv7bu",
+    "title": "ASO pass — title, subtitle and keywords for both stores",
+    "notes": "The one marketing job that keeps paying after you stop doing it. Aim at what learners search: song names, 'learn Japanese with music'.",
+    "link": null,
+    "track": "Marketing",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 6,
+    "completedAt": null,
+    "createdAt": "2026-07-31T19:18:08.327Z",
+    "updatedAt": "2026-08-01T05:33:21.005Z",
+    "projectId": "cms8efc100005ee40hc7l8iwv",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "utaitai",
+      "name": "Utaitai"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9brw7a0014eexolzr6cgjm",
+    "title": "Get the Android build onto the internal testing track",
+    "notes": "Signing key in a safe place — losing it means a new listing.",
+    "link": null,
+    "track": "Ship",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 1,
+    "completedAt": null,
+    "createdAt": "2026-07-31T19:18:08.327Z",
+    "updatedAt": "2026-08-01T05:33:21.005Z",
+    "projectId": "cms8efc100005ee40hc7l8iwv",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "utaitai",
+      "name": "Utaitai"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9brw7b001eeexo8d358tso",
+    "title": "Product Hunt launch",
+    "notes": "Blocked on the landing page and the store listings being live.",
+    "link": null,
+    "track": "Marketing",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 11,
+    "completedAt": null,
+    "createdAt": "2026-07-31T19:18:08.327Z",
+    "updatedAt": "2026-08-01T05:33:21.005Z",
+    "projectId": "cms8efc100005ee40hc7l8iwv",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "utaitai",
+      "name": "Utaitai"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9brw7b001leexo1lhiw3bc",
+    "title": "Batch day — 7 songs each for JP + CN, recorded from the app",
+    "notes": "The weekly ritual. Find the songs, screen-record the clips, then fill the week in Studio → Fill the week.",
+    "link": null,
+    "track": "Content",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 18,
+    "completedAt": null,
+    "createdAt": "2026-07-31T19:18:08.327Z",
+    "updatedAt": "2026-08-01T05:33:21.005Z",
+    "projectId": "cms8efc100005ee40hc7l8iwv",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "utaitai",
+      "name": "Utaitai"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9brw7b001deexoibqu7yiy",
+    "title": "Line up 3 language-learning creators for a collab",
+    "notes": "Look for JP/CN learning accounts already doing song breakdowns — the overlap with the app is exact.",
+    "link": null,
+    "track": "Marketing",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 10,
+    "completedAt": null,
+    "createdAt": "2026-07-31T19:18:08.327Z",
+    "updatedAt": "2026-08-01T05:33:21.005Z",
+    "projectId": "cms8efc100005ee40hc7l8iwv",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "utaitai",
+      "name": "Utaitai"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9brw7b001keexozulyhw3t",
+    "title": "Prompt for an App Store review after N songs learned",
+    "notes": "Ratings gate everything else in the stores. Ask at the good moment.",
+    "link": null,
+    "track": "Users",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 17,
+    "completedAt": null,
+    "createdAt": "2026-07-31T19:18:08.327Z",
+    "updatedAt": "2026-08-01T05:33:21.005Z",
+    "projectId": "cms8efc100005ee40hc7l8iwv",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "utaitai",
+      "name": "Utaitai"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9brw7a0015eexodzc337zk",
+    "title": "App Store Connect: listing, screenshots, privacy labels",
+    "notes": null,
+    "link": null,
+    "track": "Ship",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 2,
+    "completedAt": null,
+    "createdAt": "2026-07-31T19:18:08.327Z",
+    "updatedAt": "2026-08-01T05:33:21.005Z",
+    "projectId": "cms8efc100005ee40hc7l8iwv",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "utaitai",
+      "name": "Utaitai"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9brw7a0013eexokytzgnfj",
+    "title": "Get the iOS build onto TestFlight",
+    "notes": "Signing, capabilities, a build that installs on a real phone.",
+    "link": null,
+    "track": "Ship",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 0,
+    "completedAt": null,
+    "createdAt": "2026-07-31T19:18:08.327Z",
+    "updatedAt": "2026-08-01T05:33:21.005Z",
+    "projectId": "cms8efc100005ee40hc7l8iwv",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "utaitai",
+      "name": "Utaitai"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9brw7b001ceexo8x6zz9us",
+    "title": "Pitch Apple and Google for editorial featuring",
+    "notes": "Both have submission forms. Free, and the upside is enormous.",
+    "link": null,
+    "track": "Marketing",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 9,
+    "completedAt": null,
+    "createdAt": "2026-07-31T19:18:08.327Z",
+    "updatedAt": "2026-08-01T05:33:21.005Z",
+    "projectId": "cms8efc100005ee40hc7l8iwv",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "utaitai",
+      "name": "Utaitai"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9brw7a001beexof8gr8nl4",
+    "title": "Landing page with both store links",
+    "notes": "Needed before Product Hunt and before any creator can link you.",
+    "link": null,
+    "track": "Marketing",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 8,
+    "completedAt": null,
+    "createdAt": "2026-07-31T19:18:08.327Z",
+    "updatedAt": "2026-08-01T05:33:21.005Z",
+    "projectId": "cms8efc100005ee40hc7l8iwv",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "utaitai",
+      "name": "Utaitai"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9brw7a001aeexogeqr598a",
+    "title": "Screenshots + a preview video for both stores",
+    "notes": "The daily TikToks are already this footage — cut them down.",
+    "link": null,
+    "track": "Marketing",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 7,
+    "completedAt": null,
+    "createdAt": "2026-07-31T19:18:08.327Z",
+    "updatedAt": "2026-08-01T05:33:21.005Z",
+    "projectId": "cms8efc100005ee40hc7l8iwv",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "utaitai",
+      "name": "Utaitai"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9brw7b001feexo62r0g5gm",
+    "title": "Build-in-public thread from Coding Mom about shipping Utaitai",
+    "notes": "Different brand, same work — this is exactly the drop that carries a brand and no project.",
+    "link": null,
+    "track": "Marketing",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 12,
+    "completedAt": null,
+    "createdAt": "2026-07-31T19:18:08.327Z",
+    "updatedAt": "2026-08-01T05:33:21.005Z",
+    "projectId": "cms8efc100005ee40hc7l8iwv",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "utaitai",
+      "name": "Utaitai"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9brw7b001geexoscyqzmz3",
+    "title": "In-app feedback button that emails me",
+    "notes": "The cheapest possible way to hear from users. One button, one mailto or form endpoint.",
+    "link": null,
+    "track": "Users",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 13,
+    "completedAt": null,
+    "createdAt": "2026-07-31T19:18:08.327Z",
+    "updatedAt": "2026-08-01T05:33:21.005Z",
+    "projectId": "cms8efc100005ee40hc7l8iwv",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "utaitai",
+      "name": "Utaitai"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9brw7b001heexo1foolv79",
+    "title": "Reply to every comment on both TikToks for a week",
+    "notes": "The audience is already there and already talking. This is the highest-signal user research available today, at zero cost.",
+    "link": null,
+    "track": "Users",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 14,
+    "completedAt": null,
+    "createdAt": "2026-07-31T19:18:08.327Z",
+    "updatedAt": "2026-08-01T05:33:21.005Z",
+    "projectId": "cms8efc100005ee40hc7l8iwv",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "utaitai",
+      "name": "Utaitai"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9brw7b001ieexo963mjjjl",
+    "title": "Book 5 user interviews with people who commented",
+    "notes": "20 minutes each. Ask what they were doing before they found you.",
+    "link": null,
+    "track": "Users",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 15,
+    "completedAt": null,
+    "createdAt": "2026-07-31T19:18:08.327Z",
+    "updatedAt": "2026-08-01T05:33:21.005Z",
+    "projectId": "cms8efc100005ee40hc7l8iwv",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "utaitai",
+      "name": "Utaitai"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9brw7b001jeexohpzarttz",
+    "title": "Open a Discord (or Line group) for early users",
+    "notes": "Somewhere they can talk to you and to each other.",
+    "link": null,
+    "track": "Users",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 16,
+    "completedAt": null,
+    "createdAt": "2026-07-31T19:18:08.327Z",
+    "updatedAt": "2026-08-01T05:33:21.005Z",
+    "projectId": "cms8efc100005ee40hc7l8iwv",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "utaitai",
+      "name": "Utaitai"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9brw7a0016eexo9qn2v01n",
+    "title": "Play Console: listing, screenshots, data safety form",
+    "notes": null,
+    "link": null,
+    "track": "Ship",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 3,
+    "completedAt": null,
+    "createdAt": "2026-07-31T19:18:08.327Z",
+    "updatedAt": "2026-08-01T05:33:21.005Z",
+    "projectId": "cms8efc100005ee40hc7l8iwv",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "utaitai",
+      "name": "Utaitai"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9brw7a0017eexorwhl61mb",
+    "title": "Submit the iOS build for review",
+    "notes": null,
+    "link": null,
+    "track": "Ship",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 4,
+    "completedAt": null,
+    "createdAt": "2026-07-31T19:18:08.327Z",
+    "updatedAt": "2026-08-01T05:33:21.005Z",
+    "projectId": "cms8efc100005ee40hc7l8iwv",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "utaitai",
+      "name": "Utaitai"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9brw7a0018eexo35j4a0sc",
+    "title": "Submit the Android build for review",
+    "notes": null,
+    "link": null,
+    "track": "Ship",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 5,
+    "completedAt": null,
+    "createdAt": "2026-07-31T19:18:08.327Z",
+    "updatedAt": "2026-08-01T05:33:21.005Z",
+    "projectId": "cms8efc100005ee40hc7l8iwv",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "utaitai",
+      "name": "Utaitai"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9law1g001eeexgzftx3qgy",
+    "title": "Watch 3 people play it without saying anything",
+    "notes": "Silently. Every instinct to explain the controls is a note about the tutorial.",
+    "link": null,
+    "track": "Build",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 5,
+    "completedAt": null,
+    "createdAt": "2026-07-31T23:44:51.124Z",
+    "updatedAt": "2026-07-31T23:44:51.124Z",
+    "projectId": "cms8efc4q0007ee4046zmps0q",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "sleepy-cat",
+      "name": "Sleepy Cat"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9law1g001feexgu6375swn",
+    "title": "Agree the full asset list with husband — one checklist, both of us",
+    "notes": "The handoff, not the drawing, is what stalls. One list means neither of us is guessing what's outstanding.",
+    "link": null,
+    "track": "Art",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 6,
+    "completedAt": null,
+    "createdAt": "2026-07-31T23:44:51.124Z",
+    "updatedAt": "2026-07-31T23:44:51.124Z",
+    "projectId": "cms8efc4q0007ee4046zmps0q",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "sleepy-cat",
+      "name": "Sleepy Cat"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9law1g001beexgybvm0lhd",
+    "title": "Difficulty curve pass over the level order",
+    "notes": "Reorder before building anything new — it's free and usually enough.",
+    "link": null,
+    "track": "Build",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 2,
+    "completedAt": null,
+    "createdAt": "2026-07-31T23:44:51.124Z",
+    "updatedAt": "2026-08-02T07:14:34.139Z",
+    "projectId": "cms8efc4q0007ee4046zmps0q",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "sleepy-cat",
+      "name": "Sleepy Cat"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9law1f0019eexgyxue5yd4",
+    "title": "Inventory every level — which are finished, which are still rough",
+    "notes": "Do this first. 'Polish the levels' is unstartable as a task; 'fix these four' isn't.",
+    "link": null,
+    "track": "Build",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 0,
+    "completedAt": null,
+    "createdAt": "2026-07-31T23:44:51.124Z",
+    "updatedAt": "2026-08-02T07:19:49.004Z",
+    "projectId": "cms8efc4q0007ee4046zmps0q",
+    "sprintId": "cms9nrxvh001deeqkuadrko2x",
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "sleepy-cat",
+      "name": "Sleepy Cat"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": {
+      "name": "Week 1"
+    }
+  },
+  {
+    "id": "cms9law1g001aeexgmjwnpqiw",
+    "title": "Fix the top 5 feel problems — controls, camera, collision",
+    "notes": "The things that make a cozy game feel cheap. Write the list while playing, fix it after.",
+    "link": null,
+    "track": "Build",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 1,
+    "completedAt": null,
+    "createdAt": "2026-07-31T23:44:51.124Z",
+    "updatedAt": "2026-08-02T07:19:49.004Z",
+    "projectId": "cms8efc4q0007ee4046zmps0q",
+    "sprintId": "cms9nrxvh001deeqkuadrko2x",
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "sleepy-cat",
+      "name": "Sleepy Cat"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": {
+      "name": "Week 1"
+    }
+  },
+  {
+    "id": "cms9law1g001geexgcypcbn3h",
+    "title": "Replace the placeholder sprites in the shipped levels",
+    "notes": null,
+    "link": null,
+    "track": "Art",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 7,
+    "completedAt": null,
+    "createdAt": "2026-07-31T23:44:51.124Z",
+    "updatedAt": "2026-07-31T23:44:51.124Z",
+    "projectId": "cms8efc4q0007ee4046zmps0q",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "sleepy-cat",
+      "name": "Sleepy Cat"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9law1g001heexgqp7aqnxt",
+    "title": "UI and menu art pass",
+    "notes": "Menus are what the screenshots show, and screenshots sell the page.",
+    "link": null,
+    "track": "Art",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 8,
+    "completedAt": null,
+    "createdAt": "2026-07-31T23:44:51.124Z",
+    "updatedAt": "2026-07-31T23:44:51.124Z",
+    "projectId": "cms8efc4q0007ee4046zmps0q",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "sleepy-cat",
+      "name": "Sleepy Cat"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9law1g001ieexgj1nvgvla",
+    "title": "Title screen and logo",
+    "notes": null,
+    "link": null,
+    "track": "Art",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 9,
+    "completedAt": null,
+    "createdAt": "2026-07-31T23:44:51.124Z",
+    "updatedAt": "2026-07-31T23:44:51.124Z",
+    "projectId": "cms8efc4q0007ee4046zmps0q",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "sleepy-cat",
+      "name": "Sleepy Cat"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9law1g001jeexgbvrfop8c",
+    "title": "Steam capsule art — main, small, header",
+    "notes": "Valve's sizes are exact and the capsule is most of your click-through. Not a last-week job.",
+    "link": "https://partner.steamgames.com/doc/store/assets/standard",
+    "track": "Art",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 10,
+    "completedAt": null,
+    "createdAt": "2026-07-31T23:44:51.124Z",
+    "updatedAt": "2026-07-31T23:44:51.124Z",
+    "projectId": "cms8efc4q0007ee4046zmps0q",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "sleepy-cat",
+      "name": "Sleepy Cat"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9law1g001keexgaa4yz6sf",
+    "title": "Register Steamworks and pay the $100 app fee",
+    "notes": "Blocks everything else on this track. There's a ~30-day wait after it too.",
+    "link": "https://partner.steamgames.com/",
+    "track": "Ship",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 11,
+    "completedAt": null,
+    "createdAt": "2026-07-31T23:44:51.124Z",
+    "updatedAt": "2026-07-31T23:44:51.124Z",
+    "projectId": "cms8efc4q0007ee4046zmps0q",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "sleepy-cat",
+      "name": "Sleepy Cat"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9law1g001leexg49afoubz",
+    "title": "Draft the store page — description, tags, screenshots, trailer",
+    "notes": null,
+    "link": null,
+    "track": "Ship",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 12,
+    "completedAt": null,
+    "createdAt": "2026-07-31T23:44:51.124Z",
+    "updatedAt": "2026-07-31T23:44:51.124Z",
+    "projectId": "cms8efc4q0007ee4046zmps0q",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "sleepy-cat",
+      "name": "Sleepy Cat"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9law1g001meexg0giweofs",
+    "title": "Build a depot and push a test build to Steam",
+    "notes": "Do it early with a rough build. The first upload is never the smooth one.",
+    "link": null,
+    "track": "Ship",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 13,
+    "completedAt": null,
+    "createdAt": "2026-07-31T23:44:51.124Z",
+    "updatedAt": "2026-07-31T23:44:51.124Z",
+    "projectId": "cms8efc4q0007ee4046zmps0q",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "sleepy-cat",
+      "name": "Sleepy Cat"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9law1g001neexgdmflq0ke",
+    "title": "Get the store page live for wishlists",
+    "notes": "Wishlists before launch are the whole game on Steam. Every week the page isn't up is a week of them not accruing.",
+    "link": null,
+    "track": "Ship",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 14,
+    "completedAt": null,
+    "createdAt": "2026-07-31T23:44:51.124Z",
+    "updatedAt": "2026-07-31T23:44:51.124Z",
+    "projectId": "cms8efc4q0007ee4046zmps0q",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "sleepy-cat",
+      "name": "Sleepy Cat"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9law1g001oeexgac7ci4ga",
+    "title": "Set a release date",
+    "notes": "Valve wants ~2 weeks' notice, and the date is what makes the rest real.",
+    "link": null,
+    "track": "Ship",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 15,
+    "completedAt": null,
+    "createdAt": "2026-07-31T23:44:51.124Z",
+    "updatedAt": "2026-07-31T23:44:51.124Z",
+    "projectId": "cms8efc4q0007ee4046zmps0q",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "sleepy-cat",
+      "name": "Sleepy Cat"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9law1g001peexgbostp6lt",
+    "title": "Create @sleepycatgame on X and Threads",
+    "notes": "Both are sitting in Studio → Channels as `planned`. Flip them to `live` once they exist.",
+    "link": null,
+    "track": "Marketing",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 16,
+    "completedAt": null,
+    "createdAt": "2026-07-31T23:44:51.124Z",
+    "updatedAt": "2026-07-31T23:44:51.124Z",
+    "projectId": "cms8efc4q0007ee4046zmps0q",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "sleepy-cat",
+      "name": "Sleepy Cat"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9law1g001reexg3vnkqvel",
+    "title": "Cut a trailer — Steam page and socials off the same edit",
+    "notes": null,
+    "link": null,
+    "track": "Marketing",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 18,
+    "completedAt": null,
+    "createdAt": "2026-07-31T23:44:51.124Z",
+    "updatedAt": "2026-07-31T23:44:51.124Z",
+    "projectId": "cms8efc4q0007ee4046zmps0q",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "sleepy-cat",
+      "name": "Sleepy Cat"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9law1g001ceexgmrlmro6g",
+    "title": "Pause, settings and save",
+    "notes": "A player on Steam will alt-tab, change the volume and quit mid-level. Without these that session ends badly.",
+    "link": null,
+    "track": "Build",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 3,
+    "completedAt": null,
+    "createdAt": "2026-07-31T23:44:51.124Z",
+    "updatedAt": "2026-08-01T00:53:56.246Z",
+    "projectId": "cms8efc4q0007ee4046zmps0q",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "sleepy-cat",
+      "name": "Sleepy Cat"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9law1g001deexgoblceg0e",
+    "title": "Controller support",
+    "notes": "Steam players expect it, and Valve asks about it on the store page.",
+    "link": null,
+    "track": "Build",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 4,
+    "completedAt": null,
+    "createdAt": "2026-07-31T23:44:51.124Z",
+    "updatedAt": "2026-08-01T00:53:56.246Z",
+    "projectId": "cms8efc4q0007ee4046zmps0q",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "sleepy-cat",
+      "name": "Sleepy Cat"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9mb27p001heenk7geh4yyt",
+    "title": "Write the bio — one line that says who this is and points at Forge",
+    "notes": "The bio is the only place Coding Mom converts an audience into Forge's waitlist. Worth 20 minutes now rather than a rewrite at 10k followers.",
+    "link": null,
+    "track": "Setup",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 4,
+    "completedAt": null,
+    "createdAt": "2026-08-01T00:12:58.741Z",
+    "updatedAt": "2026-08-02T07:14:34.139Z",
+    "projectId": "cms9mayf00009eenk5dzya0lf",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "coding-mom",
+      "name": "Coding Mom"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9mb27p001peenkd1y5tq85",
+    "title": "Stand up a Forge waitlist page for the bio to point at",
+    "notes": "Coding Mom is the community-building for Forge (§ docs/forge-vision.md). Until there is somewhere to send people, the audience doesn't compound into anything.",
+    "link": null,
+    "track": "Marketing",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 12,
+    "completedAt": null,
+    "createdAt": "2026-08-01T00:12:58.741Z",
+    "updatedAt": "2026-08-01T04:51:02.270Z",
+    "projectId": "cms9mayf00009eenk5dzya0lf",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "coding-mom",
+      "name": "Coding Mom"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9mb27p001oeenkd7v6xxod",
+    "title": "Reply to every comment for the first month",
+    "notes": "Small accounts grow on replies. It is also where the Forge interviews come from — the people who comment on a SIDS-monitor video are exactly who you need to talk to.",
+    "link": null,
+    "track": "Users",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 11,
+    "completedAt": null,
+    "createdAt": "2026-08-01T00:12:58.741Z",
+    "updatedAt": "2026-08-01T00:12:58.741Z",
+    "projectId": "cms9mayf00009eenk5dzya0lf",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "coding-mom",
+      "name": "Coding Mom"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9mb27p001neenkise9gf99",
+    "title": "Find and follow 20 mom-builder / multilingual-parenting accounts",
+    "notes": "Do it inside the warm-up week — it counts as warming and it maps the niche you are about to post into.",
+    "link": null,
+    "track": "Users",
+    "status": "open",
+    "dueDate": "2026-08-08T00:00:00.000Z",
+    "sortOrder": 10,
+    "completedAt": null,
+    "createdAt": "2026-08-01T00:12:58.741Z",
+    "updatedAt": "2026-08-01T00:12:58.741Z",
+    "projectId": "cms9mayf00009eenk5dzya0lf",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "coding-mom",
+      "name": "Coding Mom"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9mb27p001meenk44vxsovp",
+    "title": "Batch-film the first week of shorts during the warm-up",
+    "notes": "Day one of posting must not also be day one of filming. Fill them in Studio → Fill the week once the series is on.",
+    "link": null,
+    "track": "Content",
+    "status": "open",
+    "dueDate": "2026-08-08T00:00:00.000Z",
+    "sortOrder": 9,
+    "completedAt": null,
+    "createdAt": "2026-08-01T00:12:58.741Z",
+    "updatedAt": "2026-08-01T00:12:58.741Z",
+    "projectId": "cms9mayf00009eenk5dzya0lf",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "coding-mom",
+      "name": "Coding Mom"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9mb27p001geenkwscqwddo",
+    "title": "Claim @codingmom on Instagram, Facebook, YouTube and Threads",
+    "notes": "Same e-mail, same handle. Claiming costs nothing today and is impossible later — all four are already sitting in Studio → Channels as `planned`.",
+    "link": null,
+    "track": "Setup",
+    "status": "open",
+    "dueDate": "2026-08-02T00:00:00.000Z",
+    "sortOrder": 3,
+    "completedAt": null,
+    "createdAt": "2026-08-01T00:12:58.741Z",
+    "updatedAt": "2026-08-02T07:19:49.004Z",
+    "projectId": "cms9mayf00009eenk5dzya0lf",
+    "sprintId": "cms9nrxvh001deeqkuadrko2x",
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "coding-mom",
+      "name": "Coding Mom"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": {
+      "name": "Week 1"
+    }
+  },
+  {
+    "id": "cms9mb27p001eeenkqqqjhbdb",
+    "title": "Create the Coding Mom TikTok account with that e-mail",
+    "notes": "The channel already exists in Studio → Channels as `planned`. Flip it to `live` once the account is real.",
+    "link": null,
+    "track": "Setup",
+    "status": "open",
+    "dueDate": "2026-08-01T00:00:00.000Z",
+    "sortOrder": 1,
+    "completedAt": null,
+    "createdAt": "2026-08-01T00:12:58.741Z",
+    "updatedAt": "2026-08-02T07:19:49.004Z",
+    "projectId": "cms9mayf00009eenk5dzya0lf",
+    "sprintId": "cms9nrxvh001deeqkuadrko2x",
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "coding-mom",
+      "name": "Coding Mom"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": {
+      "name": "Week 1"
+    }
+  },
+  {
+    "id": "cms9mb27p001leenkq4qlwjxz",
+    "title": "Set the pillar rotation — which pillar posts on which day",
+    "notes": "Seven pillars, one post a day. Deciding the rotation once is what stops the daily question 'what do I post today', which is the thing that actually kills a daily cadence.",
+    "link": null,
+    "track": "Content",
+    "status": "open",
+    "dueDate": "2026-08-07T00:00:00.000Z",
+    "sortOrder": 8,
+    "completedAt": null,
+    "createdAt": "2026-08-01T00:12:58.741Z",
+    "updatedAt": "2026-08-01T00:12:58.741Z",
+    "projectId": "cms9mayf00009eenk5dzya0lf",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "coding-mom",
+      "name": "Coding Mom"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9mb27p001keenkejbsi6ij",
+    "title": "Decide what BLM stands for in 'BLM recipe app'",
+    "notes": "Written down from the brain-dump exactly as it was said. Expand it before it becomes a post — the idea is in the bank with the same warning on it.",
+    "link": null,
+    "track": "Content",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 7,
+    "completedAt": null,
+    "createdAt": "2026-08-01T00:12:58.741Z",
+    "updatedAt": "2026-08-01T00:12:58.741Z",
+    "projectId": "cms9mayf00009eenk5dzya0lf",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "coding-mom",
+      "name": "Coding Mom"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9mb27p001ieenkgk0msmim",
+    "title": "Flip the Coding Mom channels to `live` and switch on the Daily short",
+    "notes": "The series is seeded `isActive: false` because slots you cannot fill are worse than no slots. Turning it on is the last step of the warm-up week, not the first.",
+    "link": null,
+    "track": "Setup",
+    "status": "open",
+    "dueDate": "2026-08-09T00:00:00.000Z",
+    "sortOrder": 5,
+    "completedAt": null,
+    "createdAt": "2026-08-01T00:12:58.741Z",
+    "updatedAt": "2026-08-01T00:12:58.741Z",
+    "projectId": "cms9mayf00009eenk5dzya0lf",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "coding-mom",
+      "name": "Coding Mom"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9mb27p001feenkdksd5k8v",
+    "title": "Warm up the TikTok for a week — no posting until 2026-08-09",
+    "notes": "15 minutes a day: scroll, watch to the end, like, follow and comment in the mom / build / AIoT niche. This is what teaches the algorithm who you are before you ask it for anything, and it doubles as the best possible research for the content bank.",
+    "link": null,
+    "track": "Setup",
+    "status": "open",
+    "dueDate": "2026-08-08T00:00:00.000Z",
+    "sortOrder": 2,
+    "completedAt": null,
+    "createdAt": "2026-08-01T00:12:58.741Z",
+    "updatedAt": "2026-08-01T00:12:58.741Z",
+    "projectId": "cms9mayf00009eenk5dzya0lf",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "coding-mom",
+      "name": "Coding Mom"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9mb27p001jeenkp5vbs9q3",
+    "title": "Brain-dump the rest of the app ideas before they're gone again",
+    "notes": "There were 'a ton' and most of them are already lost. Sit with a 15-minute timer and empty your head into the idea column — the roster of on-brand apps is a whole content pillar on its own, and you cannot post about ideas you can't remember.",
+    "link": null,
+    "track": "Content",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 6,
+    "completedAt": null,
+    "createdAt": "2026-08-01T00:12:58.741Z",
+    "updatedAt": "2026-08-02T07:14:34.139Z",
+    "projectId": "cms9mayf00009eenk5dzya0lf",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "coding-mom",
+      "name": "Coding Mom"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9mb27p001deenk7oi6koo7",
+    "title": "Create the dedicated Coding Mom e-mail account",
+    "notes": "First, because every account below hangs off it — TikTok, Instagram, Facebook, YouTube, Threads, Medium. Doing this after the fact means migrating accounts instead of creating them.",
+    "link": null,
+    "track": "Setup",
+    "status": "doing",
+    "dueDate": "2026-08-01T00:00:00.000Z",
+    "sortOrder": 0,
+    "completedAt": null,
+    "createdAt": "2026-08-01T00:12:58.741Z",
+    "updatedAt": "2026-08-03T20:24:45.065Z",
+    "projectId": "cms9mayf00009eenk5dzya0lf",
+    "sprintId": "cms9nrxvh001deeqkuadrko2x",
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "coding-mom",
+      "name": "Coding Mom"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": {
+      "name": "Week 1"
+    }
+  },
+  {
+    "id": "cms9mb2g6001teenk4whozxln",
+    "title": "Price a $200 prototype run end to end with one manufacturer",
+    "notes": "The $200 sample credit is the load-bearing promise of the whole pitch. Find out what $200 actually buys before it goes on a landing page.",
+    "link": null,
+    "track": "Build",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 3,
+    "completedAt": null,
+    "createdAt": "2026-08-01T00:12:59.046Z",
+    "updatedAt": "2026-08-01T23:44:57.899Z",
+    "projectId": "cms9mayhs000beenk7anuxmk2",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "forge",
+      "name": "Forge"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9mb2g6001qeenkxkjhtfs1",
+    "title": "Spec the multilingual book reader — what it clips to, what it reads",
+    "notes": "The flagship. Start from the actual use: a Russian children's book, a Vietnamese-English household, a toddler who cannot read yet. One page of what it must do beats three months of what it could do.",
+    "link": null,
+    "track": "Build",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 0,
+    "completedAt": null,
+    "createdAt": "2026-08-01T00:12:59.046Z",
+    "updatedAt": "2026-08-01T23:44:57.899Z",
+    "projectId": "cms9mayhs000beenk7anuxmk2",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "forge",
+      "name": "Forge"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9mb2g6001reenkoj1cjyi4",
+    "title": "Breadboard version of the book reader — camera, speaker, off-the-shelf parts",
+    "notes": "Ugly and wired to a laptop is fine. The point is to learn whether it reads a real page in a real room, which no amount of design settles.",
+    "link": null,
+    "track": "Build",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 1,
+    "completedAt": null,
+    "createdAt": "2026-08-01T00:12:59.046Z",
+    "updatedAt": "2026-08-01T23:44:57.899Z",
+    "projectId": "cms9mayhs000beenk7anuxmk2",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "forge",
+      "name": "Forge"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9mb2g6001seenkkxc26r1x",
+    "title": "Spec the baby breathing tracker as the comfortable alternative to the sock",
+    "notes": "The complaint is comfort and price, so those are the spec — not more sensors. Owlet already owns 'more sensors'.",
+    "link": null,
+    "track": "Build",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 2,
+    "completedAt": null,
+    "createdAt": "2026-08-01T00:12:59.046Z",
+    "updatedAt": "2026-08-01T23:44:57.899Z",
+    "projectId": "cms9mayhs000beenk7anuxmk2",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "forge",
+      "name": "Forge"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9mb2g6001ueenktv7smyn0",
+    "title": "Interview 5 multilingual parents about reading to their kids",
+    "notes": "Recruit them from the Coding Mom comments — that is what the audience is for.",
+    "link": null,
+    "track": "Users",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 4,
+    "completedAt": null,
+    "createdAt": "2026-08-01T00:12:59.046Z",
+    "updatedAt": "2026-08-01T23:44:57.899Z",
+    "projectId": "cms9mayhs000beenk7anuxmk2",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "forge",
+      "name": "Forge"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9mb2g6001veenk1qc0kwv0",
+    "title": "Interview a pediatrician and a speech therapist",
+    "notes": "Both flagship products make claims about babies. Two conversations decide whether they are claims you can make.",
+    "link": null,
+    "track": "Users",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 5,
+    "completedAt": null,
+    "createdAt": "2026-08-01T00:12:59.046Z",
+    "updatedAt": "2026-08-01T23:44:57.899Z",
+    "projectId": "cms9mayhs000beenk7anuxmk2",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "forge",
+      "name": "Forge"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9mb2g6001weenkhfpa8mzy",
+    "title": "Talk to 3 manufacturers about small-run AIoT samples",
+    "notes": "The marketplace half of Forge is manufacturing partnerships. Nothing about it is real until someone on that side says yes.",
+    "link": null,
+    "track": "Users",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 6,
+    "completedAt": null,
+    "createdAt": "2026-08-01T00:12:59.046Z",
+    "updatedAt": "2026-08-01T23:44:57.899Z",
+    "projectId": "cms9mayhs000beenk7anuxmk2",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "forge",
+      "name": "Forge"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9mb2g6001xeenkrijx4ucp",
+    "title": "Document every prototype build as Coding Mom content",
+    "notes": "Phase 1 of the go-to-market *is* the content plan — the build videos are the marketing, so nothing gets built off-camera.",
+    "link": null,
+    "track": "Marketing",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 7,
+    "completedAt": null,
+    "createdAt": "2026-08-01T00:12:59.046Z",
+    "updatedAt": "2026-08-01T23:44:57.899Z",
+    "projectId": "cms9mayhs000beenk7anuxmk2",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "forge",
+      "name": "Forge"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9mb2g6001yeenkob13tx97",
+    "title": "Pick the real name — 'Forge' is a placeholder",
+    "notes": "ForgeMarket / ImpactForge / LuminaForge were the shortlist. Check the domain and the handles at the same time, and rename the project when it lands.",
+    "link": null,
+    "track": "Marketing",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 8,
+    "completedAt": null,
+    "createdAt": "2026-08-01T00:12:59.046Z",
+    "updatedAt": "2026-08-01T23:44:57.899Z",
+    "projectId": "cms9mayhs000beenk7anuxmk2",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "forge",
+      "name": "Forge"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cms9mb2g6001zeenkvnj9t9g7",
+    "title": "Draft the YC application against the current vision doc",
+    "notes": "Draft it early even if you apply late — the questions are the fastest way to find which parts of the vision are still hand-waving.",
+    "link": "https://www.ycombinator.com/apply",
+    "track": "Ship",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 9,
+    "completedAt": null,
+    "createdAt": "2026-08-01T00:12:59.046Z",
+    "updatedAt": "2026-08-01T23:44:57.899Z",
+    "projectId": "cms9mayhs000beenk7anuxmk2",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "forge",
+      "name": "Forge"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cmsbgeuuz001i5jkc315cc31g",
+    "title": "Find a Russian-speaking sitter or playgroup nearby",
+    "notes": "A few hours a week of a real speaker beats any amount of screen.",
+    "link": null,
+    "track": "Russian",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 3,
+    "completedAt": null,
+    "createdAt": "2026-08-02T07:03:30.141Z",
+    "updatedAt": "2026-08-02T07:03:30.141Z",
+    "projectId": "cmsbgeptl000b5jkcnio8oh58",
+    "sprintId": null,
+    "areaId": "cms8efbw40002ee40r5njqk4k",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "multilingual-baby",
+      "name": "Multilingual baby"
+    },
+    "area": {
+      "slug": "baby",
+      "name": "Baby"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cmsbgeuuz001m5jkcylwk24ti",
+    "title": "Write up the Russian problem once it has an answer",
+    "notes": "'My daughter's dad is Russian and won't teach her' is a real post, and it needs the ending first.",
+    "link": null,
+    "track": "Content",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 7,
+    "completedAt": null,
+    "createdAt": "2026-08-02T07:03:30.141Z",
+    "updatedAt": "2026-08-02T07:03:30.141Z",
+    "projectId": "cmsbgeptl000b5jkcnio8oh58",
+    "sprintId": null,
+    "areaId": "cms8efbw40002ee40r5njqk4k",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "multilingual-baby",
+      "name": "Multilingual baby"
+    },
+    "area": {
+      "slug": "baby",
+      "name": "Baby"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cmsbgeuuz001f5jkcdroza3qy",
+    "title": "Read her a Vietnamese book",
+    "notes": "Any length. The point is the sound of it, daily.",
+    "link": null,
+    "track": "Vietnamese",
+    "status": "open",
+    "dueDate": "2026-08-03T00:00:00.000Z",
+    "sortOrder": 0,
+    "completedAt": null,
+    "createdAt": "2026-08-02T07:03:30.141Z",
+    "updatedAt": "2026-08-03T02:23:43.400Z",
+    "projectId": "cmsbgeptl000b5jkcnio8oh58",
+    "sprintId": "cms9nrxvh001deeqkuadrko2x",
+    "areaId": "cms8efbw40002ee40r5njqk4k",
+    "recurrence": "daily",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "multilingual-baby",
+      "name": "Multilingual baby"
+    },
+    "area": {
+      "slug": "baby",
+      "name": "Baby"
+    },
+    "sprint": {
+      "name": "Week 1"
+    }
+  },
+  {
+    "id": "cmsbgeuuz001g5jkcgt3n4iij",
+    "title": "Read her an English book",
+    "notes": null,
+    "link": null,
+    "track": "English",
+    "status": "open",
+    "dueDate": "2026-08-03T00:00:00.000Z",
+    "sortOrder": 1,
+    "completedAt": null,
+    "createdAt": "2026-08-02T07:03:30.141Z",
+    "updatedAt": "2026-08-03T02:23:55.029Z",
+    "projectId": "cmsbgeptl000b5jkcnio8oh58",
+    "sprintId": "cms9nrxvh001deeqkuadrko2x",
+    "areaId": "cms8efbw40002ee40r5njqk4k",
+    "recurrence": "daily",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "multilingual-baby",
+      "name": "Multilingual baby"
+    },
+    "area": {
+      "slug": "baby",
+      "name": "Baby"
+    },
+    "sprint": {
+      "name": "Week 1"
+    }
+  },
+  {
+    "id": "cmsbgeuuz001j5jkcayc6hdpc",
+    "title": "Ask his family to video-call her in Russian, regularly",
+    "notes": "Costs nothing and needs no buy-in from him. Wants to be a standing slot, not an ask each time.",
+    "link": null,
+    "track": "Russian",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 4,
+    "completedAt": null,
+    "createdAt": "2026-08-02T07:03:30.141Z",
+    "updatedAt": "2026-08-02T07:03:30.141Z",
+    "projectId": "cmsbgeptl000b5jkcnio8oh58",
+    "sprintId": null,
+    "areaId": "cms8efbw40002ee40r5njqk4k",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "multilingual-baby",
+      "name": "Multilingual baby"
+    },
+    "area": {
+      "slug": "baby",
+      "name": "Baby"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cmsbgeuuz001h5jkclr2ifvl6",
+    "title": "Work out how she gets Russian",
+    "notes": "Her dad is Russian and won't teach her, so it has to come from somewhere else. The three below are the leads worth trying first — this row is the decision, not the doing.",
+    "link": null,
+    "track": "Russian",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 2,
+    "completedAt": null,
+    "createdAt": "2026-08-02T07:03:30.141Z",
+    "updatedAt": "2026-08-02T07:03:30.141Z",
+    "projectId": "cmsbgeptl000b5jkcnio8oh58",
+    "sprintId": null,
+    "areaId": "cms8efbw40002ee40r5njqk4k",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "multilingual-baby",
+      "name": "Multilingual baby"
+    },
+    "area": {
+      "slug": "baby",
+      "name": "Baby"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cmsbgeuuz001k5jkcmnt7k2ol",
+    "title": "Build a Russian shelf — songs, cartoons, board books",
+    "notes": "Lowest-effort lead. Won't make her fluent; will make it familiar.",
+    "link": null,
+    "track": "Russian",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 5,
+    "completedAt": null,
+    "createdAt": "2026-08-02T07:03:30.141Z",
+    "updatedAt": "2026-08-02T07:03:30.141Z",
+    "projectId": "cmsbgeptl000b5jkcnio8oh58",
+    "sprintId": null,
+    "areaId": "cms8efbw40002ee40r5njqk4k",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "multilingual-baby",
+      "name": "Multilingual baby"
+    },
+    "area": {
+      "slug": "baby",
+      "name": "Baby"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cmsbgeuuz001l5jkcotlsrm14",
+    "title": "Film the two-language reading routine for Coding Mom",
+    "notes": "The bilingual-baby angle is a Coding Mom pillar and this project is where the footage comes from.",
+    "link": null,
+    "track": "Content",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 6,
+    "completedAt": null,
+    "createdAt": "2026-08-02T07:03:30.141Z",
+    "updatedAt": "2026-08-02T07:03:30.141Z",
+    "projectId": "cmsbgeptl000b5jkcnio8oh58",
+    "sprintId": null,
+    "areaId": "cms8efbw40002ee40r5njqk4k",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "multilingual-baby",
+      "name": "Multilingual baby"
+    },
+    "area": {
+      "slug": "baby",
+      "name": "Baby"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cmsbgjgyr001f5jpwg5f1koye",
+    "title": "Batch the Utaitai week",
+    "notes": "Fill every upcoming slot from one grid. Screen-record the songs, paste the refs, advance the row.",
+    "link": "/studio/batch",
+    "track": "Content",
+    "status": "open",
+    "dueDate": "2026-08-02T00:00:00.000Z",
+    "sortOrder": 19,
+    "completedAt": null,
+    "createdAt": "2026-08-02T07:07:05.763Z",
+    "updatedAt": "2026-08-02T07:19:49.004Z",
+    "projectId": "cms8efc100005ee40hc7l8iwv",
+    "sprintId": "cms9nrxvh001deeqkuadrko2x",
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "weekly",
+    "daysOfWeek": [
+      3,
+      7
+    ],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "utaitai",
+      "name": "Utaitai"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": {
+      "name": "Week 1"
+    }
+  },
+  {
+    "id": "cmsbh071o000d5jft6xd8vh5y",
+    "title": "Read her a Vietnamese book",
+    "notes": "Any length. The point is the sound of it, daily.",
+    "link": null,
+    "track": "Vietnamese",
+    "status": "done",
+    "dueDate": "2026-08-02T00:00:00.000Z",
+    "sortOrder": 0,
+    "completedAt": "2026-08-02T07:20:06.059Z",
+    "createdAt": "2026-08-02T07:20:06.061Z",
+    "updatedAt": "2026-08-02T07:20:06.061Z",
+    "projectId": "cmsbgeptl000b5jkcnio8oh58",
+    "sprintId": "cms9nrxvh001deeqkuadrko2x",
+    "areaId": "cms8efbw40002ee40r5njqk4k",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": "cmsbgeuuz001f5jkcdroza3qy",
+    "project": {
+      "slug": "multilingual-baby",
+      "name": "Multilingual baby"
+    },
+    "area": {
+      "slug": "baby",
+      "name": "Baby"
+    },
+    "sprint": {
+      "name": "Week 1"
+    }
+  },
+  {
+    "id": "cmscluwit0001p80pf2iyntfq",
+    "title": "Read her a Vietnamese book",
+    "notes": "Any length. The point is the sound of it, daily.",
+    "link": null,
+    "track": "Vietnamese",
+    "status": "done",
+    "dueDate": "2026-08-03T00:00:00.000Z",
+    "sortOrder": 0,
+    "completedAt": "2026-08-03T02:23:43.396Z",
+    "createdAt": "2026-08-03T02:23:43.397Z",
+    "updatedAt": "2026-08-03T02:23:43.397Z",
+    "projectId": "cmsbgeptl000b5jkcnio8oh58",
+    "sprintId": "cms9nrxvh001deeqkuadrko2x",
+    "areaId": "cms8efbw40002ee40r5njqk4k",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": "cmsbgeuuz001f5jkcdroza3qy",
+    "project": {
+      "slug": "multilingual-baby",
+      "name": "Multilingual baby"
+    },
+    "area": {
+      "slug": "baby",
+      "name": "Baby"
+    },
+    "sprint": {
+      "name": "Week 1"
+    }
+  },
+  {
+    "id": "cmsclv5ht0003p80pnnnagukx",
+    "title": "Read her an English book",
+    "notes": null,
+    "link": null,
+    "track": "English",
+    "status": "done",
+    "dueDate": "2026-08-02T00:00:00.000Z",
+    "sortOrder": 0,
+    "completedAt": "2026-08-03T02:23:55.025Z",
+    "createdAt": "2026-08-03T02:23:55.026Z",
+    "updatedAt": "2026-08-03T02:23:55.026Z",
+    "projectId": "cmsbgeptl000b5jkcnio8oh58",
+    "sprintId": "cms9nrxvh001deeqkuadrko2x",
+    "areaId": "cms8efbw40002ee40r5njqk4k",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": "cmsbgeuuz001g5jkcgt3n4iij",
+    "project": {
+      "slug": "multilingual-baby",
+      "name": "Multilingual baby"
+    },
+    "area": {
+      "slug": "baby",
+      "name": "Baby"
+    },
+    "sprint": {
+      "name": "Week 1"
+    }
+  },
+  {
+    "id": "cmsdsde8p0001eenczrr8xroc",
+    "title": "Charge $1 for the 7-day trial, then $7.99 monthly automatically",
+    "notes": "Subscription on the existing $7.99 monthly price with a 7-day trial, and the $1 on the first invoice so it collects immediately. Check the current Stripe docs for the exact shape before building — a one-time line item on a trialing subscription, or a two-phase schedule. Prefer the first: one subscription, one price, and every later query stays simple. Trialing must count as fully entitled — the week was paid for.",
+    "link": null,
+    "track": "Monetization",
+    "status": "open",
+    "dueDate": "2026-08-05T00:00:00.000Z",
+    "sortOrder": 20,
+    "completedAt": null,
+    "createdAt": "2026-08-03T22:13:50.040Z",
+    "updatedAt": "2026-08-03T22:13:50.040Z",
+    "projectId": "cms8efc100005ee40hc7l8iwv",
+    "sprintId": "cms9nrxvh001deeqkuadrko2x",
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "utaitai",
+      "name": "Utaitai"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": {
+      "name": "Week 1"
+    }
+  },
+  {
+    "id": "cmsdsdect0003eenc8nwu5o18",
+    "title": "Paywall copy: $1 for 7 days, then $7.99/month, cancel anytime",
+    "notes": "Next to the button, same size as the rest of the sentence, not in a footer. A trial that charges by default is the pattern people feel tricked by, and one refund is cheaper than one person saying they were charged without warning.",
+    "link": null,
+    "track": "Monetization",
+    "status": "open",
+    "dueDate": "2026-08-06T00:00:00.000Z",
+    "sortOrder": 21,
+    "completedAt": null,
+    "createdAt": "2026-08-03T22:13:50.189Z",
+    "updatedAt": "2026-08-03T22:13:50.189Z",
+    "projectId": "cms8efc100005ee40hc7l8iwv",
+    "sprintId": "cms9nrxvh001deeqkuadrko2x",
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "utaitai",
+      "name": "Utaitai"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": {
+      "name": "Week 1"
+    }
+  },
+  {
+    "id": "cmsdsdef40005eencfdyn6lpe",
+    "title": "Decide and code what happens at day 7 — charged, failed, cancelled",
+    "notes": "Three outcomes and all three need an answer. Charged: nothing. Failed: Stripe retries on its own schedule, so say out loud whether access stays on in between rather than letting the entitlement check decide by accident. Cancelled during the week: access runs to the end of the paid 7 days, because they paid for 7 days.",
+    "link": null,
+    "track": "Monetization",
+    "status": "open",
+    "dueDate": "2026-08-06T00:00:00.000Z",
+    "sortOrder": 22,
+    "completedAt": null,
+    "createdAt": "2026-08-03T22:13:50.272Z",
+    "updatedAt": "2026-08-03T22:13:50.272Z",
+    "projectId": "cms8efc100005ee40hc7l8iwv",
+    "sprintId": "cms9nrxvh001deeqkuadrko2x",
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "utaitai",
+      "name": "Utaitai"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": {
+      "name": "Week 1"
+    }
+  },
+  {
+    "id": "cmsdsdegs0007eenc6gcbx1t2",
+    "title": "Leave the one existing subscriber on their current terms",
+    "notes": "A Stripe subscription keeps the price it was created with, so the new trial path shouldn't touch them. Confirm that in the dashboard rather than assuming it. Do not migrate — handing someone who already pays a trial, or changing their terms without asking, is how one subscriber becomes zero.",
+    "link": null,
+    "track": "Monetization",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 23,
+    "completedAt": null,
+    "createdAt": "2026-08-03T22:13:50.332Z",
+    "updatedAt": "2026-08-03T22:13:50.332Z",
+    "projectId": "cms8efc100005ee40hc7l8iwv",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "utaitai",
+      "name": "Utaitai"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cmsdsdei20009eencyjx25lvw",
+    "title": "Put Stripe's customer portal behind a Cancel link in the app",
+    "notes": "About a day's work, and without it the paywall copy is a lie. If the only way out is emailing me, 'cancel anytime' isn't true.",
+    "link": null,
+    "track": "Monetization",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 24,
+    "completedAt": null,
+    "createdAt": "2026-08-03T22:13:50.379Z",
+    "updatedAt": "2026-08-03T22:13:50.379Z",
+    "projectId": "cms8efc100005ee40hc7l8iwv",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "utaitai",
+      "name": "Utaitai"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cmsdsdejd000beenc69qft2cu",
+    "title": "Reminder e-mail on trial_will_end, three days before the charge",
+    "notes": "The webhook fires three days out, which on a 7-day trial is day 4. It costs a few conversions and buys the right to charge automatically at all.",
+    "link": null,
+    "track": "Monetization",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 25,
+    "completedAt": null,
+    "createdAt": "2026-08-03T22:13:50.425Z",
+    "updatedAt": "2026-08-03T22:13:50.425Z",
+    "projectId": "cms8efc100005ee40hc7l8iwv",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "utaitai",
+      "name": "Utaitai"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cmsdsdekq000deenc8chr6j03",
+    "title": "Write the refund line for the $1 and the first month",
+    "notes": "Before the first person asks, not during.",
+    "link": null,
+    "track": "Monetization",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 26,
+    "completedAt": null,
+    "createdAt": "2026-08-03T22:13:50.474Z",
+    "updatedAt": "2026-08-03T22:13:50.474Z",
+    "projectId": "cms8efc100005ee40hc7l8iwv",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "utaitai",
+      "name": "Utaitai"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cmsdsdeme000feencvk4djsv3",
+    "title": "Track trial starts and day-7 conversion",
+    "notes": "The $1 week is a bet against a free one. Without this number the bet never resolves and there is nothing to tune.",
+    "link": null,
+    "track": "Monetization",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 27,
+    "completedAt": null,
+    "createdAt": "2026-08-03T22:13:50.535Z",
+    "updatedAt": "2026-08-03T22:13:50.535Z",
+    "projectId": "cms8efc100005ee40hc7l8iwv",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "utaitai",
+      "name": "Utaitai"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  },
+  {
+    "id": "cmsdsdenp000heenczjjprp7i",
+    "title": "Resolve Stripe vs in-app purchase before the iOS submission",
+    "notes": "A Stripe paywall inside an iOS app that unlocks digital content is a rejection under guideline 3.1.1 — Apple wants IAP, at its cut and with its own trial mechanics. Six Ship tasks lead to that submission. Doesn't block the web checkout; does block the iOS one. Decide before building the paywall screen twice.",
+    "link": null,
+    "track": "Monetization",
+    "status": "open",
+    "dueDate": null,
+    "sortOrder": 28,
+    "completedAt": null,
+    "createdAt": "2026-08-03T22:13:50.581Z",
+    "updatedAt": "2026-08-03T22:13:50.581Z",
+    "projectId": "cms8efc100005ee40hc7l8iwv",
+    "sprintId": null,
+    "areaId": "cms8efbs60000ee40ztzqef93",
+    "recurrence": "none",
+    "daysOfWeek": [],
+    "repeatUntil": null,
+    "recurringId": null,
+    "project": {
+      "slug": "utaitai",
+      "name": "Utaitai"
+    },
+    "area": {
+      "slug": "work",
+      "name": "Work"
+    },
+    "sprint": null
+  }
+]

@@ -37,11 +37,11 @@ export const SURFACES: Surface[] = [
     href: "/calendar",
     label: "Calendar",
     icon: CalendarDays,
-    tagline: "Events, due dates and content on one timeline",
+    tagline: "What actually happens at a time. Everything else is a layer.",
   },
   {
     href: "/studio",
-    label: "Content Studio",
+    label: "Social Media",
     icon: Clapperboard,
     tagline: "Content moving toward publication",
   },

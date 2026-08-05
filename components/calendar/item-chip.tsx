@@ -113,8 +113,8 @@ export function ItemChip({
  *
  * The legend was already naming the three sources and counting them, so it is
  * the one place a layer switch can live without adding a control to the
- * toolbar: you read "37 content going out", and the thing that told you is the
- * thing you press. A hidden layer keeps its real count for exactly that reason
+ * toolbar: you read "37 social media content", and the thing that told you is
+ * the thing you press. A hidden layer keeps its real count for exactly that reason
  * (see the note in `parseLayers`) — it has to be able to advertise itself.
  *
  * Deliberately quiet. No accent: §9 gives the screen one crimson element and
@@ -135,7 +135,7 @@ export function Legend({
   const entries: Array<[CalendarItem["kind"], string]> = [
     ["event", "events"],
     ["task", "tasks due"],
-    ["item", "content going out"],
+    ["item", "social media content"],
   ];
 
   return (

@@ -11,6 +11,9 @@ export type ProjectRowView = {
   name: string;
   slug: string;
   description: string | null;
+  /** The one thing this project is aiming at right now. Distinct from
+   *  `description`: what it is, versus what it is *for* this month. */
+  focus: string | null;
   status: ProjectStatus;
   priority: ProjectPriority;
   cadenceDays: number | null;

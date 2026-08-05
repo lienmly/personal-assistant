@@ -7,7 +7,7 @@ import { SurfaceHeader } from "@/components/ui/surface-header";
 import { ensureSeriesSlots, getStudioBoard } from "@/lib/studio";
 import { todayKey } from "@/lib/utils";
 
-export const metadata = { title: "Studio · Clan Centurio" };
+export const metadata = { title: "Social Media · Clan Centurio" };
 
 // Slot generation writes, and the board must reflect those writes immediately.
 export const dynamic = "force-dynamic";
@@ -72,7 +72,7 @@ export default async function StudioPage() {
   return (
     <>
       <SurfaceHeader
-        title="Content Studio"
+        title="Social Media Content"
         tagline="One asset, many destinations. Every brand's pipeline in one place."
         meta={`${open} in flight`}
       />
@@ -100,7 +100,7 @@ export default async function StudioPage() {
           Brands, channels & series
         </Link>
         <p className="max-w-md text-[12px] leading-relaxed text-faint">
-          A content item carries two axes: the <strong className="font-medium">brand</strong>{" "}
+          A piece of social media content carries two axes: the <strong className="font-medium">brand</strong>{" "}
           publishing it and the <strong className="font-medium">project</strong>{" "}
           it&rsquo;s about. That&rsquo;s what lets a Sleepy Cat devlog go out as
           Coding Mom without inventing a second project for it.

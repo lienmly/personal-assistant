@@ -3,10 +3,11 @@ import type { ChannelPostState, ContentStage, Platform } from "@prisma/client";
 /** Plain view types — the Today lists are client components, so they must not
  *  pull `lib/db` into the bundle. Same rule as studio/ and board/. */
 
-/** Why a task is on the focus list — and, in that order, how it sorts. */
-export type FocusReason = "doing" | "overdue" | "today" | "sprint";
+/** Why a task sits near the top of its project's card. Drives the badge only —
+ *  since 2026-08-04 there is no cross-project ranking to drive. */
+export type TaskReason = "doing" | "overdue" | "today" | "soon" | "open";
 
-export type FocusTaskView = {
+export type TaskLineView = {
   id: string;
   title: string;
   link: string | null;
@@ -15,29 +16,44 @@ export type FocusTaskView = {
   /** Preformatted server-side; formatting dates in the client hydrates wrong.
    *  Null when the task has no due date at all. */
   dueLabel: string | null;
-  reason: FocusReason;
-  /** False for a due task that never made the sprint — it still belongs on the
-   *  screen, but it gets the one-tap "pull it in" affordance instead. */
-  inSprint: boolean;
-  projectName: string | null;
+  reason: TaskReason;
   areaColor: string;
   /** "Wed & Sun", "Daily" — null for a one-off. A repeating row has to say so:
    *  ticking it moves it to its next day rather than finishing it. */
   repeatLabel: string | null;
 };
 
-/** A row in "Next up" — the backlog you reach for when the sprint runs dry. */
-export type NextTaskView = {
+/** One project, as Today shows it: the focus line and the few rows that are
+ *  most worth seeing. The unit of this screen. */
+export type ProjectBoardView = {
   id: string;
-  title: string;
-  track: string | null;
-  link: string | null;
+  name: string;
+  slug: string;
+  /** What it's aiming at right now. Falls back to `description` on the card
+   *  when unwritten, so a project without one is still legible. */
+  focus: string | null;
+  description: string | null;
+  priority: string;
+  areaName: string;
+  areaColor: string;
+  /** "3d ago" — folded in from the retired Momentum card. */
+  touchedLabel: string;
+  drifting: boolean;
+  tasks: TaskLineView[];
+  openTotal: number;
+  overdue: number;
 };
 
-export type NextGroupView = {
-  projectName: string;
+/** One cell of the contribution map. `count: -1` marks a day in the future,
+ *  which is drawn as a gap rather than as a zero. */
+export type HeatDay = { key: string; count: number };
+
+export type DoneTodayView = {
+  id: string;
+  title: string;
+  projectName: string | null;
+  track: string | null;
   color: string;
-  tasks: NextTaskView[];
 };
 
 export type GoingOutChannelView = {

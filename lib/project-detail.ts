@@ -79,7 +79,6 @@ export async function getProjectDetail(slug: string) {
           task.dueDate !== null &&
           task.dueDate.toISOString().slice(0, 10) < today,
       ).length,
-      inSprint: open.filter((task) => task.sprintId !== null).length,
       scheduled: items.filter((item) => item.stage !== "published").length,
       published: items.filter((item) => item.stage === "published").length,
       docs: docs.length,

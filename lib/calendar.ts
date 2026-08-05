@@ -46,7 +46,7 @@ function localEnd(key: string): Date {
 }
 
 /** `@db.Date` → "YYYY-MM-DD". Read in UTC, because that is where Prisma puts
- *  the local calendar day it stands for. Same rule as `dayKey` in lib/sprints. */
+ *  the local calendar day it stands for. Same rule as `dayKey` in lib/today. */
 function dateOnlyKey(date: Date): string {
   return date.toISOString().slice(0, 10);
 }

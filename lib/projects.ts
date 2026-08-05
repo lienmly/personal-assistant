@@ -56,6 +56,7 @@ export async function getRoster() {
       name: project.name,
       slug: project.slug,
       description: project.description,
+      focus: project.focus,
       status: project.status,
       priority: project.priority,
       cadenceDays: project.cadenceDays,

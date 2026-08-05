@@ -232,7 +232,7 @@ export function CalendarSurface({
           <EmptyState
             icon={CalendarDays}
             title="Nothing on"
-            body="Events you add land here, alongside task due dates. Content going out is a layer you can switch on below."
+            body="Nothing but you puts something here. Task due dates and social media content are layers you can switch on below."
             className="mt-4 py-10"
           />
         )}

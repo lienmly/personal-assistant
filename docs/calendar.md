@@ -1,7 +1,8 @@
 # The Calendar
 
-_Written 2026-08-01, when Phase 4 shipped. Updated 2026-08-03 — content is a layer now,
-and the seeded events are gone. Update this when calendar behaviour changes._
+_Written 2026-08-01, when Phase 4 shipped. Updated 2026-08-04 — the grid now starts
+empty: events only, with tasks and social media content as layers you switch on. Update
+this when calendar behaviour changes._
 
 The Calendar is the only surface organised by **time** rather than by state. Everything
 else in Clan Centurio answers "what needs doing"; this one answers "what is my day".
@@ -16,7 +17,7 @@ Three different things share one grid, and they are told apart by **shape**, not
 |---|---|---|
 | **▌ bar** | An **Event** — something that happens at a time | Opens the event panel |
 | **▪ square** | A **Task** due that day | Goes to the Hunt Board |
-| **● dot** | A **Content item** going out at that time | Goes to Studio |
+| **● dot** | **Social media content** going out at that time | Goes to Social Media |
 
 Colour is the **area** (or, for a content item, the brand) — orange for Baby, blue for Work, and
 so on. That's why shape carries the type: colour is already saying something else.
@@ -25,19 +26,29 @@ Only Events actually live on the calendar. Task due dates and Content item publi
 *shown* here but still belong to the Hunt Board and Studio, which is why clicking them
 takes you there. The calendar is not a second place to edit them.
 
-### Layers — and why content starts off
+### Layers — and why the grid starts empty
 
 The three counts under the grid are also **switches**. Tap one to show or hide that layer.
 
-**Content going out starts hidden**, from 3 August 2026. The two Utaitai dailies alone put
-34 dots on an August grid — two a day, every day, most of them unfilled slots reading
-"Daily short — Japanese slot". A month that repetitive stops getting read at all, which
-costs you the handful of things on it that actually mattered. Turning content off took the
-August grid from 52 things to 11.
+**Only events are on by default.** Social media content came off on 3 August 2026 — the
+two Utaitai dailies alone were putting 34 dots on an August grid, two a day, most of them
+unfilled slots reading "Daily short — Japanese slot", and a month that repetitive stops
+getting read at all.
 
-You lose nothing: **ticking a post off already lives on Today**, in "Going out today", one
-tick per channel. That is where the satisfying part is, and the calendar was only showing
-it a second, worse time.
+**Task due dates came off on 4 August 2026**, and for a better reason than clutter. A task
+is a thing you **owe**; an event is a thing that **happens**. Drawing the first as though
+it were the second is a category error the grid makes look perfectly reasonable — a due
+date rendered as a square on Thursday reads as an appointment on Thursday, so a calendar
+full of them shows a week that looks fully booked when in truth *nothing at all is
+scheduled*. That is the same mistake as the seeded baby routine further down this page,
+one noun out.
+
+So the calendar starts empty and stays empty until you put something in it that genuinely
+happens at a time.
+
+You lose nothing by either. Your tasks are on Today, laid out per project; **ticking a post
+off already lives on Today** too, in "Social media content going out today", one tick per
+channel.
 
 The hidden layer still shows its real count, so it can tell you it's there. Tap it and the
 publish times come back — useful when you want the week's posting laid out against
@@ -103,9 +114,9 @@ The **Agenda** card on Today is the same events, just for today, in time order w
 all-day ones first. Things that have already finished go grey; whatever is happening right
 now gets a crimson **Now**.
 
-It shows **events only** — your tasks are already in the sprint card at the top of the
-screen and your content items are in "Going out today" in between, so putting them here as well
-would be the same row three times on one screen.
+It shows **events only** — your tasks are already in the project cards at the top of the
+screen and your posts are in "Social media content going out today" in between, so putting
+them here as well would be the same row three times on one screen.
 
 ---
 

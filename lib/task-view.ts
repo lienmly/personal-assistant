@@ -30,7 +30,6 @@ export type TaskRowInput = {
   track: string | null;
   status: TaskView["status"];
   dueDate: Date | null;
-  sprintId: string | null;
   projectId: string | null;
   areaId: string;
   recurrence: TaskView["recurrence"];
@@ -49,7 +48,6 @@ export const TASK_VIEW_SELECT = {
   track: true,
   status: true,
   dueDate: true,
-  sprintId: true,
   projectId: true,
   areaId: true,
   recurrence: true,
@@ -79,7 +77,6 @@ export function toTaskView(task: TaskRowInput, today = todayKey()): TaskView {
       : null,
     // A done task is never overdue. It was, and then it wasn't.
     overdue: dueDate !== null && dueDate < today && task.status !== "done",
-    sprintId: task.sprintId,
     projectId: task.projectId,
     areaId: task.areaId,
     recurrence: task.recurrence,

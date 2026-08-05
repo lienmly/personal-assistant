@@ -9,7 +9,6 @@ import { Card, CardHeader, StatTile } from "@/components/ui/card";
 import { Markdown } from "@/components/ui/markdown";
 import { db } from "@/lib/db";
 import { getProjectDetail } from "@/lib/project-detail";
-import { getActiveSprint } from "@/lib/sprints";
 import { toTaskView } from "@/lib/task-view";
 import { cn, todayKey } from "@/lib/utils";
 
@@ -28,6 +27,16 @@ const stampFormat = new Intl.DateTimeFormat("en-GB", {
 
 const TABS = ["overview", "tasks", "content", "docs"] as const;
 type Tab = (typeof TABS)[number];
+
+/** The tab's label, where it differs from its slug. The slug stays "content"
+ *  because it is in the URL and a rename would break every link already
+ *  bookmarked; the label says "Social media", which is what it holds. */
+const TAB_LABELS: Record<Tab, string> = {
+  overview: "Overview",
+  tasks: "Tasks",
+  content: "Social media",
+  docs: "Docs",
+};
 
 export async function generateMetadata({
   params,
@@ -51,9 +60,8 @@ export default async function ProjectPage({
 }) {
   const [{ slug }, query] = await Promise.all([params, searchParams]);
 
-  const [detail, sprint, projects, areas] = await Promise.all([
+  const [detail, projects, areas] = await Promise.all([
     getProjectDetail(slug),
-    getActiveSprint(),
     db.project.findMany({
       where: { status: { in: ["active", "simmering"] } },
       orderBy: [{ priority: "asc" }, { sortOrder: "asc" }],
@@ -142,6 +150,16 @@ export default async function ProjectPage({
               {project.description}
             </p>
           )}
+          {/* The focal point, set apart from the description rather than run
+              together with it: one says what this is, the other says what it
+              is *for* right now, and they are only useful when you can tell
+              which is which at a glance. Same line Today leads each project
+              card with. */}
+          {project.focus && (
+            <p className="mt-3 max-w-2xl border-l-2 border-accent/40 pl-3 text-sm leading-relaxed text-ink">
+              {project.focus}
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <span className="rounded-full bg-card px-3 py-1.5 text-[12.5px] text-muted shadow-card">
@@ -175,15 +193,11 @@ export default async function ProjectPage({
           tail={stats.done > 0 ? ` /${stats.open + stats.done}` : undefined}
           tone="dark"
           note={
-            stats.overdue > 0
-              ? `${stats.overdue} overdue`
-              : stats.inSprint > 0
-                ? `${stats.inSprint} in this sprint`
-                : "Nothing overdue"
+            stats.overdue > 0 ? `${stats.overdue} overdue` : "Nothing overdue"
           }
         />
         <StatTile
-          label="Content"
+          label="Social media"
           value={String(stats.scheduled)}
           note={
             stats.published > 0
@@ -216,13 +230,13 @@ export default async function ProjectPage({
             key={name}
             href={`/projects/${project.slug}${name === "overview" ? "" : `?tab=${name}`}`}
             className={cn(
-              "rounded-chip px-4 py-2 text-[13px] capitalize transition-[background-color,color] duration-(--duration-base) ease-soft",
+              "rounded-chip px-4 py-2 text-[13px] transition-[background-color,color] duration-(--duration-base) ease-soft",
               name === tab
                 ? "bg-obsidian font-medium text-white"
                 : "text-muted hover:text-ink",
             )}
           >
-            {name}
+            {TAB_LABELS[name]}
           </Link>
         ))}
       </nav>
@@ -321,7 +335,7 @@ export default async function ProjectPage({
                 </ul>
               ) : (
                 <p className="rounded-tile bg-inset px-4 py-6 text-center text-[13px] text-muted">
-                  No content queued for this project.
+                  No social media content queued for this project.
                 </p>
               )}
             </Card>
@@ -375,7 +389,6 @@ export default async function ProjectPage({
             project={self}
             projects={panelProjects}
             areas={areas as AreaView[]}
-            sprint={sprint}
           />
         </Card>
       )}
@@ -383,7 +396,7 @@ export default async function ProjectPage({
       {tab === "content" && (
         <Card>
           <CardHeader
-            title="Content"
+            title="Social media content"
             count={`${items.length} ${items.length === 1 ? "item" : "items"}`}
           />
           {items.length > 0 ? (
@@ -417,9 +430,9 @@ export default async function ProjectPage({
               <span className="mb-3 grid size-10 place-items-center rounded-full bg-card text-faint shadow-card">
                 <Radio className="size-4.5" strokeWidth={1.8} />
               </span>
-              <p className="text-sm font-medium text-ink">No content yet</p>
+              <p className="text-sm font-medium text-ink">No social media content yet</p>
               <p className="mt-1 max-w-xs text-[13px] leading-relaxed text-muted">
-                Content carrying this project shows up here, whichever brand
+                Social media content carrying this project shows up here, whichever brand
                 publishes it.
               </p>
             </div>
@@ -428,7 +441,7 @@ export default async function ProjectPage({
             href="/studio"
             className="mt-4 inline-block text-[12.5px] text-muted hover:text-accent"
           >
-            Open the Content Studio →
+            Open Social Media →
           </Link>
         </Card>
       )}

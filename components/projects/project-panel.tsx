@@ -16,7 +16,7 @@ const labelCls =
  *  what picking it actually changes — "side" vs "later" is meaningless
  *  otherwise, and a tier you can't tell apart is a tier you set at random. */
 const PRIORITIES = [
-  { value: "main", label: "Main", hint: "Opens expanded on the board, and feeds “Next up”." },
+  { value: "main", label: "Main", hint: "Opens expanded on the board, and leads on Today." },
   { value: "side", label: "Side", hint: "Real, but nothing new goes in right now." },
   { value: "later", label: "Later", hint: "Parked. Kept off the planning surfaces entirely." },
 ] as const;
@@ -156,6 +156,27 @@ export function ProjectPanel({
                 placeholder="A cosy cat game, headed for a Steam release."
                 className={cn(field, "resize-y")}
               />
+            </div>
+
+            {/* Sits directly under "what it is" because the two are read as a
+                pair, and separating them is what makes people write the wrong
+                thing in the wrong box. This is the line Today leads with. */}
+            <div>
+              <label className={labelCls} htmlFor="project-focus">
+                What it’s aiming at right now
+              </label>
+              <textarea
+                id="project-focus"
+                name="focus"
+                rows={2}
+                defaultValue={project?.focus ?? ""}
+                placeholder="Get the Steam page live so wishlists can start."
+                className={cn(field, "resize-y")}
+              />
+              <p className="mt-1.5 text-[12px] leading-relaxed text-faint">
+                One sentence, rewritten whenever it stops being true. Today
+                shows this above the project’s tasks.
+              </p>
             </div>
 
             <div>

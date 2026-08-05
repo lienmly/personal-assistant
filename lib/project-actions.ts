@@ -80,6 +80,7 @@ export async function saveProject(form: FormData) {
   const data = {
     name,
     description: str(form, "description"),
+    focus: str(form, "focus"),
     areaId,
     status: (str(form, "status") ?? "active") as ProjectStatus,
     priority: (str(form, "priority") ?? "side") as ProjectPriority,

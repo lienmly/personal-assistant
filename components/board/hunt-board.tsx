@@ -6,7 +6,6 @@ import {
   ChevronRight,
   ExternalLink,
   Link2,
-  Minus,
   Plus,
   Repeat,
   Sparkles,
@@ -18,10 +17,7 @@ import type {
   BoardProjectView,
   TaskView,
 } from "@/components/board/types";
-import { SprintBar } from "@/components/sprint/sprint-bar";
-import type { SprintView } from "@/components/sprint/types";
 import { captureExperiment, setTaskStatus } from "@/lib/task-actions";
-import { setTaskSprint } from "@/lib/sprint-actions";
 import { repeatLabel } from "@/lib/task-view";
 import { trackRank } from "@/lib/tracks";
 import { cn } from "@/lib/utils";
@@ -38,15 +34,11 @@ export function HuntBoard({
   tasks,
   projects,
   areas,
-  sprint,
-  suggestedSprintName,
   experimentProjectId,
 }: {
   tasks: TaskView[];
   projects: BoardProjectView[];
   areas: AreaView[];
-  sprint: SprintView | null;
-  suggestedSprintName: string;
   /** Where a pasted link lands by default — Utaitai, in practice. */
   experimentProjectId: string | null;
 }) {
@@ -58,32 +50,21 @@ export function HuntBoard({
   // the default below, so adding a project doesn't need this state seeding.
   const [toggled, setToggled] = useState<Record<string, boolean>>({});
 
-  const inSprint = useMemo(
-    () =>
-      sprint === null
-        ? []
-        : tasks.filter(
-            (task) =>
-              task.sprintId === sprint.id &&
-              (showDone || task.status !== "done"),
-          ),
-    [tasks, sprint, showDone],
-  );
-
-  /** The backlog: everything the sprint hasn't claimed, after the filters. */
+  /** Everything, after the filters. There is no longer a committed subset to
+   *  hold back — the sprint was retired on 2026-08-04, and this board is the
+   *  complete list it always claimed to be. */
   const visible = useMemo(() => {
     const mainProjects = new Set(
       projects.filter((p) => p.priority === "main").map((p) => p.id),
     );
     return tasks.filter(
       (task) =>
-        !(sprint !== null && task.sprintId === sprint.id) &&
         (areaFilter === null || task.areaId === areaFilter) &&
         (showDone || task.status !== "done") &&
         (scope === "all" ||
           (task.projectId !== null && mainProjects.has(task.projectId))),
     );
-  }, [tasks, projects, sprint, areaFilter, showDone, scope]);
+  }, [tasks, projects, areaFilter, showDone, scope]);
 
   /**
    * Project → track → tasks. Two levels because a project like Sleepy Cat runs
@@ -177,48 +158,7 @@ export function HuntBoard({
 
   return (
     <>
-      <SprintBar sprint={sprint} suggestedName={suggestedSprintName} />
-
-      {sprint && (
-        <section
-          style={{ animationDelay: "60ms" }}
-          className="mt-4 animate-rise rounded-card bg-card p-5 shadow-card"
-        >
-          <div className="mb-4 flex items-center gap-2.5">
-            <h2 className="text-[15px] font-semibold tracking-tight text-ink">
-              In the sprint
-            </h2>
-            <span className="text-[12px] text-faint">
-              This week&apos;s commitment
-            </span>
-            <span className="ml-auto rounded-full bg-inset px-2.5 py-1 text-xs font-medium text-muted">
-              {inSprint.filter((task) => task.status !== "done").length} open
-            </span>
-          </div>
-
-          {inSprint.length === 0 ? (
-            <p className="rounded-tile border border-dashed border-line py-4 text-center text-[13px] text-faint">
-              Nothing committed yet — use the + on any task below.
-            </p>
-          ) : (
-            <div className="flex flex-col">
-              {inSprint.map((task, index) => (
-                <TaskRow
-                  key={task.id}
-                  task={task}
-                  delay={60 + Math.min(index, 8) * 28}
-                  collapseOnDone={!showDone}
-                  sprintId={sprint.id}
-                  committed
-                  onOpen={() => setPanel({ mode: "edit", task })}
-                />
-              ))}
-            </div>
-          )}
-        </section>
-      )}
-
-      <div className="mt-5 mb-4 flex flex-wrap items-center gap-2">
+      <div className="mb-4 flex flex-wrap items-center gap-2">
         <ScopePill
           active={scope === "main"}
           onClick={() => setScope("main")}
@@ -335,9 +275,7 @@ export function HuntBoard({
                     }
                     className="mt-4 w-full rounded-tile border border-dashed border-line py-4 text-[13px] text-faint transition-[border-color,color,transform] duration-(--duration-base) ease-soft hover:border-muted hover:text-muted active:scale-[0.985]"
                   >
-                    {group.openCount === 0
-                      ? "Nothing left on this project — add the next task"
-                      : "Everything here is in the sprint"}
+                    Nothing on this project — add the first task
                   </button>
                 ) : (
                   <div className="mt-4 flex flex-col gap-4">
@@ -369,8 +307,6 @@ export function HuntBoard({
                               task={task}
                               delay={60 + Math.min(rowIndex++, 8) * 28}
                               collapseOnDone={!showDone}
-                              sprintId={sprint?.id ?? null}
-                              committed={false}
                               onOpen={() => setPanel({ mode: "edit", task })}
                             />
                           ))}
@@ -396,7 +332,6 @@ export function HuntBoard({
           task={panel.mode === "edit" ? panel.task : null}
           projects={projects}
           areas={areas}
-          sprint={sprint}
           defaults={
             panel.mode === "new"
               ? { projectId: panel.projectId, track: panel.track }
@@ -515,26 +450,16 @@ function TaskRow({
   onOpen,
   delay,
   collapseOnDone,
-  sprintId,
-  committed,
 }: {
   task: TaskView;
   onOpen: () => void;
   delay: number;
   /** True when "show done" is off, so ticking this row will remove it. */
   collapseOnDone: boolean;
-  /** The running sprint, or null — the +/− button hides without one. */
-  sprintId: string | null;
-  /** True in the sprint section, where the button removes rather than adds. */
-  committed: boolean;
 }) {
-  // Two transitions: ticking done folds the row away, moving it in or out of
-  // the sprint moves it to another card. Both remove the row, but only the
-  // first should collapse in place — see CLAUDE.md §10.
   const [pending, startTransition] = useTransition();
-  const [moving, startMove] = useTransition();
   const done = task.status === "done";
-  const busy = pending || moving;
+  const busy = pending;
   const repeat = repeatLabel(task);
 
   // The row folds away while the tick is in flight, because the server
@@ -542,7 +467,7 @@ function TaskRow({
   // jankiest thing on the board. Derived from `pending` rather than held in
   // state, so a failed action simply unfolds it again instead of leaving a
   // blank gap where the row was.
-  const leaving = (pending && collapseOnDone && !done) || moving;
+  const leaving = pending && collapseOnDone && !done;
 
   return (
     <div
@@ -632,32 +557,6 @@ function TaskRow({
             <span className="shrink-0 animate-rise rounded-full bg-warn-soft px-2 py-0.5 text-[10px] font-medium text-warn">
               doing
             </span>
-          )}
-
-          {/* Sprint planning is this one button. Shown outright on touch and on
-              hover on a pointer device — a hover-only control doesn't exist on
-              the phone, which is where planning actually happens. */}
-          {sprintId && !done && (
-            <button
-              type="button"
-              disabled={busy}
-              aria-label={
-                committed ? "Take out of the sprint" : "Add to the sprint"
-              }
-              title={committed ? "Take out of the sprint" : "Add to the sprint"}
-              onClick={() =>
-                startMove(() =>
-                  setTaskSprint(task.id, committed ? null : sprintId),
-                )
-              }
-              className="shrink-0 rounded-full bg-inset p-1 text-muted transition-[opacity,background-color,color] duration-(--duration-quick) hover:bg-line hover:text-ink focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
-            >
-              {committed ? (
-                <Minus className="size-3" strokeWidth={2.4} />
-              ) : (
-                <Plus className="size-3" strokeWidth={2.4} />
-              )}
-            </button>
           )}
 
           {task.link && (

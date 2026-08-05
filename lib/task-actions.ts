@@ -64,16 +64,8 @@ export async function saveTask(form: FormData) {
   }
   if (!areaId) throw new Error("A task needs a project or an area");
 
-  // Only written when the form actually carries the field. The task panel
-  // always does; anything else that saves a task must not silently pull it out
-  // of the sprint just by not knowing sprints exist.
-  const sprint = form.has("sprintId")
-    ? { sprintId: str(form, "sprintId") }
-    : {};
-
-  // Same shape as the sprint field above: only written when the form knows
-  // about recurrence, so a save from somewhere that doesn't can't quietly turn
-  // a repeating task into a one-off.
+  // Only written when the form knows about recurrence, so a save from
+  // somewhere that doesn't can't quietly turn a repeating task into a one-off.
   const repeat = form.has("recurrence")
     ? {
         recurrence: (str(form, "recurrence") ?? "none") as Recurrence,
@@ -94,7 +86,6 @@ export async function saveTask(form: FormData) {
     dueDate: dateOnly(str(form, "dueDate")),
     projectId,
     areaId,
-    ...sprint,
     ...repeat,
   };
 
@@ -161,9 +152,9 @@ export async function setTaskStatus(taskId: string, status: string) {
  * Ticking a recurring task: write what happened, then re-arm.
  *
  * The snapshot is a real `done` Task rather than a counter, so everything that
- * already reads tasks keeps working — sprint history, the board's recent-done
- * list, "what did I actually get through in July". It carries `recurringId`,
- * which is what tells the two apart.
+ * already reads tasks keeps working — Today's contribution map, the board's
+ * recent-done list, "what did I actually get through in July". It carries
+ * `recurringId`, which is what tells the two apart.
  *
  * The live row advances to the next occurrence **after today**, not after its
  * old due date. Advancing from the old date is the obvious version and it is
@@ -187,11 +178,10 @@ async function completeRecurring(tx: Prisma.TransactionClient, task: Task) {
       status: "done",
       completedAt: new Date(),
       // The day it was *for*, so a Sunday batch ticked on Monday morning still
-      // reads as Sunday's — which is what the sprint's record should say.
+      // reads as Sunday's.
       dueDate: task.dueDate,
       projectId: task.projectId,
       areaId: task.areaId,
-      sprintId: task.sprintId,
       recurringId: task.id,
     },
   });
@@ -239,9 +229,9 @@ export async function deleteTask(taskId: string) {
  * something else, and any field beyond the first is enough friction to lose
  * them.
  *
- * It lands in the backlog on the Experiments track, which is where "Next up"
- * already reads ideas from, so a note written on Tuesday surfaces itself the
- * next time the sprint runs dry rather than needing to be remembered.
+ * It lands on the Experiments track with no project, so it shows up on Today
+ * under "One-offs" — visible without being filed, which is the point: filing
+ * it is a decision for later, and demanding one now is how the thought is lost.
  */
 export async function captureIdea(form: FormData) {
   await requireSession();

@@ -35,8 +35,6 @@ export type TaskView = {
   /** Preformatted server-side — see the note in `components/studio/types.ts`. */
   dueLabel: string | null;
   overdue: boolean;
-  /** The running sprint's id when this task is committed to it, else null. */
-  sprintId: string | null;
   projectId: string | null;
   areaId: string;
 

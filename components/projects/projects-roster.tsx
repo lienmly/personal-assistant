@@ -93,7 +93,7 @@ export function ProjectsRoster({
             body={
               filter
                 ? "Clear the filter to see the rest of the roster."
-                : "A project is the thing you're actually pushing forward. Every task and every piece of content hangs off one, and each carries a last-touched date so the quiet ones can't hide."
+                : "A project is the thing you're actually pushing forward. Every task and every piece of social media content hangs off one, and each carries a last-touched date so the quiet ones can't hide."
             }
             className="py-16"
           />

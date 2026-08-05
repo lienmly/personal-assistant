@@ -162,6 +162,17 @@ model Project {
   slug          String          @unique
   name          String
   description   String?
+  /// The one thing this project is aiming at *right now* — "Get the Steam page
+  /// live for wishlists", not "a cozy game made with my husband".
+  ///
+  /// Deliberately a second field rather than a rewrite of `description`, because
+  /// they answer different questions and both get asked. `description` is what
+  /// the project *is* and changes almost never; `focus` is what it is *for this
+  /// month* and is meant to be rewritten often. Today leads each project card
+  /// with this line: with four projects running concurrently, "what was I even
+  /// doing here" is the question that costs the most to answer from a task list
+  /// alone.
+  focus         String?
   status        ProjectStatus   @default(active)
   /// The second axis — see `ProjectPriority`. Drives which projects the Hunt
   /// Board opens expanded and which ones "Next up" draws from.

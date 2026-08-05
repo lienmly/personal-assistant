@@ -122,8 +122,7 @@ dashboard/UI ecosystem, easy Google auth, and a clean path to embedding an AI as
 /lib               → auth config, nav config, server actions, utils
 /components/studio → the content item board, daily queue, batch composer, content item panel, channel manager
 /components/board  → the hunt board, task panel, experiment capture
-/components/sprint → the sprint bar, the sprint panel (shared by Today and the board)
-/components/today  → focus list, "next up", going-out, momentum, agenda
+/components/today  → project cards, the contribution map, going-out, agenda
 /components/calendar → month grid, week/day time grid, item chips, the event panel
 /components/projects → the roster, the project panel
 /lib/db.ts         → Prisma client singleton
@@ -131,9 +130,8 @@ dashboard/UI ecosystem, easy Google auth, and a clean path to embedding an AI as
 /lib/studio-actions.ts → server actions for content items, channels, series, batch save
 /lib/tasks.ts      → hunt board query
 /lib/task-actions.ts → server actions for tasks
-/lib/sprints.ts    → active sprint, the focus list, "next up"
-/lib/sprint-actions.ts → start / close a sprint, move tasks in and out
-/lib/projects.ts   → momentum (Today §4) + the roster query
+/lib/today.ts      → the project cards and the contribution map (Today)
+/lib/projects.ts   → the roster query + `daysSince`
 /lib/project-actions.ts → create / edit / re-tier / archive / delete a project
 /lib/tracks.ts     → workstream names (client-safe: no Prisma import)
 /lib/calendar.ts   → the window query, recurrence expansion, the three-source merge
@@ -232,8 +230,9 @@ market it — had nowhere to live, and it isn't content, so Studio couldn't hold
       a phone at 3am, and `priority` had no editor at all. Three rules fell out of it —
       see §6, "The roster is the editor".
 - [ ] Due dates on the rest of the tasks — only the Coding Mom setup chain has them
-- [ ] Sprint history — closed sprints keep their finished tasks, and nothing reads them
-      yet. "What did I actually get done in July" is a query away and worth having.
+- [x] ~~Sprint history~~ — moot. The sprint was retired 2026-08-04, and "what did I
+      actually get done" is now Today's contribution map, read off `Task.completedAt`
+      rather than off sprint membership.
 
 ### Phase 4 — Calendar
 _Built 2026-08-01._
@@ -273,6 +272,31 @@ turned out to be wrong once the app had been lived in for two days._
 - [x] Pace on the sprint tile, and one-field idea capture on Today
 - [ ] Area CRUD — still the only noun without an editor. Five areas ever, so it has
       still never bitten.
+
+### Phase 4.6 — The pressure came out
+_Built 2026-08-04. Not planned either. Phase 4.5 fixed what was wrong once the app had
+been lived in for two days; this fixes what was wrong once it had been lived in for four,
+and every item is the same shape — **the app was asserting things nobody had told it.**_
+- [x] **The sprint is retired.** Gone from Today and the Hunt Board; nothing creates one.
+      Schema kept. §6, "The sprint"
+- [x] **Today is project-first** — one card per project, with a focus line and its few
+      most pressing rows. Momentum folded in. §6, "The Today screen"
+- [x] **`Project.focus`** (`20260804090000_project_focus`) — what a project is aiming at
+      *right now*, editable on the project panel, led with on Today
+- [x] **A contribution map** replaces the pace metric — no target, so no shortfall
+- [x] **The seed no longer creates tasks, sprints or events.** All 78 seeded tasks deleted
+      (backed up to `backups/tasks-2026-08-04.json`). §6, "Nothing but you creates a task"
+- [x] **The calendar starts empty** — `DEFAULT_LAYERS` is `["event"]`. §6, sixth rule
+- [x] **Utaitai's two daily series switched off** and their 40 empty slots deleted; the
+      recurring "Batch the Utaitai week" task is the whole commitment now
+- [x] **"Content" reads "Social media content"** across every surface; the Studio nav item
+      is "Social Media" (route unchanged)
+- [x] **Migration drift fixed** — an applied-but-uncommitted `20260801183000_docs` had been
+      making every `prisma migrate dev` offer to reset the database. Reconstructed from the
+      live schema; the dead `Doc` table it created is dropped
+- [ ] Area CRUD — still the only noun without an editor
+- [ ] Multi-select delete on the Hunt Board. Clearing 78 rows needed a script; clearing the
+      next batch shouldn't.
 
 ### Phase 5 — Montblanc (AI assistant)
 - [ ] Chat drawer with streaming (Claude via AI SDK), available on every surface
@@ -316,7 +340,7 @@ a destination.**
 | **Project** | The thing being pushed forward. Belongs to one Area. | "Utaitai", "Sleepy Cat", "Rental 4B" | Constant |
 | **Brand** | A public identity with an audience and a voice. Owns Channels. | Utaitai, Coding Mom, Sleepy Cat | Rare |
 | **Task** | A task. Belongs to a Project, or floats in an Area for one-offs. | "Fix collision bug" | Constant |
-| **Sprint** | The handful of Tasks that are *this week's* work. Everything else is backlog. | "Week 1 — get the accounts up" | Weekly |
+| ~~Sprint~~ | _Retired 2026-08-04. Table kept, nothing reads it — see "The sprint" below._ | — | — |
 | **Content item** | A unit of content going out. Carries a Brand and (optionally) a Project. | "Devlog #7 → X + Threads" | Constant |
 | **Series** | A standing commitment that generates dated Content item slots. | "Daily short, both Utaitai TikToks" | Rare |
 | **Event** | Something that *happens at a time*, as opposed to something to do. | "Afternoon nap", "Paediatrician" | Constant |
@@ -352,37 +376,37 @@ is that both Coding Mom *series* now carry `projectId: coding-mom` — the daily
 that project's work, so posting has to bump its `lastTouchedAt` or Momentum reports it
 drifting on a day you posted.
 
-### The sprint — decided 2026-07-31
+### The sprint — introduced 2026-07-31, **retired 2026-08-04**
 
-By the time four projects had tasks on them the Hunt Board held **sixty open rows** and
-had stopped being usable: it answered "what *could* I do", which is not a question anyone
-can answer at 7am with a baby on one arm. Today was no better — section 1 was "every task
-with a due date", and since only Coding Mom's setup chain had due dates, the screen you
-open twenty times a day was either empty or one project's admin.
+The sprint was a named, dated, deliberately small set of Tasks — "these, this week" — that
+Today read from, invented because sixty open rows on the Hunt Board is the right *contents*
+for a planning surface and the wrong thing to be greeted by at 7am. It worked as designed
+and was removed anyway, which is worth recording properly because the failure is not in the
+implementation.
 
-A **Sprint** fixes both ends. It is a named, dated, deliberately small set of Tasks —
-"these, this week" — and it changes what each surface is *for*:
+**A commitment made on Monday is a prediction about Thursday, and this is not a life where
+that prediction holds.** The sprint tile reported done-against-committed and, after
+2026-08-02, *pace* — "2 behind pace · 3d left". On a week where the baby takes the week,
+that arithmetic has exactly one output, and the screen opened twenty times a day becomes
+the one keeping score. The instrument was fine; the thing it measured was the wrong thing
+to put in front of someone whose available hours are not theirs to allocate.
 
-- **Today** reads the sprint. Nine rows, ordered so the top one is the answer.
-- **The Hunt Board** stays the complete list, and that is now fine, because it is
-  somewhere you go on purpose rather than the first thing you see.
+Two smaller things were wrong with it even on a good week. It **flattened the project
+axis** — its list ranked rows across every project at once, so the fact you actually needed
+to choose (which project this belongs to) was a muted word at the end of a line. And it
+**made the choice for you**, which is the opposite of what "I'll pick what fits today" asks
+for.
 
-Three rules make it work, and each is there because the obvious alternative fails:
+What replaced it is in "The Today screen" below: the unit is the project, not the task, and
+the only progress indicator is a record of what was done rather than a measure against a
+target. See also "Nothing but you creates a task" — the same principle, one noun over.
 
-1. **One active sprint.** Two would put Today back in the business of merging lists.
-2. **Closing a sprint returns its unfinished Tasks to the backlog** — it does *not* roll
-   them into the next one. Rolling over is how a sprint quietly becomes a second,
-   permanent to-do list: the leftovers accumulate, next week starts full, and the
-   commitment stops meaning anything. Finished tasks keep their `sprintId`, which is the
-   record of what the week actually produced.
-3. **Due dates outrank the sprint.** Today shows anything due or overdue *whether or not*
-   it made the sprint, flagged, with one tap to pull it in. A due date is a promise to the
-   outside world and doesn't stop being true because planning missed it.
-
-The other half of the fix is **"Next up"**, collapsed at the foot of the focus list. When
-the sprint runs dry the answer must be specific rather than "here is the board again":
-the next few Tasks from each `main` project, plus the Experiments track — the things you
-meant to try and never got to.
+**What was removed:** `lib/sprints.ts`, `lib/sprint-actions.ts`, `components/sprint/*`, the
+sprint bar and "In the sprint" card on the Hunt Board, the sprint toggle in the task panel,
+`getBandwidth` / "While you're in it", `getUpNext` / "Next up", and the Momentum card
+(folded into the project cards). The **`Sprint` table and `Task.sprintId` stay in the
+schema**: dropping them would delete the record of what Week 1 held, and an unread column
+costs nothing. `Task.sprintId` is no longer selected, written or displayed anywhere.
 
 ### Two axes again: priority is not status — decided 2026-07-31
 
@@ -466,48 +490,62 @@ row. Left icon rail on desktop, bottom tab bar on mobile — same IA, no redesig
 
 | Surface | Purpose |
 |---|---|
-| **Today** | The one screen opened 20×/day. "What do I do right now." Reads the sprint. |
-| **Hunt Board** | Every open Task, grouped by Project. Where the sprint gets *planned*, not executed. |
-| **Calendar** | Time. Events + baby + Content item publish dates + Task due dates, layered. |
-| **Studio** | Cross-project content pipeline. Kanban by stage, or calendar by publish date. |
+| **Today** | The one screen opened 20×/day. "What have I got on." One card per project. |
+| **Hunt Board** | Every open Task, grouped by Project and track. The complete list, in full. |
+| **Calendar** | Time. Events only by default; Task due dates and content are layers. |
+| **Social Media** | Cross-project content pipeline. Kanban by stage. (Route is still `/studio`.) |
 | **Projects** | The roster. Health and momentum at a glance. |
 | **Montblanc** | A drawer on every surface, so it always knows what you're looking at. |
 
 Future **Ledger** (bank + property audit, §5 Phase 6) slots in as one more surface without
 disturbing anything. That's the test the IA is built to pass.
 
-### The Today screen
+### The Today screen — rebuilt project-first 2026-08-04
 
-Four stacked sections, in priority order. ("Section" just means a card on the
-screen — they are numbered so the roadmap can refer to them.)
+**The unit of this screen is the project, not the task.** That is the whole change. The
+question it answers is "what have I got on, and which of it fits today" — which is a
+different question from "what is the single next thing", and the sprint was a good answer
+to the second one.
 
-1. **This sprint** — the week's committed Tasks, plus anything due or overdue from
-   anywhere. Ordered `doing` → overdue → due today → the rest of the sprint, so the top
-   row is literally the answer to "what now". Capped (~8), tickable in place, and each row
-   can be flipped to `doing` without opening anything. Followed by **Next up**, collapsed:
-   where to go when the sprint runs dry. ✅
-2. **Going out today** — Content items publishing today, with channel icons. Visually distinct from
-   Tasks. Each channel is its own tick, so posting can be recorded without leaving Today. ✅
-3. **Agenda** — today's calendar events, including the baby's routine, in time order with
-   the all-day ones first. **Events only**: the tasks are the focus list two cards up and
-   the content items have their own card in between, so replaying either here would put the same
-   row on one screen three times. Anything already finished recedes rather than vanishing,
-   and whatever is happening *right now* is the card's one accent. ✅
-4. **Momentum** — per-project "last touched", drifting first then main-first, with drift
-   warnings. ✅
-5. **While you're in it** — only on days a weekly recurring task has already put you inside
-   a project. Two or three of that project's other backlog rows, framed as an offer. On any
-   other day the card does not render. ✅
+Four cards, and none of them counts down:
 
-Plus two things that live inside section 1 rather than beside it: the **sprint planner**,
-which replaces the list when the sprint is empty, and **idea capture** — one field at the
-foot of the card, filing to the Experiments track, because the ideas that get lost are the
-ones you have while doing something else.
+1. **Your projects** — one card per `active`/`simmering` project, carrying its **focus
+   line**, its few most pressing Tasks (`doing` → overdue → due today → due this week →
+   the rest, capped at 5), an overdue count across the *whole* project, and how long since
+   it was last touched. Tickable in place; ▶ flips a row to `doing`. Loose tasks with no
+   project collect at the foot under **One-offs**. ✅
+2. **Ticked off** — a GitHub-style contribution map over the last 26 weeks, plus what was
+   completed today. ✅
+3. **Social media content going out today** — items publishing today, one tick per channel,
+   so posting is recorded without leaving Today. ✅
+4. **Agenda** — today's calendar events, in time order, all-day first. Events only, and
+   usually empty, which is now the correct state (see the calendar rules below). ✅
 
-All five sections are built as of 2026-08-02.
+Plus **idea capture** at the foot of the projects card: one field, filing to the
+Experiments track with no project, because the ideas that get lost are the ones you have
+while doing something else and any second field is enough friction to lose them.
 
-The four stat tiles are Sprint (the one dark hero tile — done/total and days left), On the
-list, Content items going out, Needs attention.
+Three rules fell out, each chosen over an obvious alternative that fails:
+
+1. **The card order is fixed** — `priority` then `sortOrder`, never drift or due dates.
+   This screen is read by *scanning*, and a list that reshuffles overnight has to be
+   re-read from the top every morning; a stable one is learned once. Urgency lives inside
+   each card, where it is cheap to spot.
+2. **A project with nothing open still renders**, saying so, with a link to put something
+   on it. "Forge has nothing queued" is information — it is the prompt — and a project that
+   vanishes when its last task is ticked is one you forget you own.
+3. **Progress is shown backwards.** A contribution map has no target, so it *cannot* report
+   a shortfall; the only thing it can say is what you did. On a bad week the useful fact is
+   not "you did fewer than planned", it is that the row is unbroken. Recurring snapshots
+   count — reading her a Vietnamese book on thirty days is thirty things done — and the
+   streak does not break for today not having one yet, because at 7am it never would.
+
+The **Momentum card is folded in** rather than deleted: a list of every project's
+last-touched date sitting beside a list of every project was the same information twice.
+It is now the quiet "4d ago" line on each card, amber when the project is past cadence.
+
+The four stat tiles are **Ticked off today** (the one dark hero tile — an achievement, not
+a deficit), Projects on the go, Social media content, and Overdue.
 
 Section 4 is the answer to *"which projects am I actually following?"* Every Project carries a
 `status` and a `lastTouchedAt` that bumps whenever one of its Tasks completes or one of its
@@ -529,7 +567,9 @@ Built ones are in `prisma/schema.prisma`, which is the source of truth; this is 
 
 - **Area** — slug, name, color, sortOrder ✅
   _(Area doubles as the calendar grouping — see §8, resolved.)_
-- **Project** — slug, name, description, areaId, status (`active` | `simmering` | `paused` |
+- **Project** — slug, name, description, **focus** (nullable — the one line saying what it
+  is aiming at *right now*, distinct from `description`, which says what it *is*; Today
+  leads each project card with it), areaId, status (`active` | `simmering` | `paused` |
   `archived`), priority (`main` | `side` | `later`), lastTouchedAt, cadenceDays (nullable,
   drives drift warnings) ✅
 - **Sprint** — name, goal, startsOn/endsOn (`@db.Date`), status (`planning` | `active` |
@@ -544,7 +584,8 @@ Built ones are in `prisma/schema.prisma`, which is the source of truth; this is 
 - **ContentItemChannel** — join: itemId, channelId, state, caption, scheduledFor, publishedAt,
   publishedUrl ✅
 - **Task** — id, title, notes, link, track, dueDate, status (`open` | `doing` | `done`),
-  sprintId (nullable — null means backlog), projectId (nullable), areaId, recurrence
+  sprintId (nullable, **vestigial** — the sprint was retired 2026-08-04 and nothing reads
+  or writes this), projectId (nullable), areaId, recurrence
   (`none` | `daily` | `weekdays` | `weekly` | `monthly`), daysOfWeek, repeatUntil,
   recurringId (set on a completed snapshot, pointing at the live row) ✅
 - **ProjectDoc** — projectId, slug (minted once, never follows a rename), title, body
@@ -644,6 +685,20 @@ Three things make it work rather than just hide data:
   unfillable dot — recognisably the same failure as §6's "Followed, not scheduled", where
   a thing you *owe* had been drawn as a thing that *happens*.
 
+**And a sixth, added 2026-08-04: the task layer comes off too, so the grid starts empty.**
+Content came off for clutter, which is a weak reason next to this one. **A task is a thing
+you owe; an event is a thing that happens**, and drawing the first as though it were the
+second is a category error the grid makes look entirely reasonable — a due date rendered as
+a square on Thursday reads as an appointment on Thursday, so a calendar full of due dates
+shows a week that appears fully booked when in truth *nothing is scheduled at all*. That is
+the third time this same error has been found and removed: the baby routine ("Followed, not
+scheduled"), the five seeded events, and now the default layer set. `DEFAULT_LAYERS` is
+`["event"]`.
+
+The layer stays available in the legend, and the honest consequence is stated plainly: a
+calendar that opens empty is a calendar telling the truth, and an empty one is the correct
+state until something that genuinely happens at a time is put in it.
+
 **And nothing but you creates an event — decided 2026-08-03.** The seed's five invented
 events are deleted and `seedEvents` is gone. "Check the rent has landed" and "In-laws
 visiting" were demo rows built to give Phase 4's new grid something to draw, and they
@@ -668,35 +723,36 @@ A recurring task is **one live row that advances**. Ticking it writes a `done` s
 chosen over an obvious alternative that fails:
 
 1. **The snapshot is a real Task, not a counter.** Everything that already reads tasks —
-   sprint history, momentum, the board's recent-done list — keeps working untouched.
-   The cost is that every list and count must filter `recurringId: null`, or a daily habit
-   appears thirty times. That filter is now in `getHuntBoard`, `getProjectDetail`,
-   `getFocus`, `getUpNext`, `getRoster`, `getMomentum` and the calendar's task layer.
+   the board's recent-done list, momentum, and (since 2026-08-04) Today's contribution map
+   — keeps working untouched. The cost is that every list of *open* work must filter
+   `recurringId: null`, or a daily habit appears thirty times: `getHuntBoard`,
+   `getProjectDetail`, `getProjectBoards`, `getRoster`, `getMomentum` and the calendar's
+   task layer. The contribution map is the one place that deliberately does **not** filter
+   them — thirty days of reading to her is thirty things done, and collapsing them to the
+   one live row would make the easiest habits to keep the ones that show up least.
 2. **It advances from *today*, not from its old due date.** Advancing from the old date is
    how a habit skipped for a fortnight returns as fourteen overdue rows for days that have
    already gone. Missing a day is missing a day.
-3. **The sprint counts it done once it has fired inside the window.** `status: "done"`
-   reports it outstanding all week however many times you did it; counting snapshots pushes
-   `done` past `total`, because two Wednesdays and a Sunday are three completions of one
-   commitment.
+3. ~~**The sprint counts it done once it has fired inside the window.**~~ Moot since
+   2026-08-04 — nothing counts a recurring task against a target any more. The problem it
+   solved (a live row never *stays* `done`, so it reported outstanding all week however
+   many times you did it) simply does not arise on a screen with no denominator.
 4. **A recurring task with no due date is a rule that never fires.** It looks scheduled on
    the board and never reaches Today. `saveTask` and the seeder both infer the first
    occurrence rather than demanding one — ticking "every Wednesday" and leaving the date
    blank is the obvious thing to do.
 
-### "While you're in it" — decided 2026-08-02
+### "While you're in it" — added 2026-08-02, **removed 2026-08-04**
 
-Utaitai is `side`, so no sprint is ever going to claim "ship the iOS build". But its
-content is produced in two sittings a week, and those are the only two days the project
-reliably gets opened at all — which is the only moment its backlog is *cheap*, because the
-context is already loaded. Section 5 of Today offers two or three of those rows on exactly
-those days, and does not exist on any other.
+A card that appeared only on days a weekly or monthly recurring task had already put you
+inside a project, offering two or three of that project's other backlog rows while the
+context was loaded. It existed because Utaitai is `side`, so no sprint was ever going to
+claim "ship the iOS build", and its twice-weekly batching days were the only moment its
+backlog was cheap.
 
-Anchored on a **weekly or monthly** recurring task, never a daily one: a daily habit
-doesn't create a special context, and anchoring on one would put the card on screen every
-day, which is how it becomes wallpaper. Those projects are what "Next up" is for. And
-anchored on the *task*, not the weekday — move the batch to Tuesday and Friday and this
-follows, with nothing to keep in step.
+It was a workaround for the sprint hiding side projects, and the project-first Today does
+not hide them: Utaitai has a card every day, with its rows on it. Keeping both would have
+put the same three tasks on one screen twice.
 
 ### Followed, not scheduled — decided 2026-08-02
 
@@ -720,33 +776,15 @@ project, so the two axes (§6) do the work again.
 Real appointments still belong on the calendar. A paediatrician slot has a time, and the
 time is the point.
 
-### The sprint rolls itself — decided 2026-08-02
+### The sprint rolls itself — added 2026-08-02, **removed 2026-08-04**
 
-A sprint that has to be closed and re-created by hand stops happening within a fortnight,
-and what it leaves behind is worse than no sprint: Today keeps rendering last week's
-commitment as though it were this week's, so the one screen meant to answer "what now"
-quietly starts answering it wrong.
+`ensureActiveSprint()` closed an expired sprint on render, handed its unfinished tasks back
+to the backlog and opened a fresh Monday–Sunday week (extending through the following
+Sunday if the rollover landed at a weekend, so as not to mint a one-day sprint). An empty
+sprint arrived with eight pre-ticked suggestions.
 
-`ensureActiveSprint()` runs on render from Today, the same way `ensureSeriesSlots` does.
-There is no scheduler and there does not need to be one — the rollover only has to have
-happened by the time someone looks. Past its end date the sprint closes, its unfinished
-tasks return to the **backlog** (rule 2 of "The sprint" above, unchanged and now
-automatic), and a fresh Monday–Sunday week is created.
-
-Two things fell out of building it:
-
-- **A weekend rollover runs through the *following* Sunday.** Mon-to-Sun around today gives
-  a Saturday rollover a one-day sprint: you plan eight things and all eight go back on
-  Monday having never been reachable. Below three days of runway, extend.
-- **An empty sprint arrives with the planning already done.** "Go and plan it" is the Hunt
-  Board's blank page moved one screen earlier, which is the thing sprints exist to avoid.
-  `getSprintSuggestion` proposes eight — overdue, then due this week, then the next rows
-  from each `main` project — pre-ticked, so the interaction is un-ticking two and pressing
-  a button.
-
-The sprint tile now reads **pace** (done-so-far against days-elapsed) rather than only a
-countdown, because "3 days left" leaves that sum to be done in your head every morning,
-which is the work the tile exists to save.
+All of it worked. It is gone with the sprint itself — nothing creates a sprint now, and
+Today no longer calls anything on render except `ensureSeriesSlots`.
 
 ### The docs moved onto the project — decided 2026-08-02
 
@@ -777,6 +815,39 @@ Three smaller decisions:
 3. **The roster card opens the project; the pencil opens the settings panel.** Tapping a
    card used to open the editor, so the first thing you ever saw of a project was a form
    asking what tier it was.
+
+### Nothing but you creates a task — decided 2026-08-04
+
+This is the third and last time this rule was arrived at, and stating it generally now:
+**the seed creates structure, never work.** Areas, projects, brands, channels, series and
+docs are scaffolding and are bootstrapped. Tasks, sprints and events are things you owe or
+things that happened, and both are claims about your life that only you can make.
+
+The cost of getting it wrong is asymmetric and that is the whole argument. A row you wrote
+and no longer want costs one tap to delete. A row *you did not write* costs you a stop, a
+re-read, and a decision about whether it was yours — before you are allowed to dismiss it.
+Seventy-eight of those is not a full board, it is a board you stop opening.
+
+It was worse than a one-off mistake because of how "A seed has to be able to grow" (below)
+had been resolved. Matching on title made the seed additive, which was the right fix for
+the stated problem and introduced a much worse one: **the seed could not tell "you never
+had this" from "you had it and threw it away"**, so every deleted task came back on the
+next `db:seed`. That is precisely why the board filled with work nobody remembered writing
+and nobody could trace.
+
+The three fixes, in order of how much they matter:
+
+1. **`seedTasks` and the five `*_MARKS` arrays are deleted outright** — ~700 lines. Not
+   guarded, not behind a flag: a landmine with a safety catch is still a landmine, and the
+   rows survive in `backups/tasks-2026-08-04.json` and in git.
+2. **`seedDrops` reverts to an all-or-nothing guard.** The idea bank seeds only into a brand
+   that has none. The bank can no longer grow from this file, which is the honest price —
+   a new idea gets typed into the Social Media board, which is where ideas are had anyway.
+3. **The Series upsert stops reasserting `isActive`.** Switching Utaitai's dailies off is a
+   decision made in the app, and a re-seed that flipped them back on would restart slot
+   generation with no visible cause. Same rule as the Project upsert's `update: {}`.
+
+`seedFirstSprint` and `reseatMarks` went with them.
 
 ### A seed has to be able to grow — decided 2026-08-02
 
@@ -906,11 +977,12 @@ originally — shifts every publish time by the machine's offset.
   - Crimson `#de1f4c` is the *single* accent: one emphasis per region (active nav item, the
     primary action, one highlighted metric). A screen with crimson everywhere is wrong.
   - Black is used sparingly as a second emphasis — the selected pill, one hero tile.
-    **The budget is one black element per screen, and both surfaces have now spent it:**
-    the sprint bar on the Hunt Board (which is why the experiment-capture box was demoted
-    from obsidian to `bg-inset` on 2026-07-31) and the sprint stat tile on Today. The
-    selected scope pill is the one exception — a segmented control needs a filled state,
-    and it's small enough not to compete.
+    **The budget is one black element per screen.** On Today it is the "Ticked off today"
+    tile (it was the sprint tile until 2026-08-04 — the hero slot changed hands but not
+    size). On a project page it is the "Open" tile. The Hunt Board's went with the sprint
+    bar, which is why its experiment-capture box stays `bg-inset` rather than reclaiming
+    obsidian. The selected scope pill and the active project tab are the exceptions — a
+    segmented control needs a filled state, and both are small enough not to compete.
   - Dense, calm typography: small muted labels above large confident numbers/titles.
   - Iconography and avatars are small, round, and inline with text — never decorative.
 
@@ -940,14 +1012,14 @@ originally — shifts every publish time by the machine's offset.
 - **User docs live in `/docs`.** Guides written for *me reading later*, not for agents:
   - `docs/studio-guide.md` — how to use the Studio (brands, channels, content items, series,
     the board, repurposing). Written 2026-07-30. Update it when Studio behaviour changes.
-  - `docs/sprints.md` — the weekly loop: plan on the Hunt Board, work from Today, what
-    happens to leftovers when a sprint closes, and what the project tiers mean.
-    Written 2026-07-31. Update it when sprint behaviour changes.
+  - `docs/today.md` — the project cards, the focus line, the contribution map, and why
+    the sprint went. Written 2026-08-04, replacing `sprints.md`. Update it when Today
+    changes.
   - `docs/projects.md` — project pages, the four tabs, and where docs live now.
     Written 2026-08-02.
-  - `docs/calendar.md` — the three things on the grid and how they differ, getting
-    around the views, repeating events and what editing one actually changes, and the
-    baby's routine. Written 2026-08-01. Update it when calendar behaviour changes.
+  - `docs/calendar.md` — the three things that can go on the grid and how they differ,
+    why only events show by default, getting around the views, and repeating events.
+    Written 2026-08-01, updated 2026-08-04.
   **Project docs are no longer here.** The Coding Mom brief, the Forge vision and the
   multilingual-baby plan live on their projects' **Docs tabs** in the app, and their
   source files sit in `prisma/docs/` as seed material only. See §6, "The docs moved onto
@@ -1025,7 +1097,10 @@ Named animations: `animate-rise` (fade + 8px up — cards, columns, rows arrivin
 - **Now on macOS**, at `/Users/hcb3o/startups/personal-assistant` (Node v20.20.2, TZ
   `America/Los_Angeles`). Phase 4 was built and verified here. The Windows notes below are
   kept because that machine still exists, but they are no longer where the work happens.
-  - _Windows:_ project lived on `D:\personal assistant dashboard`, npm cache redirected to
+  - _Windows:_ **as of 2026-08-04 this is where the work is happening again, and it
+    runs.** `C:` now has **104 GB free**, so the "0 bytes free / `next dev` dies
+    allocating memory" note below is stale — Phase 4.6 was built and verified in a
+    signed-in browser here. Project lives on `D:\personal assistant dashboard`, npm cache redirected to
     `D:\npm-cache` because the `C:` system drive kept filling. If npm errors with `ENOSPC`
     or Node throws "heap out of memory" there, check free space on `C:` first — a full
     system drive breaks the pagefile. Measured 2026-07-31 at **100% (69 MB free)**.
@@ -1054,6 +1129,65 @@ Named animations: `animate-rise` (fade + 8px up — cards, columns, rows arrivin
   older Next.js knowledge. Version-specific docs are bundled at
   `node_modules/next/dist/docs/`; the scaffold's `AGENTS.md` reminds agents to consult them
   before writing framework code. Read the relevant guide there when unsure.
+
+---
+
+_Last updated: 2026-08-04 · Status: **Phase 4.6 — the pressure came out.**_
+
+_**2026-08-04 — the app stopped telling me things I hadn't told it.** Four complaints
+arrived together and they turned out to be one complaint. **The sprint is gone** — it
+worked exactly as designed, and what it was designed to do was measure a Monday commitment
+against a Thursday that a four-month-old gets to decide, which on a bad week makes the
+screen you open twenty times a day into the one keeping score. **Today is project-first
+now**: one card per project carrying a new `Project.focus` line — what this is aiming at
+*right now*, as opposed to `description`, which says what it is — and its few most pressing
+rows, in a fixed order, because a screen you read by scanning cannot reshuffle itself
+overnight. Momentum folded into those cards, since a list of every project's last-touched
+date beside a list of every project was the same thing twice. And progress is shown
+**backwards**: a GitHub-style contribution map of what actually got ticked off, which has
+no target and therefore cannot report a shortfall._
+
+_**All 78 tasks were deleted, and the seed is why they were there.** Not one of them had
+been typed into the app; `seedTasks` created them across five projects and matched on
+title, so anything deleted came back on the next `db:seed` — which is the whole answer to
+"I don't know where the hell they're from". The arrays and the function are deleted rather
+than guarded (~700 lines), the rows are in `backups/tasks-2026-08-04.json`, and the rule is
+now general and stated in §6: **the seed creates structure, never work.** Tasks, sprints
+and events are claims about your life and only you get to make them. That is the third time
+this same error has been found — the baby routine, the five seeded events, and now the
+tasks._
+
+_**The calendar starts empty**, which was asked for and turns out to be principled: a task
+is a thing you *owe* and an event is a thing that *happens*, and a due date drawn as a
+square on Thursday reads as an appointment on Thursday — so a grid full of them shows a
+week that looks fully booked when nothing is scheduled at all. `DEFAULT_LAYERS` is
+`["event"]`; both other layers stay one tap away in the legend and keep their true counts.
+**Utaitai's two daily series are switched off** and their 40 empty slots deleted, so nobody
+has to fill in fourteen cards a week; the recurring "Batch the Utaitai week" task is the
+commitment. And **"Content" now reads "Social media content"** everywhere, with the Studio
+nav item renamed **Social Media** (route still `/studio`)._
+
+_**One thing found on the way that had nothing to do with the ask:** a migration
+`20260801183000_docs` was applied to the Railway database but had never been committed, so
+every `prisma migrate dev` for three days had been reporting drift and offering to reset
+the database. Reconstructed from the live schema, and the dead `Doc` table it created —
+two rows, superseded hours later by `ProjectDoc` — is dropped in
+`20260804090000_project_focus`. `prisma migrate status` is clean again._
+
+_Verified in a signed-in browser on Windows (`C:` has 104 GB free now, so `next dev` runs
+again — the note in Environment notes is stale). Ticked a task and watched the streak go
+3 → 4, the project's line change to "Touched today" and the row appear under the map;
+round-tripped a focus line through the project panel onto Today; confirmed the calendar
+renders empty with "0 events · 3 tasks due · 3 social media content" in the legend; checked
+the Hunt Board has no sprint bar and the project tabs read Overview · Tasks · Social media
+· Docs. `npm run build`, `tsc --noEmit` and `eslint` all clean, and a full `db:seed` re-run
+now reports `tasks: 0`._
+
+_Outstanding: **the board is empty** — five projects, no tasks, no focus lines written yet
+(both are yours to fill in, which is the point). Area CRUD, multi-select delete on the Hunt
+Board, drag-to-move on the calendar, per-occurrence exceptions, and the phone layout still
+needs a look on a real device. **And still: set `TZ=America/Los_Angeles` on the Railway
+service** — see Environment notes._
 
 ---
 

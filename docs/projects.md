@@ -20,7 +20,7 @@ what content is queued, and any standing series or calendar blocks. Four stat ti
 the top: open work, content, docs, days since it was last touched.
 
 **Tasks** — every task on the project, grouped by track, tickable in place. Not the Hunt
-Board with a filter on it: the board carries scope pills, a sprint bar and a capture box,
+Board with a filter on it: the board carries scope pills and a capture box,
 and none of those mean anything once you've already decided which project you're in.
 
 **Content** — everything carrying this project, whichever brand publishes it. That's the
@@ -53,7 +53,7 @@ The markdown files still exist at `prisma/docs/`, but only as **seed material** 
 empty database gets its first copy. Once a doc is in the app, the app's copy is the real
 one and re-seeding will not touch it. Edit it in the app, not in the file.
 
-`/docs` (this folder) keeps the guides that are about the **app** — sprints, the calendar,
+`/docs` (this folder) keeps the guides that are about the **app** — Today, the calendar,
 the Content Studio, and this. Those describe how the thing works, not what you're working
 on, so they stay in the repo.
 
