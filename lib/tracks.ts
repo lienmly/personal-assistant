@@ -17,7 +17,30 @@ export const TRACKS = [
   "Setup",
   "Build",
   "Art",
+  // Added 2026-08-05 with Sleepy Cat's polish pass. It sits beside "Art" rather
+  // than inside it for the reason "Art" was split out of "Ship" in the first
+  // place: it is somebody else's work on somebody else's schedule, and folding
+  // it in hides that a third of the polish isn't mine to do. A cozy puzzle game
+  // is carried by its audio more than its code, and "polish the game" as one row
+  // is how the soundtrack gets noticed in February.
+  "Audio",
   "Ship",
+  // Added 2026-08-05 when Sleepy Cat aimed at the October Next Fest. A track
+  // standing in for a **milestone**, which is a noun this app does not have and
+  // probably should not grow one for: a milestone is a date plus the set of work
+  // that has to be true by it, and a track already groups work while an Event
+  // already holds the date. It sits after "Ship" because everything in it is
+  // gated on Steam admin that has to be done first.
+  //
+  // Unlike every other track here, this one is expected to *disappear* — it is
+  // for one week in October and is meaningless afterwards. That is fine; "Setup"
+  // empties out too. If a second game ever does this, the track gets reused.
+  // Added 2026-08-05. Separate from "Next Fest" on purpose: that track is one
+  // event with a readiness chain and a hard week attached, this one is a rolling
+  // queue of submissions with their own deadlines. Folding them together would
+  // bury the fest's chain under a dozen application rows.
+  "Festivals",
+  "Next Fest",
   // Added 2026-08-03 with Utaitai's subscription change. Deliberately not
   // "Money" — that word is about to mean the Ledger (Phase 6), which is
   // household finances and a different thing entirely. This is the product's

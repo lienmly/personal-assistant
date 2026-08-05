@@ -57,6 +57,14 @@ export const PLATFORMS: Record<
     color: "#1b2838",
     profileUrl: (h) => `https://store.steampowered.com/search/?term=${h}`,
   },
+  reddit: {
+    label: "Reddit",
+    short: "RD",
+    color: "#ff4500",
+    // `/user/` rather than `/u/` — both resolve, but the long form is what
+    // Reddit itself renders, and these URLs get pasted into a Steam store page.
+    profileUrl: (h) => `https://reddit.com/user/${h}`,
+  },
   other: {
     label: "Other",
     short: "··",

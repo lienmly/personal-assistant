@@ -219,7 +219,9 @@ market it — had nowhere to live, and it isn't content, so Studio couldn't hold
 - [x] Experiment capture — paste a link, get a Task under Experiments
 - [x] Today, section 1 (Tasks due) — due + overdue, capped at 7, tickable in place
 - [x] Today, section 4 (Momentum) — drifting first, with "Let it simmer" inline
-- [x] Sleepy Cat's road to Steam seeded — 19 tasks over **Build / Art / Ship / Marketing**
+- [x] ~~Sleepy Cat's road to Steam seeded — 19 tasks over Build / Art / Ship / Marketing~~
+      _Deleted 2026-08-04 with the other 78. Rewritten from scratch 2026-08-05 as 58 tasks
+      over six tracks — see Phase 4.9._
 - [x] **Coding Mom and Forge seeded as projects** (2026-07-31) — 13 + 10 tasks, and the
       first real due dates in the app: Coding Mom's account chain (e-mail → TikTok →
       a week of warm-up → first post 2026-08-09) is a strict sequence, so section 1 of
@@ -347,6 +349,45 @@ of which hung off a Project._
 - [ ] **Captions on photos.** The column exists and is written as `null`; there is no UI.
 - [ ] Area CRUD — *still* the last surface-level gap, and now slightly more awkward: an
       area has a page but cannot be created or renamed
+
+### Phase 4.9 — Sleepy Cat gets its backlog
+_Built 2026-08-05. The first project filled in properly since the seed stopped creating
+work on the 4th, and therefore the first test of whether "nothing but you creates a task"
+is livable. It is: 58 tasks, all of them asked for._
+
+- [x] **`Project.focus` and a vision doc for Sleepy Cat** — "The road to Steam", the first
+      doc written for a project that had none
+- [x] **71 tasks over seven tracks** — Setup, Build, Art, **Audio**, Ship, **Next Fest**,
+      Marketing. Written straight to the database, never into `prisma/seed.ts`
+- [x] **A second doc pointing at the shared Google Doc** he and I write feedback in, plus
+      five Build tasks taken off it. §6, "A doc can point at a document"
+- [x] **Re-aimed at the October 2026 Next Fest**, not February 2027 — a `Next Fest` track,
+      the fest week as a calendar **Event**, and all 45 downstream dates pulled forward.
+      §6, "A milestone is a track plus an event"
+- [x] **A `Festivals` track** — 89 open tasks now. Submissions are a rolling queue with
+      their own deadlines, which is a different shape from one event with a readiness chain
+- [ ] **Every festival deadline is unverified**, recorded in notes rather than asserted as
+      a due date. §6, "An unverified date is a note, not a due date"
+- [ ] **The October fest dates are a guess.** Mon 12 – Mon 19, following the 2024 and 2025
+      pattern. The event and every date in the track assume it; confirming it in Steamworks
+      is due 2026-08-06 and is the first task in the track.
+- [x] **`Audio` is a new track** (`lib/tracks.ts`), beside Art for the same reason Art was
+      split out of Ship: it is somebody else's work on somebody else's schedule
+- [x] **Seven channels on the Sleepy Cat brand** — X, Threads, TikTok, Instagram, Facebook,
+      YouTube and **Reddit**, all `planned`, all `@sleepycatgame`
+- [x] **`Platform.reddit`** (`20260805204731_reddit_platform`) — see §6, "Reddit is a room,
+      not a megaphone"
+- [x] **The Markdown renderer's continuation-line bug is fixed** — the one CLAUDE.md has
+      been carrying against `forge-vision.md` since 2026-08-03, plus the same bug in
+      blockquotes. §9
+- [x] **`.gitattributes` pins `*.sql` to LF** — five migrations were reading as tampered
+      with, and `prisma migrate dev` was offering to reset the database over line endings.
+      §9, "A migration checksum is a hash of bytes"
+- [ ] **Steam Next Fest dates are unconfirmed.** February 2027 is the target and the task
+      to verify it in Steamworks is due 2026-08-12. The whole backlog is dated off it.
+- [ ] Tables in a doc still render as raw pipes — `lib/markdown.ts` has never supported
+      them and `forge-vision.md` has two. Pre-existing, untouched, and now the only known
+      gap in the renderer.
 
 ### Phase 5 — Montblanc (AI assistant)
 - [ ] Chat drawer with streaming (Claude via AI SDK), available on every surface
@@ -735,6 +776,96 @@ Two fields on Task are not in the original sketch, both added 2026-07-31:
   (Phase 6), which is household finances and an entirely different thing. It sits after
   "Ship" and before "Users": pricing and checkout are product work, and they come before
   the tracks about courting people.
+
+### An unverified date is a note, not a due date — decided 2026-08-05
+
+A festival-submission plan arrived with thirteen named festivals and thirteen deadlines,
+and **none of the dates were checkable**. Some of the festivals are recognisable (IGF, MIX,
+Mobidictum, Roguelike Celebration, Taipei's Indie Game Award); several are not, and no date
+could be confirmed from here.
+
+Writing them as `dueDate` would have been the obvious move and it fails the same test the
+seeded tasks failed on 2026-08-04: **a row you have to stop and disprove costs more than no
+row.** A wrong due date is worse than a missing one, because the board's whole claim is that
+what it shows is true — and a submission missed because the date was invented is a failure
+you cannot tell from a submission missed because you ran out of time.
+
+So the claimed dates live in `notes`, prefixed with what they are, and a single **"verify
+the festival list and every deadline"** task sits in front of the whole track. The due dates
+that *are* on those rows are working targets derived from the claims, which is a different
+promise from a deadline and is what the notes say.
+
+The same judgement applied in the other direction: **the plan omitted Wholesome Direct**,
+which for a cozy game is probably the best-fitting showcase there is, so that became a row
+too. A list handed over is evidence, not an instruction — the job is to diff it against what
+is already known, not to transcribe it.
+
+### A milestone is a track plus an event — decided 2026-08-05
+
+Sleepy Cat aimed at the **October 2026** Next Fest, and the ask was for "a milestone or
+something". This app has no milestone noun, and the conclusion is that **it does not need
+one**, because a milestone is only ever two things it already has:
+
+1. **A date it happens on** → an **Event**. The fest week is the first thing this project has ever genuinely justified putting on the calendar: it is a thing that *happens at a time*, which is exactly the test §6 sets, as opposed to a thing you owe. Every deadline *around* it stays a Task, for the same reason.
+2. **The set of work that must be true by then** → a **track**, `Next Fest`, sitting after `Ship` because everything in it is gated on Steam admin.
+
+Plus the project's **focus line**, which is what Today leads with and is where "why is this
+the shape of my next two months" belongs.
+
+Inventing a `Milestone` model would have bought a title and a date that two existing tables
+already hold, and cost a fourth thing that can disagree with the others. The one honest
+loss is that nothing *links* the track to the event — you cannot click the fest and see its
+readiness list. That is a real gap and it is smaller than a table.
+
+**`Next Fest` is the first track expected to disappear.** It is for one week and is
+meaningless afterwards. That is fine — `Setup` empties out too, and a track that goes quiet
+is the free-text design working rather than failing.
+
+### A doc can point at a document — decided 2026-08-05
+
+Sleepy Cat's second doc is a **pointer to a Google Doc**, not a copy of one. The design
+feedback he and I pass back and forth lives there, and the obvious move — import the text
+so it is readable in the app — is the wrong one.
+
+**A `Doc` row is editable in the app, so importing a living document forks it on the first
+edit.** Two versions then drift apart with no way to tell which one either of us had last
+read, which is worse than not having it here at all: the whole value of a feedback doc is
+that both people are looking at the same words. Same failure the seed's `update: {}` rule
+exists to prevent (§6, "The roster is the editor"), one system further out — there the
+second writer was a re-seed, here it is another person.
+
+So the row leads with the link, says plainly that the Google Doc is the source of truth,
+and carries a **dated snapshot** underneath. The snapshot earns its place because the
+feedback is read next to the tasks it generates, on a phone, and because it is a summary
+rather than his words it cannot be mistaken for the document.
+
+**What did get copied in properly is the work.** Five concrete Build tasks came off the
+feedback, and the "Polish pass on the difficulty curve" row got a real definition from it —
+teach one mechanic per level — plus the doc as its `link`. That is the division: a document
+stays a document, and the things it asks you to *do* become rows, because rows are what
+this app is for. `Task.link` pointing at the Google Doc is what keeps the two connected.
+
+One of the five is deliberately a decision rather than a fix — "decide whether finding one
+sleep spot hides the others" — because the two answers are different games and polishing
+the level order before it is settled is work done twice.
+
+### Reddit is a room, not a megaphone — decided 2026-08-05
+
+`Platform.reddit` was added with Sleepy Cat, and it is the first channel in this app that
+does not behave like a channel. Every other platform on the list is **an account you
+broadcast from**; a subreddit is **a room you are a guest in**, with its own rules about
+self-promotion and its own moderators enforcing them.
+
+It earns a row anyway, because r/cozygames and Screenshot Saturday are real sources of
+wishlists and the account needs karma and history long before it needs to post about a
+launch. What it does **not** get is a **Series**. A generated cadence pointed at a
+subreddit is precisely the behaviour those rules exist to stop, and the app would be
+manufacturing the posts that get an account banned. The distinction is recorded on the enum
+value itself so the next person to wire up a cadence reads it first.
+
+The same logic says why this is `reddit` and not `other`: `other` renders a `··` lettermark
+and no profile URL, and this is a real account with a real profile that gets linked from a
+Steam page.
 
 ### The calendar: one grid, three sources — decided 2026-08-01
 
@@ -1300,6 +1431,36 @@ originally — shifts every publish time by the machine's offset.
   only bites where the template is written by hand in a `style` prop, as it must be when
   the column count is dynamic. Found on 2026-08-01.
 
+- **A migration checksum is a hash of bytes, so a line ending is a content change.**
+  Prisma records a SHA-256 of each `migration.sql` when it applies it and re-checks it on
+  every `migrate dev`. This machine has `core.autocrlf=true`, so migrations written on the
+  Mac (LF, hashed as LF) get checked out here as CRLF — and Prisma reports them as
+  "modified after it was applied" and offers to **reset the database**, which on a database
+  holding real work is the most destructive button in the toolchain, offered for a bug that
+  is entirely cosmetic. Found 2026-08-05 with five mismatches; four were pure line endings
+  and normalising them back to LF made all four match byte for byte. **`.gitattributes` now
+  pins `*.sql` and `*.prisma` to `eol=lf`**, which is the actual fix. If it happens again:
+  hash the file, hash it again with `\r\n` replaced by `\n`, and if the second matches the
+  recorded checksum it is this and nothing is wrong with the SQL. **Never take the reset.**
+
+  The fifth, `20260801183000_docs`, was the one reconstructed from the live schema on
+  2026-08-04 — its file never matched what was applied, and the honest fix there is to
+  repoint the recorded checksum at the file, because the file is the deliberate rebuild and
+  the database already reflects it.
+
+- **`lib/markdown.ts` now consumes continuation lines**, in both list runs and blockquotes.
+  It used to break a bullet run at the first line that wasn't a bullet, so a wrapped list
+  item rendered as a list of one plus a stray paragraph — the bug this file had been
+  carrying against `forge-vision.md` since 2026-08-03, where "Comfortable, affordable baby
+  breathing tracker" and "foot sock." were two different blocks. Blockquotes had the same
+  bug twice over: one block per *line*, and a bare `>` between two quoted paragraphs
+  rendered as a paragraph containing the character `>`, because the test was `"> "` with a
+  trailing space. Both now gather their whole run first and parse after. `opensBlock()` is
+  what tells a wrapped line from the start of something new; a blank line always ends a run.
+
+  **Tables are still not supported** and render as raw pipes. `forge-vision.md` has two.
+  Nothing else in the renderer is known to be wrong.
+
 - **Don't put a JSX expression next to text containing an HTML entity.**
   `{open ? "Hide" : "Show"} what&apos;s next` splits into different text nodes on the
   server and the client, and React reports a hydration mismatch. Put the whole thing in one
@@ -1433,7 +1594,127 @@ Named animations: `animate-rise` (fade + 8px up — cards, columns, rows arrivin
 
 ---
 
-_Last updated: 2026-08-05 · Status: **Phase 4.8 — areas you can open, and a journal.**_
+_Last updated: 2026-08-05 · Status: **Phase 4.9 — Sleepy Cat has a plan.**_
+
+_**2026-08-05 — the first project filled in by hand since the seed stopped creating work.**
+Sleepy Cat had zero tasks, zero docs and no focus line: everything went in the 4th's purge,
+which is exactly what was supposed to happen and left the question of whether "nothing but
+you creates a task" is actually livable. It is. **58 tasks over six tracks**, all of them
+asked for, plus a vision doc — "The road to Steam" — and a focus line the project card now
+leads with._
+
+_**Then the target moved to the October 2026 Next Fest**, which is nine weeks out rather
+than six months, and the interesting part is what that changed. Not the dates — those are
+arithmetic. **It changed what is being aimed at.** The February plan quietly assumed the
+whole game had to be polished; a fest needs a **demo**, and a demo is a **slice**. So the
+"cut the demo slice" decision moved to 17 August and became the binding constraint on
+everything, and roughly a third of the Build track — key rebinding, controller support,
+saves, Steam Cloud, achievements, the Steam Deck pass, localisation — moved to **after** the
+fest. Sequenced, not cut. What stayed in front of it is what a stranger sees in sixty
+seconds: the settings menu, the pause and first-run flow, the level order, and the resource
+UI his feedback flagged. And **"get the store page live" stopped being an optimisation and
+became a gate** — you cannot register for Next Fest without a live, approved page, so it is
+due 10 September with Valve's review in front of it. Stated plainly in the doc rather than
+smoothed over: this is four months of plan in nine weeks with a five-month-old, and if
+something gives it should be the demo's **size**, never its finish._
+
+_**Then a festival-submission plan was pasted in to diff against the board**, and the useful
+output was the disagreements rather than the additions. It had **thirteen festivals with
+thirteen unverifiable deadlines**, so those went into notes behind one verification task
+rather than onto rows as due dates — §6, "An unverified date is a note, not a due date". It
+**omitted Wholesome Direct**, which for a cozy game is likely the best-fitting showcase
+there is. It **omitted the entire Steam legal and admin spine** — the $100 Direct fee and
+its 30-day clock, the tax interview, the name check, the licence audit, the age rating —
+which is the one thing that can actually make October impossible. And it **disagreed about
+the demo**: 45–60 minutes against this board's much smaller slice. That is standard advice
+written for teams with more than nine weeks and no five-month-old, so rather than silently
+picking a side it became an explicit decision on the "cut the demo slice" row. Genuinely
+additive and now on the board: a **reusable submission kit** (one pitch, pasted a dozen
+times, and the Steam page wants the same words), a browser build for judges — plausibly
+near-free since the game is built with Vite — an end card with the social links, vertical
+art for the five vertical-first channels, a landing page, and **Devlog Friday** as a weekly
+recurring row beside Screenshot Saturday._
+
+_**"A milestone or something" turned out to need no new noun.** A milestone is a date plus
+the work that must be true by it, and both already exist here: the fest week is an **Event**
+— the first thing this project has ever genuinely justified putting on the calendar, since
+it is a thing that *happens at a time* rather than a thing you owe — and the readiness list
+is a **track**. §6, "A milestone is a track plus an event"._
+
+_**The plan was originally dated off Steam Next Fest, February 2027, launching late March or April.**
+Next Fest is a week-long Valve festival for unreleased demos and you get **one per game,
+ever**, which is what makes the date the spine of everything else: October 2026 is nine
+weeks out and would spend it on a rough demo, June 2027 is ten more months on a game whose
+MVP is already done. Working backwards puts **Steam's admin first rather than last**, which
+is the part that felt wrong and is right — the $100 Steam Direct fee starts a 30-day clock
+before you are allowed to release at all, and the tax interview and ID verification take
+real days. None of it can be hurried in the week it matters, and all of it can be finished
+in a fortnight now. The single highest-leverage row on the board is **"Get the store page
+live"**, due 30 November: wishlists only accumulate while the page is public, so every week
+earlier is free._
+
+_Three things the ask didn't mention and the capture surfaced. **The Steam capsule set is
+an art job nobody had scoped** — six fixed sizes plus screenshots plus a trailer, which is
+his work and is weeks, not an afternoon. **"Sleepy Cat" is a very common phrase**, so the
+Steam and trademark check is due 12 August, before any capsule exists, because the capsule
+is where a rename gets expensive. And **the audio and art licences need auditing for
+commercial *and* redistribution rights** — a genuine launch-blocker that gets found late._
+
+_**`Audio` is a new track**, beside Art rather than inside it, for exactly the reason Art
+was split out of Ship when Sleepy Cat arrived: it is a third person's schedule, and a cozy
+puzzle game is carried by its music more than by its code. That is the fourth track this
+project has invented at a cost of zero migrations — the case for free text, made again._
+
+_**Seven channels on the Sleepy Cat brand**, all `@sleepycatgame`, including **Reddit**,
+which needed a `Platform` enum value. It is the first channel here that isn't a megaphone —
+a subreddit is a room you are a guest in — so it is on the list and it **never gets a
+Series**, because a generated cadence pointed at a subreddit is the behaviour that gets an
+account banned. §6, "Reddit is a room, not a megaphone". The honest tension, written into
+the doc rather than smoothed over: Coding Mom already runs six channels daily and Utaitai
+five, so seventeen accounts is not a plan. Sleepy Cat's own accounts exist because Steam
+links to them; the cadence stays where the audience already is._
+
+_**Two bugs fixed on the way, neither of them the ask.** `lib/markdown.ts` broke a bullet
+run at the first wrapped line, so `forge-vision.md` had been rendering "Comfortable,
+affordable baby breathing tracker" and "foot sock." as separate blocks since it was
+written — the bug this file has been carrying since 2026-08-03. Blockquotes had it twice
+over. Both fixed, verified against seven parser cases and both real docs. And **five
+migrations were reading as tampered with**: `core.autocrlf=true` had turned the Mac-written
+LF migrations into CRLF on checkout, so `prisma migrate dev` was offering to **reset the
+database** over line endings. Four were pure whitespace; `.gitattributes` now pins `*.sql`
+to LF so it cannot recur. §9._
+
+_**The shared feedback doc is in, as a link.** He and I write design feedback into a Google
+Doc, and it is on the project's Docs tab as a **pointer plus a dated snapshot** rather than
+an import — a `Doc` row is editable in the app, so copying a living document in forks it on
+the first edit and leaves two versions drifting with no way to tell which one either of us
+last read. What did come across is the **work**: five Build tasks off the feedback, and the
+difficulty-curve row got a real definition from it — teach one mechanic per level, Level 1
+is move and sleep, Level 2 introduces Push — because the Level 1 → Level 9 jump is a
+level-order problem and not a difficulty-numbers one. One of the five is a **decision**
+rather than a fix, since whether finding one sleep spot hides the others is two different
+games and polishing the order before it is settled is work done twice. His overall verdict
+arrived at the same place this plan did without being asked: MVP reached, polish structure
+and existing mechanics, don't add features. §6, "A doc can point at a document"._
+
+_Verified in a signed-in browser: all 63 tasks render grouped by track in the right order,
+the recurring Screenshot Saturday task lands on an actual Saturday and shows its `Sat`
+badge, the monthly wishlist check shows `Monthly`, all seven channels render with the new
+Reddit lettermark, Today's card leads with the focus line and says "Touched today", and
+both docs render clean. `tsc --noEmit`, `eslint` and `next build` all pass._
+
+_Outstanding from this change: **the October 2026 Next Fest dates are a guess** — Mon 12 to
+Mon 19, following the 2024 and 2025 Mon-to-Mon pattern. The calendar event and all 71 due
+dates assume it, and confirming it in Steamworks is due **6 August**, the earliest row on
+the board. It is the one task that moves everything else. **Nothing links the Next Fest
+track to the Next Fest event** — clicking the fest does not show its readiness list, which
+is the honest cost of not inventing a Milestone table. **Tables still render as raw pipes.**
+And `npm run build` cannot run while `next dev` is up on Windows: `prisma generate` fails
+with `EPERM` renaming the query-engine DLL, so the dev server has to be stopped first._
+
+---
+
+_Previously: **Phase 4.8 — areas you can open, and a journal.**_
 
 _**2026-08-05 — the Baby area got a journal, and areas became openable.** Straight after
 the removal below, and caused by it: the area had nothing left, and what it actually needed

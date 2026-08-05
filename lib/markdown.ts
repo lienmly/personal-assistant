@@ -37,6 +37,23 @@ function safeHref(href: string): string | null {
   return /^(https?:\/\/|mailto:|\/)/i.test(trimmed) ? trimmed : null;
 }
 
+/**
+ * Does this line open a block of its own?
+ *
+ * Used to tell a *wrapped* line — the second line of a bullet that ran past 80
+ * characters — from the start of something new. Without it, a list run breaks
+ * at the first continuation line and the remainder of the item renders as a
+ * stray paragraph immediately after a list of one.
+ */
+function opensBlock(trimmed: string): boolean {
+  return (
+    trimmed.startsWith("```") ||
+    trimmed.startsWith(">") ||
+    /^(-{3,}|_{3,}|\*{3,})$/.test(trimmed) ||
+    /^#{1,6}\s/.test(trimmed)
+  );
+}
+
 const INLINE =
   /(\*\*([^*]+)\*\*)|(\*([^*]+)\*)|(`([^`]+)`)|(\[([^\]]+)\]\(([^)\s]+)\))/;
 
@@ -122,9 +139,32 @@ export function parseMarkdown(source: string): Block[] {
       continue;
     }
 
-    if (trimmed.startsWith("> ")) {
+    if (trimmed.startsWith(">")) {
       flush();
-      blocks.push({ kind: "quote", content: parseInline(trimmed.slice(2)) });
+
+      // Consume the whole run. Emitting one block per *line* — which is what
+      // this did until 2026-08-05 — turns a wrapped blockquote into a stack of
+      // one-line quotes, and matching on `"> "` with the trailing space left a
+      // bare `>` (the separator between two quoted paragraphs) to fall through
+      // and render as a paragraph containing the character ">".
+      const quoted: string[] = [];
+      let current: string[] = [];
+      while (i < lines.length && lines[i].trim().startsWith(">")) {
+        const text = lines[i].trim().replace(/^>\s?/, "");
+        if (text === "") {
+          if (current.length > 0) quoted.push(current.join(" "));
+          current = [];
+        } else {
+          current.push(text);
+        }
+        i++;
+      }
+      i--; // the loop's own i++ steps past the last quoted line
+      if (current.length > 0) quoted.push(current.join(" "));
+
+      for (const para of quoted) {
+        blocks.push({ kind: "quote", content: parseInline(para) });
+      }
       continue;
     }
 
@@ -133,21 +173,35 @@ export function parseMarkdown(source: string): Block[] {
     if (bullet || numbered) {
       flush();
       const ordered = numbered !== null;
-      const items: Inline[][] = [parseInline((bullet ?? numbered)![1])];
+      // Collected as raw strings rather than parsed immediately, because a
+      // wrapped item is only complete once its continuation lines are in.
+      const rows: string[] = [(bullet ?? numbered)![1]];
 
       // Consume the rest of the run here rather than emitting one list per
       // line, so the markup is a single <ul> and the spacing is the list's.
       while (i + 1 < lines.length) {
         const next = lines[i + 1].trim();
+        if (next === "") break;
+
         const nextBullet = /^[-*+]\s+(.*)$/.exec(next);
         const nextNumbered = /^\d+[.)]\s+(.*)$/.exec(next);
         const match = ordered ? nextNumbered : nextBullet;
-        if (!match) break;
-        items.push(parseInline(match[1]));
+        if (match) {
+          rows.push(match[1]);
+          i++;
+          continue;
+        }
+        // A different marker, or the start of any other block, ends the run.
+        if (nextBullet || nextNumbered || opensBlock(next)) break;
+
+        // Otherwise it is the previous item, wrapped. `forge-vision.md` had
+        // been rendering its wrapped bullets as a list of one plus a loose
+        // paragraph since it was written (noted in CLAUDE.md 2026-08-03).
+        rows[rows.length - 1] += ` ${next}`;
         i++;
       }
 
-      blocks.push({ kind: "list", ordered, items });
+      blocks.push({ kind: "list", ordered, items: rows.map(parseInline) });
       continue;
     }
 

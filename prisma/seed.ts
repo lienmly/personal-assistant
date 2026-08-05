@@ -60,6 +60,18 @@ const DOCS: SeedDoc[] = [
   },
   { projectSlug: "forge", file: "forge-vision.md", title: "The startup brief" },
   {
+    projectSlug: "sleepy-cat",
+    file: "sleepy-cat-steam.md",
+    title: "The road to Steam",
+  },
+  // A pointer to the Google Doc he and I write in, plus a dated snapshot —
+  // deliberately not a copy of it. See the note at the top of the file.
+  {
+    projectSlug: "sleepy-cat",
+    file: "sleepy-cat-feedback.md",
+    title: "Design feedback — the shared doc",
+  },
+  {
     projectSlug: "utaitai",
     file: "utaitai-pricing.md",
     title: "What Utaitai charges",
@@ -260,9 +272,28 @@ const BRANDS = [
     tagline: "The game's own account — devlog and art, aimed at players.",
     color: "#5b7fa8",
     sortOrder: 2,
+    // Seven, as of 2026-08-05 — the game's own presence, created ahead of the
+    // Steam page so the links on it point at something. All `planned`: the row
+    // is the record that the account is *meant* to exist, and it flips to `live`
+    // when it does (§6 — a channel usually exists before the account does).
+    //
+    // The handle is deliberately identical across all seven. A game linked from
+    // a Steam page is searched for by name, and one handle that is wrong
+    // everywhere is recoverable where six different ones are not.
     channels: [
       { platform: "x", handle: "sleepycatgame", label: "Devlog", state: "planned" },
       { platform: "threads", handle: "sleepycatgame", label: "Devlog", state: "planned" },
+      // The one that actually drives wishlists for a cozy game, which is why it
+      // is the only one of the five below that is not just a re-upload target.
+      { platform: "tiktok", handle: "sleepycatgame", label: "Devlog", state: "planned" },
+      { platform: "instagram", handle: "sleepycatgame", label: "Reels", state: "planned" },
+      { platform: "facebook", handle: "sleepycatgame", label: "Reels", state: "planned" },
+      { platform: "youtube", handle: "sleepycatgame", label: "Shorts", state: "planned" },
+      // Not a broadcast account and never gets a Series — see the note on
+      // `Platform.reddit` in schema.prisma. It is here because r/cozygames and
+      // Screenshot Saturday are real wishlist sources and the account needs
+      // karma and history long before it needs to post about a launch.
+      { platform: "reddit", handle: "sleepycatgame", label: "Communities", state: "planned" },
     ],
   },
 ] as const;

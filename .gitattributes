@@ -1,0 +1,18 @@
+# Prisma records a SHA-256 of each migration file in `_prisma_migrations` when
+# it applies it, and re-checks that hash on every `migrate dev`. A checksum is
+# taken over raw bytes, so a line ending is a content change as far as it is
+# concerned.
+#
+# This machine has `core.autocrlf=true`. Without the rule below, migrations
+# written on the Mac (LF, hashed as LF) get checked out here as CRLF, and Prisma
+# reports five "modified after it was applied" migrations and offers to reset
+# the database — which on a database holding real work is the most destructive
+# button in the toolchain, offered for a bug that is entirely cosmetic. Found
+# 2026-08-05, when four of the five 2026-08-01 migrations mismatched purely on
+# line endings and normalising them back to LF made all four match byte for byte.
+*.sql text eol=lf
+
+# Same argument, one step earlier: the seed and the schema are read by tooling
+# that hashes or diffs them, and a repo that flips every line on checkout makes
+# every diff between the two machines unreadable.
+*.prisma text eol=lf

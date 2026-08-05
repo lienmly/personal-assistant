@@ -67,6 +67,14 @@ enum Platform {
   x
   medium
   steam
+  /// Added 2026-08-05 with Sleepy Cat. The odd one out and worth saying why it
+  /// is here rather than under `other`: every platform above is an account you
+  /// broadcast *from*, and Reddit is a set of rooms you are a guest in. The
+  /// handle is still a real account with a real profile, though, and a game's
+  /// wishlists genuinely come off r/cozygames and Screenshot Saturday — so it
+  /// earns a row on the channel list. What it does *not* get is a Series: a
+  /// cadence generated against a subreddit is how an account gets banned.
+  reddit
   other
 }
 
