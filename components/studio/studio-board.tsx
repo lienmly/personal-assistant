@@ -53,7 +53,10 @@ export function StudioBoard({
         <FilterChip
           active={brandFilter === null}
           onClick={() => setBrandFilter(null)}
-          dot="#14110f"
+          // "All brands" has no brand colour of its own, so it borrows the
+          // text colour — as a token rather than a hex, or it stays near-black
+          // on a near-black card in the dark theme.
+          dot="var(--color-ink)"
           label="All brands"
         />
         {brands.map((brand) => (

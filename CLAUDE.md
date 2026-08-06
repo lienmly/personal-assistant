@@ -116,7 +116,8 @@ dashboard/UI ecosystem, easy Google auth, and a clean path to embedding an AI as
 /app/(app)/…       → the four authenticated surfaces + their shared layout
 /app/login         → public sign-in page
 /app/api/auth/…    → Auth.js route handler
-/components/shell  → icon rail, sidebar, topbar, mobile tab bar
+/components/shell  → icon rail, sidebar, topbar, mobile tab bar, the theme
+                     provider and its Light · Auto · Dark toggle
 /components/ui     → card, empty state, surface header
 /components/brand  → the moogle task
 /lib               → auth config, nav config, server actions, utils
@@ -135,6 +136,9 @@ dashboard/UI ecosystem, easy Google auth, and a clean path to embedding an AI as
 /lib/journal-actions.ts → server actions for entries and photos
 /lib/photo-store.ts → the **only** module that touches photo bytes (§6)
 /app/api/journal/photo/[id] → serves one photo, auth-gated
+/lib/sun.ts        → sunrise/sunset (client-safe: no Prisma import)
+/lib/theme.ts      → theme types, storage keys, the pre-paint boot script
+/lib/theme-store.ts → the theme as an external store (browser-only) — §11
 /lib/db.ts         → Prisma client singleton
 /lib/studio.ts     → board queries + series slot generation + batch slots
 /lib/studio-actions.ts → server actions for content items, channels, series, batch save
@@ -454,6 +458,37 @@ told it.** Here the assertion was a date the task itself disagreed with._
 - [x] `TaskLineView.recurrence` deleted; it existed only for that exception
 - [ ] The Hunt Board is untouched on purpose, and that is a judgement rather than a
       check: it has not been read on a phone with this change in place
+
+### Phase 4.13 — A dark theme that follows the sun
+_Built 2026-08-06. The first change in six phases that is purely about how the app looks
+rather than about what it asserts — and the design pass §8 had been deferring since
+2026-07-30 turned out to be **one** decision plus a second column of values._
+- [x] **A dark theme**, as token values under `:root[data-theme="dark"]`. Not one component
+      was restyled; the app was already painted entirely through the tokens. §11
+- [x] **The elevation ladder inverts** — canvas darkest, cards above the stage, and
+      `--color-obsidian` becomes the *lightest* surface so a hero tile stays a hero rather
+      than turning into a hole. `text-white` still clears 10:1 on it, which is why all 47
+      places that write it are untouched. §11
+- [x] **`--color-scrim`** — the panel dimmer had been `bg-obsidian/25`, which only worked
+      while obsidian happened to be near-black. Its own token now, alpha baked in. §11
+- [x] **`lib/sun.ts`** — NOAA sunrise/sunset, ~40 lines, no dependency. Verified against
+      almanac times at five latitudes including both polar cases
+- [x] **`auto` / Light / Dark** in the topbar, `auto` being the default and the one that
+      follows the sun. Persisted per browser, not per account — §11, "The theme is not a
+      column"
+- [x] **Geolocation once, cached, and a refusal remembered** — falling back to Los Angeles,
+      which is wrong by under an hour and never asks twice
+- [x] **`THEME_BOOT_SCRIPT`** — a pre-paint inline script, so a night-time load arrives
+      dark instead of flashing white. It carries no solar arithmetic: the provider leaves
+      behind the answer *and when it expires*. §11
+- [x] **`lib/theme-store.ts`** — the clock, localStorage and geolocation are external
+      systems, so they are an external store read through `useSyncExternalStore` rather
+      than a pile of effects. §11
+- [ ] **The phone layout has not been looked at on a real device.** The toggle is the one
+      topbar control that stays visible at every breakpoint, which is a judgement about the
+      device most likely to be used at dusk, not a check
+- [ ] **`prefers-color-scheme` is deliberately ignored.** Following the sun and following
+      the OS are different answers, and wiring both would need a fourth mode. §11
 
 ### Phase 5 — Montblanc (AI assistant)
 - [ ] Chat drawer with streaming (Claude via AI SDK), available on every surface
@@ -1537,8 +1572,9 @@ originally — shifts every publish time by the machine's offset.
       cards on a rounded panel, very large radii, near-invisible shadows, separation by
       background contrast rather than borders, and a single crimson accent (`#de1f4c`)
       that doubles as the moogle's pom-pom. Motion tokens followed on the same day — see
-      §10. **Light mode only** — the palette is built
-      around warm neutrals and a dark variant would need its own design pass.
+      §10. ~~**Light mode only**~~ — **resolved 2026-08-06: there is a dark theme**, and
+      the design pass it was said to need turned out to be one decision (invert the
+      elevation ladder) plus a second set of values for the same token names. See §11.
       The reference screenshots live in **`/assets`** — see §9, they are required reading
       before building any new surface.
 - [ ] shadcn/ui — deferred. Phase 1 needed no complex primitives, and the design is custom
@@ -1665,6 +1701,8 @@ originally — shifts every publish time by the machine's offset.
     Written 2026-08-01, updated 2026-08-05.
   - `docs/areas.md` — the area page, the journal, how photos work and where they live,
     and why the Baby area has no projects. Written 2026-08-05.
+  - `docs/theme.md` — the Light · Auto · Dark control, why the browser asks for your
+    location, and why it doesn't follow the OS setting. Written 2026-08-06.
   **Project docs are no longer here.** The Coding Mom brief, the Forge vision and the
   Utaitai pricing note live on their projects' **Docs tabs** in the app, and their
   source files sit in `prisma/docs/` as seed material only. See §6, "The docs moved onto
@@ -1739,6 +1777,154 @@ Named animations: `animate-rise` (fade + 8px up — cards, columns, rows arrivin
 
 ---
 
+## 11. Themes
+
+**Established 2026-08-06.** There are two themes, and they share one set of token *names*.
+A surface written against the tokens gets the dark theme for free; a surface that reaches
+for a hex does not.
+
+### The whole thing is a second column of values
+
+`:root[data-theme="dark"]` in `globals.css` restates the colour tokens and nothing else.
+Not one component was restyled, because the app was already painted entirely through
+`bg-card` / `text-ink` / `bg-obsidian` — an audit before starting found **zero** uses of
+`bg-white`, zero Tailwind palette colours, and sixteen hex literals, all of them either
+brand logos or `lib/platforms.ts` platform colours, which are supposed to be fixed.
+
+That is the reason this cost a day rather than a fortnight, and it is worth protecting:
+**a hardcoded colour is now a bug in two themes rather than a shortcut in one.**
+
+### The elevation ladder inverts — this is the one design decision
+
+In the light theme importance climbs toward white: canvas is the darkest thing, cards are
+white tiles floating on a tinted stage, and a hero tile is black. The obvious way to build
+a dark theme is to swap in dark greys, and it fails, because it leaves the ladder pointing
+the wrong way — the hero tile stops being the most emphatic thing on screen and becomes a
+**hole** in the page.
+
+So here the ladder climbs toward light. Canvas is darkest (`#100e0d`), cards sit above the
+stage, and **`--color-obsidian` is the lightest surface in the theme** (`#453e39`). White
+text on it still clears 10:1, which is why all 47 `text-white` usages needed no change at
+all: the token that means "highest emphasis" still means that, it just gets there from the
+other direction.
+
+Two other things are deliberately kept:
+
+- **The warmth.** Every neutral still carries red and drops blue. Cooling them to slate
+  would abandon the greige character the whole reference is built on, and the crimson
+  accent would start to read as an error state sitting on it.
+- **The accent's job.** Crimson is lifted to `#e8375d` — not for taste, but because
+  crimson's luminance is dominated by its red channel, so there is no version of it that is
+  comfortably legible *both* as a background under white text and as text on the stage.
+  `#e8375d` sits at the balance point, about 4.1:1 each way, rather than favouring one.
+
+### `--color-scrim` is its own token now
+
+The panel dimmer was written `bg-obsidian/25` in five places, and that only ever worked
+because obsidian *happened* to be near-black. The moment a hero tile has to become the
+lightest surface, a scrim borrowing it would **brighten the page it exists to dim**.
+
+Two different jobs that shared a value, which is exactly the kind of coincidence a second
+theme finds. The token carries its own alpha (`rgba(...)` rather than a `/25` at the call
+site) because the dark theme also wants a *heavier* dim: there is less contrast between a
+panel and its backdrop to begin with.
+
+The same audit caught one genuine regression — Studio's "All brands" chip passed
+`dot="#14110f"`, a near-black dot that reads correctly on a white chip and disappears on a
+dark one. It is `var(--color-ink)` now, which is what it always meant.
+
+### The shadow tint is a nested variable, on purpose
+
+Tailwind resolves `--shadow-*` at build time and inlines the geometry, so overriding
+`--shadow-card` in a theme block does nothing. But it keeps any `var()` *inside* the value
+as a runtime reference — the compiled rule is
+`--tw-shadow: 0 1px 2px var(--tw-shadow-color, var(--tint-shadow))`. So the tint lives in
+its own variable and the theme restates that. A shadow tuned to be invisible on warm greige
+is *entirely* invisible on near-black, and depth in the dark theme needs a heavier hand.
+
+### Sunset and sunrise, not `prefers-color-scheme`
+
+`auto` is the default and it follows the sun, computed by `lib/sun.ts` — the NOAA solar
+equations, about forty lines, no dependency. **Following the sun and following the OS are
+different answers**, and the OS one was not what was asked for; wiring both would need a
+fourth mode to choose between them, which is a control for a decision nobody has.
+
+Fixed clock hours were the cheap alternative and they are wrong by a lot: Los Angeles
+sunset moves from **16:57 in January to 20:07 at the solstice**. A dashboard that stays
+light until 19:00 spends most of a winter evening glowing.
+
+Four things fell out:
+
+1. **Day arithmetic happens in UTC days and epoch milliseconds**, same as
+   `lib/calendar-keys.ts` and for the same reason — UTC has no DST, so a day is always
+   86,400,000 ms. Three UTC days of crossings are collected and sorted, and "which was most
+   recent" answers it, because a *local* evening straddles a UTC midnight west of
+   Greenwich. There is no timezone reasoning to get wrong, only a sorted list of instants.
+2. **The polar cases are handled rather than crashed on.** Inside the arctic circle there
+   are days with no crossing at all; the state is then whichever extreme applies and the
+   next check is in an hour. Verified at Longyearbyen in midnight sun.
+3. **Location is asked for once and a refusal is remembered.** The fallback is Los Angeles,
+   matching the `TZ` the deployed app is meant to run on. Sunset moves four minutes per
+   degree of longitude, so a whole timezone out is under an hour wrong — the correct amount
+   of wrong for a fallback, and far cheaper than a dashboard opened twenty times a day
+   asking twenty times a day.
+4. **Only `auto` asks.** A pinned light or dark theme has no use for sun times, so there is
+   no honest reason to request a location to compute them from.
+
+### The theme is not a database column
+
+It lives in localStorage. A theme is a property of **the screen you are looking at**, not
+of you: a phone at 9pm and a desktop at 9am want different answers from the same account.
+Storing it on a `User` row would also mean inventing that row, which §6 has deliberately
+not done yet.
+
+The consequence is accepted rather than worked around: a new browser starts at `auto`,
+which is the right default anyway.
+
+### The boot script carries no arithmetic
+
+Without a pre-paint script the page renders light, hydrates, and *then* flips — a white
+flash on every navigation at night, which is worse than having no dark theme. So
+`THEME_BOOT_SCRIPT` runs inline in `<head>`, before the body is parsed.
+
+It deliberately does **not** re-run the solar equations. Re-deriving, in a render-blocking
+script on every page load, an answer that has not changed since the last page load is work
+for nothing. Instead the provider leaves behind the answer *and the instant it stops being
+true*, and the script only reads a clock: before that instant the stored answer holds; just
+past it the crossings alternate, so flip once; long past it, guess by the hour and let the
+provider correct it a frame later.
+
+**`<html>` carries `suppressHydrationWarning`, and it is load-bearing.** The script writes
+two attributes the server's markup does not have, and React diffs every attribute of an
+element it renders. The escape hatch applies one level deep, so it covers exactly this
+element and nothing inside the app. Rendering the theme server-side is not an alternative:
+the server does not know what time it is where you are, which is the entire problem.
+
+### The clock is an external store, so it is an external store
+
+`lib/theme-store.ts` is read through `useSyncExternalStore`. The three things that decide
+the theme — localStorage, the system clock, geolocation — are all genuinely outside React,
+and the first attempt at this as `useState` + `useEffect` was rejected by the React
+Compiler's lint for calling `setState` synchronously in an effect. That was a correct
+diagnosis rather than a nuisance: the store computes and components subscribe.
+
+Three rules inside it:
+
+1. **Storage is the single source of truth, re-read on every recompute.** Caching `coords`
+   in a module variable and filling it once meant the hourly heartbeat, the focus listener
+   and the cross-tab `storage` event all silently reused whatever the first render found —
+   so a location granted in one tab never reached another. Found by testing four cities at
+   one instant and getting four identical answers.
+2. **The snapshot is compared field by field before publishing.** `useSyncExternalStore`
+   compares by reference and will loop forever if handed a fresh object every read, and the
+   heartbeat calls this on a quiet afternoon where it must be a no-op.
+3. **Never sleep more than an hour at a stretch.** A twelve-hour timer set at breakfast is
+   not a promise anyone keeps — laptops suspend, and browsers throttle `setTimeout` hard in
+   hidden tabs. The heartbeat re-derives the answer from the clock instead of trusting a
+   timer to have fired; `visibilitychange` and `focus` cover the rest.
+
+---
+
 ## Environment notes
 
 - **Now on macOS**, at `/Users/hcb3o/startups/personal-assistant` (Node v20.20.2, TZ
@@ -1779,7 +1965,77 @@ Named animations: `animate-rise` (fade + 8px up — cards, columns, rows arrivin
 
 ---
 
-_Last updated: 2026-08-05 · Status: **Phase 4.12 — a repeating row waits for its day.**_
+_Last updated: 2026-08-06 · Status: **Phase 4.13 — a dark theme that follows the sun.**_
+
+_**2026-08-06 — the app goes dark at sunset and light again at dawn.** The first change in
+six phases that is purely about how it looks rather than about what it asserts, and §8 had
+been carrying "light mode only — a dark variant would need its own design pass" since
+2026-07-30. The design pass turned out to be **one decision**._
+
+_**The elevation ladder inverts.** In the light theme importance climbs toward white:
+canvas is darkest, cards are white tiles on a tinted stage, a hero tile is black. Swapping
+in dark greys — the obvious build — leaves that ladder pointing the wrong way, and the hero
+tile stops being the most emphatic thing on screen and becomes a **hole**. So the dark
+theme climbs toward light instead: canvas darkest, cards above the stage, and
+`--color-obsidian` is the **lightest** surface in the theme. White text on it still clears
+10:1, which is why **not one of the 47 `text-white` usages needed touching** — the token
+that means "highest emphasis" still means that, reached from the other side._
+
+_**Everything else is a second column of values.** An audit before starting found zero uses
+of `bg-white`, zero Tailwind palette colours, and sixteen hex literals, all of them brand
+logos or platform colours that are supposed to be fixed. So `:root[data-theme="dark"]`
+restates the tokens and no component was restyled. The honest new cost: a hardcoded colour
+is now a bug in two themes rather than a shortcut in one._
+
+_**Two things the audit caught that would have shipped broken.** The panel scrim was
+`bg-obsidian/25` in five places, which worked only while obsidian happened to be near-black
+— on a theme where it is the lightest surface, the dimmer **brightens the page it exists to
+dim**. It is `--color-scrim` now, with its own alpha, and heavier in the dark because there
+is less contrast between a panel and its backdrop to begin with. And Studio's "All brands"
+chip passed a literal `#14110f` dot, correct on a white chip and invisible on a dark one;
+it is `var(--color-ink)`, which is what it always meant._
+
+_**Sunset, not `prefers-color-scheme`** — following the sun and following the OS are
+different answers, and the OS one was not what was asked for. `lib/sun.ts` is the NOAA
+solar equations, forty lines and no dependency, verified against almanac times at five
+latitudes including both polar cases. Fixed clock hours were the cheap alternative and are
+wrong by a lot: **Los Angeles sunset moves from 16:57 in January to 20:07 at the
+solstice**, so a dashboard that stays light until 19:00 glows through most of a winter
+evening. Location is asked for once, a refusal is remembered, and the fallback is Los
+Angeles — under an hour wrong, which is the correct amount of wrong for a fallback and far
+cheaper than asking twenty times a day._
+
+_**A pre-paint script stops the white flash**, and carries no arithmetic: the provider
+leaves behind the answer *and when it expires*, so the script only reads a clock. `<html>`
+needs `suppressHydrationWarning` for it, which is load-bearing rather than a smell — the
+script writes attributes the server's markup cannot have, because the server does not know
+what time it is where you are, which is the whole problem._
+
+_**One real bug, found only by testing.** The store cached coordinates in a module variable
+and filled it once, so every recompute — the hourly heartbeat, the focus listener, the
+cross-tab `storage` event — silently reused whatever the first render found, and a location
+granted in one tab never reached another. Caught by driving four cities at a single instant
+and getting four identical answers; storage is now re-read on every recompute. Re-run
+after the fix, at 02:13 UTC: **London 03:13 dark, Reykjavík 02:13 dark, Sydney 12:13 light,
+Singapore 10:13 light**, each with the right next crossing._
+
+_Verified in a signed-in browser across Today, the Hunt Board, the Calendar and Studio, and
+through a panel to check the scrim dims rather than lightens. Native date, time and select
+controls render dark, which is `color-scheme` doing its job and would otherwise have been
+blinding white boxes on a dark panel. `npx next build`, `tsc --noEmit` and `eslint` all
+pass; console clean, no hydration warning._
+
+_Outstanding from this change: **the phone layout still has not been looked at on a real
+device** — the toggle is the one topbar control that stays visible at every breakpoint,
+which is a judgement about the device most likely to be used at dusk rather than a check.
+**The login page was not seen in dark** — it redirects while signed in, and it uses only
+tokens verified elsewhere, which is reasoning rather than a check. And `npm run build`
+still cannot run while `next dev` is up on Windows; `npx next build` alone can, since the
+`EPERM` is `prisma generate` renaming the query-engine DLL._
+
+---
+
+_Previously: **Phase 4.12 — a repeating row waits for its day.**_
 
 _**2026-08-05 — a ticked-off habit was still sitting on Today, dated tomorrow.** The
 complaint was exact: a recurring task on Today "makes me feel like I have to get it

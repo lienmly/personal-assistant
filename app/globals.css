@@ -5,7 +5,10 @@
    Translated from the Dribbble reference: warm greige canvas, floating white
    cards with generous radii, near-black ink, a single crimson accent, and
    almost no borders — separation comes from background contrast, not lines.
-   Light mode only for now (see CLAUDE.md §8).
+
+   Two themes, one set of names. Every surface in the app is painted through
+   the tokens below, so the dark theme further down is a second set of *values*
+   and not a second set of components — see CLAUDE.md §11.
 --------------------------------------------------------------------------- */
 
 @theme {
@@ -33,14 +36,27 @@
   --color-warn-soft: #fbf0dd;
   --color-good: #2f8f5b;
 
+  /* The dimmer behind a side panel or the mobile drawer. Carries its own alpha
+     rather than being written `bg-obsidian/25` at the call site, because
+     obsidian is the *hero tile* colour and in the dark theme a hero tile has to
+     become the lightest surface on screen — at which point a scrim borrowing it
+     would brighten the page it is meant to dim. Two different jobs, two
+     tokens. */
+  --color-scrim: rgba(20, 17, 15, 0.25);
+
   /* Radii — the reference is *very* round */
   --radius-card: 1.5rem;
   --radius-tile: 1.125rem;
   --radius-chip: 0.625rem;
 
-  /* Shadows — barely there */
-  --shadow-card: 0 1px 2px rgba(20, 17, 15, 0.04);
-  --shadow-float: 0 4px 16px rgba(20, 17, 15, 0.06);
+  /* Shadows — barely there.
+     The tint is held in a separate variable so the theme can restate it: a
+     shadow tuned to be invisible on warm greige is *entirely* invisible on
+     near-black, and depth in the dark theme needs a heavier hand. Tailwind
+     resolves the outer token at build time, so the indirection is what lets the
+     value still change at runtime. */
+  --shadow-card: 0 1px 2px var(--tint-shadow);
+  --shadow-float: 0 4px 16px var(--tint-float);
 
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
@@ -130,8 +146,89 @@
   }
 }
 
+:root {
+  --tint-shadow: rgba(20, 17, 15, 0.04);
+  --tint-float: rgba(20, 17, 15, 0.06);
+}
+
+/* ---------------------------------------------------------------------------
+   Dark theme
+   Set on <html data-theme="dark"> — before first paint by THEME_BOOT_SCRIPT,
+   and thereafter by ThemeProvider at each sunset and sunrise.
+
+   Two things are being kept, and they are what stop this reading as a generic
+   dark mode bolted onto a warm design:
+
+   1. The warmth. Every neutral here still carries red and drops blue
+      (#100e0d, not #0e1013). Cooling them to slate would abandon the greige
+      character the whole reference is built on, and the crimson accent — which
+      is unchanged in intent — would start to look like an error state sitting
+      on it.
+
+   2. The elevation *order*, by inverting the direction. In the light theme
+      importance goes toward white: canvas is the darkest thing and a hero tile
+      is black. Painting a dark theme by simply swapping in dark greys keeps the
+      ladder pointing the wrong way, and the hero tile becomes a hole in the
+      page. So here the ladder climbs toward light — canvas is darkest, cards
+      sit above the stage, and obsidian is the *lightest* surface on screen.
+      `text-white` on it still clears 10:1, which is why not one of the 47
+      places that write it needed touching.
+--------------------------------------------------------------------------- */
+
+:root[data-theme="dark"] {
+  /* Surfaces, darkest to lightest — the reverse of the light theme's climb */
+  --color-canvas: #100e0d;
+  --color-shell: #1a1716;
+  --color-stage: #201d1b;
+  --color-card: #292523;
+  --color-inset: #34302d;
+  --color-obsidian: #453e39; /* now the *lightest* surface: still the hero */
+
+  /* Ink */
+  --color-ink: #f4f1ee;
+  --color-muted: #a79e97;
+  --color-faint: #7b736d;
+  --color-line: #3a3431;
+
+  /* Accent — lifted just enough to clear 4:1 both as a background under white
+     text and as text on the stage. Crimson is dominated by its red channel, so
+     there is no version of it that is comfortably legible both ways; this sits
+     at the balance point rather than favouring one. */
+  --color-accent: #e8375d;
+  --color-accent-hover: #f45073; /* hover brightens here, rather than deepens */
+  --color-accent-soft: #2e0f18;
+
+  /* Semantic — the light theme's amber and green are mixed for white paper and
+     go muddy on near-black, so both are lifted to keep their meaning legible */
+  --color-warn: #e59b34;
+  --color-warn-soft: #372611;
+  --color-good: #4cb37d;
+
+  /* A dim needs to be genuinely dark here, and heavier: there is less contrast
+     between a panel and its backdrop to begin with */
+  --color-scrim: rgba(0, 0, 0, 0.6);
+
+  --tint-shadow: rgba(0, 0, 0, 0.44);
+  --tint-float: rgba(0, 0, 0, 0.55);
+}
+
 html {
   background: var(--color-canvas);
+  /* Native scrollbars, form controls and pickers follow the theme. The boot
+     script sets this inline too, so it is right from the first paint. */
+  color-scheme: light;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+/* The canvas is the one colour a theme flip cannot cross-fade underneath —
+   everything else is a card animating on top of it. Kept to the base duration
+   so the switch reads as deliberate rather than as a repaint. */
+html,
+body {
+  transition: background-color var(--duration-base) var(--ease-soft);
 }
 
 body {

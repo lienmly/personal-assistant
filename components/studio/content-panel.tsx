@@ -85,7 +85,7 @@ export function ContentPanel({
         aria-label="Close"
         onClick={dismiss}
         className={cn(
-          "absolute inset-0 bg-obsidian/25",
+          "absolute inset-0 bg-scrim",
           closing ? "animate-scrim-out" : "animate-scrim-in",
         )}
       />

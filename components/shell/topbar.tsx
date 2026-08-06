@@ -4,6 +4,7 @@ import Image from "next/image";
 import { Bell, LogOut, Menu, Search } from "lucide-react";
 
 import { signOutAction } from "@/lib/actions";
+import { ThemeToggle } from "@/components/shell/theme-toggle";
 import type { ShellUser } from "@/components/shell/app-shell";
 
 export function Topbar({
@@ -48,6 +49,8 @@ export function Topbar({
       <span className="ml-auto hidden text-sm text-muted lg:block">
         {todayLabel}
       </span>
+
+      <ThemeToggle />
 
       <button
         type="button"

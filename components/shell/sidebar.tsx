@@ -49,7 +49,7 @@ export function Sidebar({
           type="button"
           aria-label="Close menu"
           onClick={onClose}
-          className="fixed inset-0 z-30 bg-obsidian/25 md:hidden"
+          className="fixed inset-0 z-30 bg-scrim md:hidden"
         />
       )}
 
