@@ -411,6 +411,34 @@ come._
 - [ ] **Reordering steps.** They arrive in the order written, which for a list of accounts
       is the order you open them in. No drag handle; revisit if a checklist ever gets long.
 
+### Phase 4.11 — Utaitai gets its backlog
+_Built 2026-08-05. The same exercise Phase 4.9 did for Sleepy Cat, on the project that had
+been running on one recurring task since the purge. **Not a single line of code changed** —
+every track it needed already existed, which is the free-text `track` design paying off for
+the fifth time._
+
+- [x] **`Project.focus` for Utaitai** — "$100 MRR is 13 subscribers at $7.99, and there is
+      one." The arithmetic is the focus line, because the goal was given as a dollar figure
+      and 13 is the number that actually gets counted
+- [x] **44 tasks over six tracks** — Setup, Ship, Monetization, Content, Users, Marketing.
+      Written straight to the database, never into `prisma/seed.ts`
+- [x] **A second doc, "The road to $100 MRR"** — the leverage order, the price-ladder
+      conflict, why responsive web comes before either app, and the account/warm-up
+      sequencing
+- [x] **The pricing doc amended** with the ladder (weekly / yearly / lifetime behind a
+      monthly default) and what two of the three cost. The stored copy was confirmed
+      byte-identical to `git HEAD` before overwriting, so no in-app edit was clobbered
+- [x] **One due date on 44 tasks.** §6, "A goal with no deadline gets no due dates"
+- [x] **The recurring Wed/Sun batching task is back** — it was lost in the 2026-08-04 purge
+      despite Phase 4.6 naming it "the whole commitment now", so the app had been asserting
+      a commitment that no longer existed anywhere
+- [ ] **Lifetime pricing is unresolved and conflicts with the stated goal.** A lifetime
+      purchase contributes $0 MRR by definition. On the board as a decision, not a build
+- [ ] **The old paywall's conversion rate is unrecorded**, and the window closes when it is
+      switched off. The one dated row on the project
+- [ ] **Xiaohongshu is deliberately absent** — it is where the Chinese-learning audience
+      actually is, and it needs a `Platform` value plus a Chinese phone number
+
 ### Phase 5 — Montblanc (AI assistant)
 - [ ] Chat drawer with streaming (Claude via AI SDK), available on every surface
 - [ ] Montblanc persona/prompt
@@ -823,6 +851,31 @@ The same judgement applied in the other direction: **the plan omitted Wholesome 
 which for a cozy game is probably the best-fitting showcase there is, so that became a row
 too. A list handed over is evidence, not an instruction — the job is to diff it against what
 is already known, not to transcribe it.
+
+### A goal with no deadline gets no due dates — decided 2026-08-05
+
+Utaitai's 44 tasks carry **one** due date between them. The goal was given as "$100 MRR, no
+deadline, however long it takes", and that phrasing is load-bearing rather than casual.
+
+The obvious move is to invent dates anyway, on the grounds that a task without one never
+gets done. It fails for the reason every removal in this file has failed: **a date invented
+to manufacture urgency is a row you have to stop and disprove**, and forty of them is an
+Overdue tile counting up forever on a project that is deliberately `side`. Nothing would be
+late. The tile would say otherwise every morning, and the tile is on the screen opened
+twenty times a day.
+
+This is the sibling of "An unverified date is a note, not a due date" one step further out.
+There the date existed and could not be checked; here **there is no date to check**, and the
+board's honest answer is an ordered list with no clock on it. What supplies the ordering
+instead is the **track order** plus a handful of explicit decision rows sitting in front of
+the work they gate — "decide the price ladder" before any price is built, "decide one
+account per platform or one per language" before any account is created.
+
+**The one exception earns its date because the world imposes it, not because the plan wants
+it.** Whatever the old three-free-songs paywall converted at becomes unrecoverable the
+moment the paywall is switched off, and it is the only baseline the $1 week can ever be
+compared against. That is a genuine closing window, which is the test: a deadline someone
+else is holding gets a due date, a deadline you would be inventing for yourself does not.
 
 ### A milestone is a track plus an event — decided 2026-08-05
 
@@ -1671,7 +1724,100 @@ Named animations: `animate-rise` (fade + 8px up — cards, columns, rows arrivin
 
 ---
 
-_Last updated: 2026-08-06 · Status: **Phase 4.10 — a task can have a checklist.**_
+_Last updated: 2026-08-05 · Status: **Phase 4.11 — Utaitai gets its backlog.**_
+
+_**2026-08-05 — Utaitai had been running on one recurring task, and it has a revenue goal.**
+The same exercise Phase 4.9 did for Sleepy Cat, on the project the 2026-08-04 purge left
+emptiest. Forty-four tasks over six tracks, a focus line, and a second doc. **No code
+changed at all** — every track it needed already existed, which is the free-text `track`
+design paying off for the fifth time. (The Phase 4.10 entry below is dated the 6th; its own
+notes record that the work happened on the 5th, so this is the same day.)_
+
+_**The goal reframed itself the moment it was written down.** "$100 MRR" at the existing
+$7.99 price is **thirteen subscribers**, and there is one. At one to two signups a day —
+about forty-five a month — that is twelve more conversions, which at 10% is three months and
+at 3% is most of a year. So **the conversion rate is the variable, not the traffic**, and the
+rate today is under 1%. That ordering is the whole doc: doubling the audience doubles a
+number very close to zero, so the paywall comes first, talking to people who didn't pay comes
+second, repurposing third, and the apps last. The focus line is the arithmetic rather than
+the dollar figure, because 13 is the number that actually gets counted._
+
+_**Three things the ask didn't mention and the capture surfaced.** **Lifetime pricing
+contributes $0 MRR by definition** — it is cash today in exchange for a subscriber
+permanently removed from a count that only has to reach thirteen, so one lifetime buyer is
+roughly 8% of the goal, gone. It is on the board as a decision (price it at 30–40× monthly,
+or hold it until $100 MRR is passed), not as a build. **Weekly cannibalises monthly and costs
+more to collect** — about 13% to Stripe on a $2.99 week against about 6.6% on $7.99 a month,
+charged four times as often. And **whatever the old three-free-songs paywall converted at is
+unrecorded**, which becomes unrecoverable the moment it is switched off; without it there is
+no baseline the $1 week can ever be compared against. That is the only dated row on the
+project._
+
+_**Also flagged rather than smoothed over: replacing the free tier outright is a bet this
+volume may not survive.** Forty-five signups a month is not much to absorb a card form
+arriving before anyone has heard the product work, and zero signups times any conversion rate
+is zero. The alternative shape — keep the three songs as the taste, put the $1 week where
+they run out — is on the board as a decision beside it, with the numbers attached. The
+pricing doc's 2026-08-03 assumption of replacement stands until that decision is made; it is
+just no longer implicit._
+
+_**Responsive web before either app, and the reasons are mostly other people's rules.** A
+webview wrapper around a desktop-only layout is a bad app on both stores, so the cheap job is
+also the prerequisite. Three gates that get found late: **Apple 3.1.1 and Google Play Billing
+both require in-app purchase for digital content**, at a cut and with their own trial
+mechanics, so "$1 for 7 days then $7.99/month" may not be expressible as an IAP in that shape
+at all — which is a reason to settle it before the paywall screen is built twice. **Apple's
+4.2 minimum-functionality rule** is aimed squarely at repackaged websites, so choosing the
+wrapper doesn't remove the need for the app to be an app. And **a new personal Play developer
+account cannot reach production without a closed test of twelve testers over fourteen
+continuous days** — no work at all, two weeks of calendar, and worth starting long before the
+build is finished. The honest verdict, written into the doc: the apps buy store search, which
+is real and is why they should exist, and they are still weeks against days._
+
+_**The recurring Wed/Sun batching task is back.** It was asked for, and finding out why
+revealed that Phase 4.6 had called it "the whole commitment now" while the 2026-08-04 purge
+had deleted it — so for two days the app had been asserting a commitment that existed nowhere
+in it. Weekly on `[3, 7]`, first firing Sunday 9 August, linking straight to `/studio/batch`.
+Verified that 2026-08-09 is genuinely a Sunday rather than trusting the arithmetic._
+
+_**Forty-four tasks, one due date**, which is a rule now: §6, "A goal with no deadline gets no
+due dates". The goal was given as "no deadline, however long it takes", and inventing dates
+anyway would put forty rows into an Overdue tile that counts up forever on a project that is
+deliberately `side`. What supplies the ordering instead is the track order plus explicit
+decision rows sitting in front of the work they gate._
+
+_**Answering "where else has short-form clip?"** — the three planned channels (IG Reels, YT
+Shorts, FB Reels) were already on the brand and now have creation and warm-up rows behind one
+decision about whether they split per language. Recommended on the board: **split YouTube and
+Instagram, keep one Facebook page**, and link Instagram to it so Reels cross-post themselves.
+**X earns a look for the Japanese side specifically** — it is dominant in Japan in a way it is
+nowhere else. **Xiaohongshu is where the Chinese-learning audience actually is and is
+deliberately not on the board**: it needs a `Platform` value and a Chinese phone number, so it
+is a migration for an account that may not be openable from here. And one concrete row that is
+easy to miss: **strip the TikTok watermark before reposting**, because Instagram and YouTube
+both demote reuploads carrying it._
+
+_Verified in a signed-in browser. All 44 rows render grouped in track order (Setup → Ship →
+Monetization → Users → Marketing → Content), the batching task shows its `Wed & Sun` badge and
+9 Aug date, "Post today's shorts" still reads `Daily · 2` with its `0/2` checklist and neither
+subtask appears as a loose row, Today's card leads with the focus line, the Overdue tile reads
+0, and both docs render clean — headings, ordered and bulleted lists, and the pricing doc's
+blockquote surviving as a quote rather than a paragraph beginning with `>`. Console clean.
+The stored pricing doc was confirmed byte-identical to `git HEAD` before being overwritten, so
+no in-app edit was lost._
+
+_Outstanding from this change: **lifetime pricing is a live conflict with the stated goal** and
+needs deciding before it is built. **The conversion baseline is unrecorded and the window
+closes** when the old paywall does. **Xiaohongshu needs a `Platform` value** if the Chinese
+side ever outgrows TikTok. Utaitai stays `side` with `cadenceDays: 14`, deliberately — the
+daily posting task bumps `lastTouchedAt` anyway, so the drift warning could never fire, and
+that is the correct amount of nagging for a project with no deadline. **And the phone layout
+still has not been looked at on a real device** — nothing here adds a breakpoint, but that is
+reasoning, not a check._
+
+---
+
+_Previously: **Phase 4.10 — a task can have a checklist.**_
 
 _**2026-08-06 — posting to Utaitai is one job done in two places, and the app had no way to
 say that.** The ask was a daily recurring task to post, with a subtask per TikTok account

@@ -8,6 +8,22 @@ second decision to make at the end of that week.
 
 > Record here what the entry point was before this, and the date it changed. Without it there is nothing to compare the new conversion rate against, and finding out whether $1 converts better than free is the entire point.
 
+## Amended 2026-08-05 — a ladder behind the monthly price
+
+**Monthly stays the default and the only pre-selected option.** Weekly, yearly and lifetime
+sit behind it as choices somebody can go looking for. Four visible prices is a decision to
+make instead of a purchase, and this paywall already asks for a card.
+
+Two of the three work against the goal they are being added under, which is $100 MRR, and
+both need deciding before they ship rather than after:
+
+- **Lifetime contributes nothing to MRR by definition.** It is cash today in exchange for a subscriber permanently removed from a count that only has to reach thirteen. Either price it at 30–40× monthly so the trade is worth making, or hold it until $100 MRR is passed.
+- **Weekly cannibalises monthly and costs more to collect** — about 13% lost to Stripe on a $2.99 week against about 6.6% on $7.99 a month, charged four times as often. It is a genuine fit for somebody with a trip in three weeks, and it should be priced as the convenience it is: a month of weeks costing clearly more than a month.
+- **Yearly is the one with no catch.** One charge, twelve months of retention, counted toward MRR as the price over twelve.
+
+The full arithmetic is in **The road to $100 MRR**, which is the doc these prices exist to
+serve.
+
 ## Why a paid week and not a free one
 
 A free trial optimises for signups. A $1 week optimises for people who are still
