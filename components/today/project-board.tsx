@@ -133,6 +133,14 @@ export function ProjectBoard({
             <TaskLine key={task.id} task={task} />
           ))}
         </div>
+      ) : board.openTotal > 0 ? (
+        // Not the same sentence as "nothing open". Everything this project has
+        // left repeats and is waiting for its day, so saying the card is empty
+        // would be untrue — and the "N more →" below already points at where
+        // those rows live.
+        <p className="px-2 py-2 text-[12.5px] leading-relaxed text-faint">
+          Nothing due today.
+        </p>
       ) : (
         <p className="px-2 py-2 text-[12.5px] leading-relaxed text-faint">
           Nothing open here.{" "}
@@ -199,12 +207,11 @@ function TaskLine({ task }: { task: TaskLineView }) {
   const badge = BADGE[task.reason];
   const doing = task.status === "doing";
 
-  // A recurring job re-arms rather than finishing, so it stays on this screen
-  // with tomorrow's date and empty boxes. Folding it out would animate away a
-  // row that is about to be redrawn in place.
-  const folding =
-    leaving ||
-    (subPending && subtaskFinishes && task.recurrence === "none");
+  // Every route out of this row now removes it from Today. A one-off is done;
+  // a recurring job re-arms onto its next day, which `dueByToday` hides. It
+  // used to stay put with tomorrow's date, which is the thing that made a
+  // finished job look outstanding.
+  const folding = leaving || (subPending && subtaskFinishes);
 
   return (
     <div

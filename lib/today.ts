@@ -75,6 +75,42 @@ function reasonFor(
   return due <= soon ? "soon" : "open";
 }
 
+/**
+ * A repeating row is on Today only on the day it is *for*.
+ *
+ * Ticking a recurring task doesn't finish it, it advances it — so without this
+ * a daily job reappears the instant it is done, dated tomorrow, on the screen
+ * you opened to see what is left. It reads exactly like something still owed.
+ * The Wed & Sun batch seen on a Monday is the same fault a size up: it is not
+ * late, it is not today's, and a row you have to re-decide about every morning
+ * is precisely the pressure this screen keeps having to take out (§6, "The
+ * sprint"). It is also the fourth instance of the app's recurring error —
+ * asserting something nobody said — here in the form of a date the task itself
+ * disagrees with.
+ *
+ * Three things still show, each because hiding them would lose real
+ * information:
+ *
+ * - **Overdue.** A missed day is a fact, and one you asked for.
+ * - **`doing`.** That is you saying you are on it now, and the app does not get
+ *   to argue with an explicit press.
+ * - **A recurring row with no due date**, which is a rule that never fires
+ *   (`saveTask` infers one, so it should not exist). Making a broken row
+ *   invisible is worse than showing it.
+ *
+ * Deliberately Today-only. The Hunt Board and a project page are the complete
+ * list in full, and hiding tomorrow's occurrence there would mean a project
+ * could look empty when it isn't.
+ */
+function dueByToday(
+  task: { recurrence: string; status: string; due: string | null },
+  today: string,
+): boolean {
+  if (task.recurrence === "none") return true;
+  if (task.status === "doing") return true;
+  return task.due === null || task.due <= today;
+}
+
 export type ProjectBoard = Awaited<ReturnType<typeof getProjectBoards>>[number];
 
 /**
@@ -169,7 +205,8 @@ export async function getProjectBoards(perProject = 5) {
       );
 
   const boards = projects.map((project) => {
-    const rows = shape(byProject.get(project.id) ?? []);
+    const all = shape(byProject.get(project.id) ?? []);
+    const rows = all.filter((task) => dueByToday(task, today));
     const idle = daysSince(project.lastTouchedAt);
 
     // Everything the settings panel edits, carried on the card so the pencil
@@ -207,16 +244,20 @@ export async function getProjectBoards(perProject = 5) {
         idle > project.cadenceDays,
       edit,
       tasks: rows.slice(0, perProject),
-      openTotal: rows.length,
+      // The *whole* backlog, not what survived `dueByToday`, so the "N more →"
+      // link still says a repeating row is waiting for its day rather than
+      // pretending the project is empty.
+      openTotal: all.length,
       // Counted across the whole project rather than the visible slice, so the
       // card can say "2 overdue" even when both are below the fold.
-      overdue: rows.filter((task) => task.reason === "overdue").length,
+      overdue: all.filter((task) => task.reason === "overdue").length,
     };
   });
 
   // One-offs that belong to no project. Appended rather than sorted in: it is a
   // catch-all, not a project, and it should never lead the screen.
   const unfiled = shape(byProject.get("unfiled") ?? []);
+  const unfiledToday = unfiled.filter((task) => dueByToday(task, today));
   if (unfiled.length > 0) {
     boards.push({
       id: "unfiled",
@@ -232,7 +273,7 @@ export async function getProjectBoards(perProject = 5) {
       drifting: false,
       // Not a project, so there is nothing to edit and no pencil on the card.
       edit: null,
-      tasks: unfiled.slice(0, perProject),
+      tasks: unfiledToday.slice(0, perProject),
       openTotal: unfiled.length,
       overdue: unfiled.filter((task) => task.reason === "overdue").length,
     });

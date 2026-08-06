@@ -439,6 +439,22 @@ the fifth time._
 - [ ] **Xiaohongshu is deliberately absent** — it is where the Chinese-learning audience
       actually is, and it needs a `Platform` value plus a Chinese phone number
 
+### Phase 4.12 — A repeating row waits for its day
+_Built 2026-08-05. Four lines of filter, and it is the fifth instance of the same
+error the last four phases have been removing: **the app asserting something nobody
+told it.** Here the assertion was a date the task itself disagreed with._
+- [x] **`dueByToday` in `lib/today.ts`** — a recurring row is on Today when it is due
+      today or overdue, and not before. Overdue, `doing` and a rule with no due date
+      still show. §6, "A repeating row is on Today only on its day"
+- [x] **`openTotal` keeps counting the hidden ones**, so "N more →" and the Open tasks
+      tile stay honest
+- [x] **"Nothing due today"** as a distinct empty state from "Nothing open here"
+- [x] **`TaskLine`'s recurring exception to the fold-out is gone** — every route out
+      of the row now removes it from the screen
+- [x] `TaskLineView.recurrence` deleted; it existed only for that exception
+- [ ] The Hunt Board is untouched on purpose, and that is a judgement rather than a
+      check: it has not been read on a phone with this change in place
+
 ### Phase 5 — Montblanc (AI assistant)
 - [ ] Chat drawer with streaming (Claude via AI SDK), available on every surface
 - [ ] Montblanc persona/prompt
@@ -1061,6 +1077,45 @@ chosen over an obvious alternative that fails:
    the board and never reaches Today. `saveTask` and the seeder both infer the first
    occurrence rather than demanding one — ticking "every Wednesday" and leaving the date
    blank is the obvious thing to do.
+
+### A repeating row is on Today only on its day — decided 2026-08-05
+
+Ticking a recurring task doesn't finish it, it **advances** it — so before this,
+"Post today's shorts" was ticked at 9am and reappeared at 9:01, dated tomorrow, on
+the screen you open to see what is left. It reads exactly like something still owed,
+which means the app was **charging you twice for one job**. The Wed & Sun batching
+task was the same fault a size larger: on a Monday it sat there as a thing to feel
+behind on, four days before it was anything at all.
+
+So `getProjectBoards` filters it: a row with `recurrence !== "none"` is on Today when
+it is **due today or overdue**, and not before. Three things still show, each because
+hiding them loses real information:
+
+- **Overdue.** A missed day is a fact, and one you asked to be told.
+- **`doing`.** That is you saying you are on it *now*, and an explicit press outranks
+  a date.
+- **A recurring row with no due date**, which is a rule that never fires (`saveTask`
+  infers one, so it shouldn't exist). Making a broken row invisible is worse than
+  showing it.
+
+Three consequences, each chosen over an obvious alternative that fails:
+
+1. **`openTotal` still counts the hidden ones**, so the card's "N more →" is honest
+   and the "Open tasks" tile doesn't shrink every time a habit is ticked. Filtering
+   the count too would make the backlog appear to evaporate.
+2. **A card with nothing but future recurrence reads "Nothing due today", not
+   "Nothing open here."** The second sentence would be untrue, and it is the sentence
+   that offers to put something on the project — the wrong prompt for a project that
+   already has work waiting for its day.
+3. **Every route out of the row now folds it out.** `TaskLine` used to suppress the
+   fold on a recurring task specifically because it stayed put and would be redrawn;
+   it no longer stays put, so the special case is gone.
+
+**Deliberately Today-only.** The Hunt Board and a project page are the complete list
+in full — hiding tomorrow's occurrence there would let a project look empty when it
+isn't, which is the opposite failure. This is the same distinction the calendar's
+default layers draw (§6, sixth rule): the screen you open twenty times a day shows
+what is true *today*, and the survey surfaces show everything.
 
 ### A task can have a checklist — decided 2026-08-06
 
@@ -1724,7 +1779,54 @@ Named animations: `animate-rise` (fade + 8px up — cards, columns, rows arrivin
 
 ---
 
-_Last updated: 2026-08-05 · Status: **Phase 4.11 — Utaitai gets its backlog.**_
+_Last updated: 2026-08-05 · Status: **Phase 4.12 — a repeating row waits for its day.**_
+
+_**2026-08-05 — a ticked-off habit was still sitting on Today, dated tomorrow.** The
+complaint was exact: a recurring task on Today "makes me feel like I have to get it
+done while I don't have to." Ticking one advances it rather than finishing it, so
+"Post today's shorts" left at 9am and came straight back for tomorrow, on the one
+screen whose job is to say what is left. And the Wed & Sun batching task sat there on
+a Monday, four days before it was owed. Both were the app charging you for work that
+was either already done or not yours yet — the fifth instance of the error the last
+four phases have been pulling out, and the reason the sprint went._
+
+_**Four lines of filter.** A row that repeats is on Today when it is **due today or
+overdue**, and not before. Overdue still shows, because a missed day is a fact you
+asked for; `doing` still shows, because an explicit press outranks a date; and a
+recurring row with no due date shows, because that is a rule that never fires and
+making a broken row invisible is worse than showing it. **`openTotal` deliberately
+still counts the hidden ones**, so the card's "N more →" and the Open tasks tile don't
+shrink every time a habit is ticked — a card whose whole remainder is waiting for its
+day now reads "Nothing due today", which is a different sentence from "Nothing open
+here" and does not offer to put more work on a project that already has some._
+
+_**Today-only, on purpose.** The Hunt Board and a project page are the complete list
+in full, and hiding tomorrow's occurrence there would let a project look empty when it
+isn't. Same split the calendar's default layers draw._
+
+_One thing fell out that wasn't the ask: `TaskLine` had a special case suppressing the
+fold-out animation for recurring rows, on the grounds that they stay put and get
+redrawn. They no longer stay put, so both the exception and the `recurrence` field on
+`TaskLineView` that existed only to drive it are gone._
+
+_Verified against the live database across all five cases — due tomorrow (hidden), due
+today, overdue, far-future-but-`doing`, and no due date (all shown) — with the test row
+restored to its original value afterwards. Then in a signed-in browser: Utaitai's card
+was led by "Post today's shorts" and "Batch-create the week's content" and is now led
+by the three real rows underneath them. Round-tripped a throwaway daily task end to
+end — created it due today, watched it appear under One-offs with its `Daily` badge,
+ticked it, watched the row fold out rather than blink, "Ticked off today" go 3 → 4 with
+the snapshot listed, and One-offs drop to "1 more →" with the advanced row counted but
+not shown. Both rows deleted afterwards and the screen confirmed back at 3 ticked and
+134 open. `tsc --noEmit` and `eslint` pass; console clean._
+
+_Outstanding from this change: **the Hunt Board is untouched by design**, which is a
+judgement rather than a check. **And the phone layout still has not been looked at on a
+real device** — this adds no breakpoint, but that is reasoning, not a check._
+
+---
+
+_Previously: **Phase 4.11 — Utaitai gets its backlog.**_
 
 _**2026-08-05 — Utaitai had been running on one recurring task, and it has a revenue goal.**
 The same exercise Phase 4.9 did for Sleepy Cat, on the project the 2026-08-04 purge left

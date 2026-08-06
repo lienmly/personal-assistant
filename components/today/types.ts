@@ -24,10 +24,6 @@ export type TaskLineView = {
   /** "Wed & Sun", "Daily" — null for a one-off. A repeating row has to say so:
    *  ticking it moves it to its next day rather than finishing it. */
   repeatLabel: string | null;
-  /** `"none"` unless this row repeats. Today needs it for one thing only:
-   *  ticking the last checklist box finishes the job, and a recurring job
-   *  re-arms and stays on the screen rather than folding away. */
-  recurrence: string;
   /** The steps this job is done in. Expanded on Today — this is the surface
    *  you are on to tick things off, not to survey them. */
   subtasks: SubtaskView[];

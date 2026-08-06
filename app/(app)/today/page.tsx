@@ -123,7 +123,6 @@ export default async function TodayPage() {
       reason: task.reason as TaskReason,
       areaColor: task.area.color,
       repeatLabel: repeatLabel(task),
-      recurrence: task.recurrence,
       subtasks: task.subtasks,
     })),
   }));
