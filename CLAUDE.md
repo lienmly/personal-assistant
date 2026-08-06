@@ -490,6 +490,41 @@ rather than about what it asserts — and the design pass §8 had been deferring
 - [ ] **`prefers-color-scheme` is deliberately ignored.** Following the sun and following
       the OS are different answers, and wiring both would need a fourth mode. §11
 
+### Phase 4.14 — Coding Mom and Forge get their backlogs
+_Built 2026-08-05. The last two projects the 2026-08-04 purge left empty, and the third and
+fourth run of the exercise Phase 4.9 and 4.11 did for Sleepy Cat and Utaitai. One new track,
+one new doc, and **no other code changed** — which is now the fifth time the free-text
+`track` design has absorbed a new project without a migration._
+
+- [x] **`Project.focus` on both**, written straight to the database
+- [x] **Coding Mom: 30 tasks** over Setup, Content, Users and Marketing. The setup chain is
+      **undated on purpose** — its previous incarnation was dated from a 2026-08-01 start
+      that has entirely lapsed with none of the work done. §6, "A goal with no deadline gets
+      no due dates", demonstrated on the project that disproved its own dates
+- [x] **Forge: 31 tasks** over Setup, Build, Users, Marketing and **`YC`**. One due date on
+      the whole project — confirming the next batch deadline, which is a clock somebody else
+      holds and is recorded as *unverified*
+- [x] **`YC` is a new track** (`lib/tracks.ts`) — the "Next Fest" shape, with the one
+      difference that there is no single date: four batches a year, so it is a readiness
+      list re-run each quarter rather than a countdown. §6
+- [x] **`forge-yc.md`, "The road to YC"** — a second Forge doc, split from the brief for the
+      same reason Utaitai has both a pricing note and a road to $100 MRR. Added to the
+      seed's `DOCS` list, because docs are structure
+- [x] **Both existing docs de-jargoned** — `forge-vision.md` still said "marks" and claimed
+      the project was seeded `simmering`, three days after the rename and after it went
+      `active`. `coding-mom.md` still said "Drops"
+- [x] **The Coding Mom niche narrowed** from seven pillars to five, and the two that went
+      are recorded with the reason
+- [ ] **No recurring posting task exists yet, deliberately.** A daily row nagging about an
+      account that does not exist is the thing this app keeps deleting; the last row of the
+      setup chain is what creates it. §6
+- [ ] **Coding Mom's `cadenceDays` is 1** and it currently reads "Drifting · 5d" on a
+      project whose first task is to create an e-mail account. Correct the day posting
+      starts, wrong until then, and left alone rather than churned
+- [ ] **Every YC batch date is unverified** and none is asserted as a due date
+- [ ] **There is no quarterly recurrence**, so "apply to the next batch" cannot be a
+      repeating row — the enum is daily/weekdays/weekly/monthly
+
 ### Phase 5 — Montblanc (AI assistant)
 - [ ] Chat drawer with streaming (Claude via AI SDK), available on every surface
 - [ ] Montblanc persona/prompt
@@ -948,6 +983,51 @@ readiness list. That is a real gap and it is smaller than a table.
 **`Next Fest` is the first track expected to disappear.** It is for one week and is
 meaningless afterwards. That is fine — `Setup` empties out too, and a track that goes quiet
 is the free-text design working rather than failing.
+
+### A milestone with no date is still a track — decided 2026-08-05
+
+`YC` is the second milestone track, and it breaks the half of the rule above that says a
+milestone is a track *plus an event*. There is no event, because **YC runs four batches a
+year on a rolling application** — the deadline it aims at moves every quarter, and the
+readiness list is re-run against each one rather than counted down to.
+
+The obvious move is to put the next deadline on the calendar anyway and treat that as the
+event. It fails today for a specific reason rather than a principled one: the batch dates
+could not be confirmed from here, so an Event would be asserting a date the app was told by
+nobody — §6, "An unverified date is a note, not a due date", and an invented appointment is
+the worst place to put one (see "nothing but you creates an event"). The verification task
+is the first row in the track, and **once it is answered the deadline earns an Event** and
+this becomes an ordinary milestone.
+
+What the track supplies in the meantime is the thing an event never did anyway: the set of
+work that has to be true before applying. That half was always the useful half.
+
+### One project's goal is another project's input — decided 2026-08-05
+
+Coding Mom and Forge are two projects with **one funnel running through them**, and they
+stay two projects. Coding Mom's goal — 10,000 engaged followers — is not an end in itself;
+it is Forge's launch audience, and Forge's own goal (getting into YC) is substantially
+gated on it, because an application with no traction is a rejection.
+
+The tempting simplification is to fold them into one project with an `Audience` track. It
+fails on the thing this file keeps rediscovering: **they run on different clocks and have
+different failure modes.** Coding Mom is a daily cadence that dies of friction — the whole
+project is "did you post today", and its drift warning is meaningful at `cadenceDays: 1`.
+Forge is a quarterly application on a `side` tier with `cadenceDays: 14`, where a fortnight
+of silence is fine and a *year* of silence is the failure. One project cannot carry both
+cadences, and whichever one won would make the other's warning a lie.
+
+It is also the two-axis model (§6, "Brand and Project are two axes") holding at a larger
+size. Coding Mom is already both a Brand and a Project for the same kind of reason; that
+the Project's *purpose* is another project's precursor does not collapse them either. The
+link between them is what it has always been: content carrying `brandId: coding-mom` and
+`projectId: forge` — who is talking, and what it is about.
+
+**What the coupling actually costs is one row each way**, and both exist rather than being
+assumed: "Point the bio link at the Forge waitlist once it exists" on Coding Mom, and
+"Ship the landing page with a waitlist" on Forge. The handoff between an audience that
+follows a mom and a startup with a pitch deck is a third row, on Coding Mom, because that
+is the side that loses people if it is got wrong.
 
 ### A doc can point at a document — decided 2026-08-05
 
@@ -1680,6 +1760,20 @@ originally — shifts every publish time by the machine's offset.
   what tells a wrapped line from the start of something new; a blank line always ends a run.
 
   **Tables are still not supported** and render as raw pipes. `forge-vision.md` has two.
+
+- **Emphasis does not nest, so never put markup inside `**bold**`.** Found 2026-08-05 while
+  writing the Coding Mom doc. `Inline` is a flat union — `bold`, `italic`, `code` and `link`
+  each carry a plain `text: string`, with no children — so `parseInline` matches the *outer*
+  run and emits everything inside it as literal characters. `**\`side\`**` renders with the
+  backticks showing, and `**…[Forge](./forge-vision.md) launches into**` renders the entire
+  link syntax on screen. Write the emphasis and the markup as siblings instead.
+
+  It is a *writing* rule rather than a bug to fix: nesting would mean making `Inline`
+  recursive and re-entering `parseInline` per span, which is a real parser for a problem
+  that a different sentence solves. The five docs written before this one had no instances,
+  so it has never actually bitten in a year of prose — the check is one pass looking for a
+  bold or italic whose text still contains a backtick, a `[…](`, or a `*`.
+
   Nothing else in the renderer is known to be wrong.
 
 - **Don't put a JSX expression next to text containing an HTML entity.**
@@ -1965,7 +2059,85 @@ Three rules inside it:
 
 ---
 
-_Last updated: 2026-08-06 · Status: **Phase 4.13 — a dark theme that follows the sun.**_
+_Last updated: 2026-08-05 · Status: **Phase 4.14 — Coding Mom and Forge get their
+backlogs.**_
+
+_**2026-08-05 — the two projects the purge left emptiest now have work on them.** Coding Mom
+and Forge were the last two carrying zero tasks and no focus line, and they arrived together
+because they are **one funnel**: Coding Mom is TikTok-first audience building aimed at 10,000
+engaged followers, and those followers are the audience Forge launches into. 30 tasks and 31
+tasks, both written straight to the database. **No code changed but one line** — a `YC`
+track — which is the free-text `track` design absorbing a fifth project without a migration._
+
+_**They stay two projects, and §6 now says why.** The tempting fold is one project with an
+`Audience` track, and it fails because they run on different clocks: Coding Mom is a daily
+cadence that dies of friction, Forge is a quarterly application where a fortnight of silence
+is fine and a year of it is the failure. One project cannot carry both cadences and whichever
+won would make the other's drift warning a lie. What the coupling costs is one row each way,
+and both were written rather than assumed._
+
+_**The goal reframed itself twice while being written down.** "10,000 engaged followers" has
+two different products inside it — a follower who scrolled past and tapped follow is worth
+nothing to a $200 prototype waitlist — so **deciding what "engaged" means is a task**, or the
+goal can only be counted and never measured. And "try TikTok first" has no exit condition,
+which is how it quietly becomes "do TikTok forever, badly"; picking a post count and a
+stretch of weeks **in advance** is much easier than picking them while feeling bad._
+
+_**Forge's whole backlog is undated except one row**, per §6's "A goal with no deadline gets
+no due dates" — the goal is explicitly rolling, and forty invented dates on a `side` project
+is an Overdue tile counting up forever. The exception is confirming the next YC batch
+deadline, because that is a clock somebody else holds; it is recorded as **unverified** and
+carries the only due date on the project (12 Aug). **Coding Mom is undated too**, and it is
+the project that proved the rule: its previous setup chain was dated from a 2026-08-01 start
+with a first post on the 9th, and every one of those dates has lapsed with none of the work
+done._
+
+_**Four things the ask didn't mention and the capture surfaced.** **The $200 prototype credit
+is an unpriced claim** — it is in the tagline, the solution and the business model, and
+nobody has asked a manufacturer what it actually buys; if the honest number is $600 the pitch
+changes, and two conversations settle it. **The breathing tracker is a regulatory question,
+not just a build** — anything implying it will alert you about a baby's breathing is in
+territory a well-funded competitor spent years on, and the claim is the marketing and the
+marketing is the video. **Text-to-CAD is the load-bearing assumption of the entire company
+and has never been tested**, so it is early in Build and may change the pitch. And **the
+solo-founder question is asked directly on the application** — the answer here is a good one,
+and it is much better decided than improvised, because "looking for a co-founder" has a
+recruiting task hiding behind it._
+
+_**The docs were also three days stale.** `forge-vision.md` still said "marks" and claimed the
+project was seeded `simmering`, after the 2026-08-02 rename and after it went `active`;
+`coding-mom.md` still said "Drops". Both fixed, plus a second Forge doc, **"The road to YC"**,
+split from the brief for the same reason Utaitai has both a pricing note and a road to $100
+MRR — one says what the thing is, the other says what happens next, and they change on
+different clocks. Both stored copies were confirmed byte-identical to `git HEAD` before being
+overwritten, so no in-app edit was lost._
+
+_**One real renderer gotcha, found only by looking at the page.** `Inline` is a flat union, so
+emphasis does not nest: `**\`side\`**` renders with the backticks showing, and a link inside a
+bold run renders its entire `[…](…)` syntax on screen. Three instances, all in prose written
+today, none in the five older docs. Recorded in §9 as a writing rule rather than fixed —
+nesting means making the type recursive for a problem a different sentence solves._
+
+_Verified in a signed-in browser. Today leads both cards with their focus lines, the Coding
+Mom setup chain reads in order, Forge's one dated row sorts to the top of its card, and the
+Overdue tile is still 0. The `YC` track groups last on the project page, after Setup → Build
+→ Users → Marketing. Both docs render clean and the re-check for nested emphasis comes back
+empty. `tsc --noEmit` and `eslint` pass; console clean on both project pages. The dark theme
+came on by itself partway through, which is Phase 4.13 working._
+
+_Outstanding from this change: **no recurring posting task exists yet**, deliberately — a
+daily row nagging about an account that does not exist is what this app keeps deleting, so
+the last row of the setup chain is what creates it. **Coding Mom reads "Drifting · 5d"** on
+`cadenceDays: 1` while its first task is to create an e-mail account; correct the day posting
+starts and wrong until then, left alone rather than churned. **There is no quarterly
+recurrence**, so "apply to the next batch" cannot be a repeating row. **Every YC batch date is
+unverified.** `prisma/docs/utaitai-mrr.md` is still missing from the seed's `DOCS` list, so a
+fresh database would not get it — noticed here, not fixed. **And the phone layout still has
+not been looked at on a real device.**_
+
+---
+
+_Previously: **Phase 4.13 — a dark theme that follows the sun.**_
 
 _**2026-08-06 — the app goes dark at sunset and light again at dawn.** The first change in
 six phases that is purely about how it looks rather than about what it asserts, and §8 had

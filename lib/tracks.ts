@@ -50,6 +50,15 @@ export const TRACKS = [
   "Monetization",
   "Users",
   "Marketing",
+  // Added 2026-08-05 with Forge. The same shape as "Next Fest" — a track
+  // standing in for a milestone, which is a date plus the work that has to be
+  // true by it — with one difference that matters: there is no single date.
+  // YC runs four batches a year on a rolling application, so this is a
+  // readiness list that gets re-run every quarter rather than a countdown, and
+  // the deadline it aims at moves each cycle. It sorts after "Marketing"
+  // because everything in it is gated on the audience, the prototype and the
+  // interviews existing first.
+  "YC",
   "Experiments",
   "Content",
   // The Baby area's streams. They sort last on purpose: this order is the

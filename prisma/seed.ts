@@ -59,6 +59,10 @@ const DOCS: SeedDoc[] = [
     title: "The brand and the project",
   },
   { projectSlug: "forge", file: "forge-vision.md", title: "The startup brief" },
+  // The brief is the pitch; this is the plan. Split for the same reason Utaitai's
+  // pricing note and its road to $100 MRR are two docs — one says what the thing
+  // is, the other says what happens next, and they change on different clocks.
+  { projectSlug: "forge", file: "forge-yc.md", title: "The road to YC" },
   {
     projectSlug: "sleepy-cat",
     file: "sleepy-cat-steam.md",

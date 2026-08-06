@@ -2,11 +2,13 @@
 
 > The eventual main thing: AI-designed AIoT hardware, prototyped for $200, sold on a
 > marketplace. **Forge** is a placeholder name — the shortlist was ForgeMarket,
-> ImpactForge, LuminaForge, and picking the real one is a mark on the board.
+> ImpactForge, LuminaForge, and picking the real one is a task on the board.
 >
 > Written down 2026-07-31 from the working brief. This is the pitch as it currently
-> stands; the *next moves* live on the Forge project in the Hunt Board, and the
-> audience being built for it lives under [Coding Mom](./coding-mom.md).
+> stands. The **plan** — the goal, the order of work and what the first application will
+> say — is in [The road to YC](./forge-yc.md); the *next moves* live on the Forge project
+> in the Hunt Board, and the audience being built for it lives under
+> [Coding Mom](./coding-mom.md).
 
 ---
 
@@ -169,20 +171,26 @@ motherhood, committed to transparent, impact-driven building.
 
 ## Traction & next steps
 
-Traction is the gap right now — the section reads "[add early progress]" and the honest
-answer is that it's the audience and the two prototypes, both of which are marks on the
-board. Then: YC / early funding to accelerate the AI tools, manufacturer partnerships and
-the marketplace launch.
+Traction is the gap right now, and the honest answer is that there isn't any yet — it is
+the audience and the two prototypes, both of which are tasks on the board rather than
+things that exist. Then: **YC**, which is the goal for this project and has its own doc,
+[The road to YC](./forge-yc.md) — four batches a year, applied to on a rolling basis until
+it lands. Then early funding to accelerate the AI tools, manufacturer partnerships and the
+marketplace launch.
 
 ---
 
 ## Where this lives in the dashboard
 
-- **Forge** is a project under Work, seeded **simmering** — the vision is real but the
-  work in front of you is the audience and the prototypes. Only `active` projects raise
-  drift warnings (CLAUDE.md §6), and a startup that nags you daily before it's started is
-  one you learn to ignore. Flip it to active when the first prototype starts.
-- Its **marks** are the next concrete moves only: spec and breadboard the two flagships,
-  price a real $200 run, seven interviews, pick the name, draft the YC application.
+- **Forge** is a project under Work, `active` and `side` — the vision is real, and the
+  work actually in front of you is the audience, the interviews and one working prototype.
+  It becomes `main` when the prototype is real and the application is being written for
+  the batch after next.
+- Its **tasks** are the next concrete moves only, over five tracks: pick and check the
+  name, one working flagship, the people to talk to, the landing page, and the application
+  itself. The order and the reasoning are in [The road to YC](./forge-yc.md).
+- **There are no invented due dates on it** — the goal is rolling, so the ordering comes
+  from the tracks. The single dated row is confirming the next batch deadline, which is a
+  clock somebody else holds (CLAUDE.md §6).
 - Its **content** goes out under the Coding Mom brand, carrying `projectId: forge` — the
   two-axis model (§6): Coding Mom is who's talking, Forge is what it's about.
