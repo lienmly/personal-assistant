@@ -43,57 +43,97 @@ deliberately — but here the thing you're recording happened thirty seconds ago
 and you are probably holding her, so one tap before the cursor exists is the
 entry not getting written.
 
-Three fields, all optional except that you need **either** some text **or** a
+Two fields, both optional except that you need **either** some text **or** a
 photo:
 
 | Field | Notes |
 |---|---|
-| Date | Defaults to today. Change it when you're writing up Tuesday on Thursday — the entry files under the day it's **about**, not the day you typed it. |
 | Headline | Only when it deserves one. "First time she laughed" does; most days it doesn't. |
 | What happened | Markdown, same as docs — headings, lists, **bold**, links. |
 
+**There is no date field, and that is deliberate.** An entry lands on today, at
+the time you wrote it, taken from the clock rather than from anything you typed.
+
+### You can only write into today
+
+A day that has passed is closed. There is no way to add a new entry to Tuesday on
+Thursday, and no way to move an entry you already wrote to a different day or
+time.
+
+This is the whole point of the thing. A journal whose dates are editable is a
+journal you have to *trust*; one whose dates come from the clock is one you can
+simply read. Years from now the useful fact about an entry is not that it claims
+to be about the 3rd — it is that it was genuinely written at 21:04 on the 3rd,
+five minutes after it happened, which is why it says what it says.
+
+**Editing still works**, and it is a different thing. The pencil reopens an entry
+so you can fix a word, finish a sentence, or add a photo you meant to attach. That
+is correcting a record. Back-dating one is writing a record, later, and pretending
+otherwise.
+
 ### A day at a time
 
-Entries are **grouped under the day they are about**, newest day first, and
-today's heading is badged **Today**. Each entry inside a day carries the **time
-it was written** — 09:14, 14:40, 21:02 — so a day reads as a day rather than as
-one undated block.
+Entries are **grouped under the day they were written**, newest day first, and
+today's heading is badged **Today**. Each entry inside a day carries its **time** —
+09:14, 14:40, 21:02 — so a day reads as a day rather than as one undated block,
+and you add to it through the day by just writing another one at the top.
 
-Every past day's heading has a **+**. That is how you add a second entry to a day
-you have already written about: the morning and the afternoon are two entries
-under one date, not one paragraph you go back and extend. Today's heading has no
-+, because the open composer at the top of the tab already is that button.
+(Entries written before 6 August 2026, when the date *was* a field, can have a day
+and a writing-time that disagree. Those read *written 6 Aug* instead of a clock
+time, rather than claiming something happened at a moment it didn't.)
 
-One detail that keeps it honest: the time only shows as a clock time when you
-wrote the entry **on the day it is about**. Write up Tuesday on Thursday and the
-stamp reads *written 6 Aug* instead, because "21:04" under a Tuesday heading
-would be claiming something happened at nine on Tuesday night when in fact that
-is when you got round to typing it.
+### Photos and clips
 
-### Photos
+Two ways in:
 
-**Add photos** takes as many as you like, from the camera roll or the camera.
+- **Add photos** picks from your library — anything you shot with the phone's own
+  camera app, which is also the only way a picture ends up in your camera roll
+  without a second step.
+- **Camera** opens a camera inside the journal: a live preview, a filter, a
+  shutter, and a **10s clip** button.
 
-They are **shrunk in your browser before they are sent** — a 4MB phone photo
+**Filters** are colour grades — Warm, Faded, Mono, Dreamy — chosen *before* you
+shoot and baked into what gets saved, so what you saw is what you keep. They are
+not face filters; there are no dog ears, and adding them would mean shipping a
+face-tracking model into the page.
+
+**Clips stop at ten seconds**, by design rather than by accident. A clip is stored
+in the database like everything else here, and ten seconds costs about 2MB against
+75KB for a photo. It is long enough for her to do the thing.
+
+Photos are **shrunk in your browser before they are sent** — a 4MB phone photo
 becomes about 75KB at 1600px on the long edge, which is still larger than any
-screen you'll read this on. You don't have to do anything; it just happens, and
-it is what makes the whole thing affordable.
+screen you'll read this on. You don't have to do anything; it just happens, and it
+is what makes the whole thing affordable.
 
-They are stored **in the database**, which means they are covered by whatever
-backs up the database, and there is no second service to keep alive. The
-trade-off is honest: the database grows, roughly 300MB per thousand photos. If
-that ever gets expensive, moving them to cheap object storage is a change to one
-file (`lib/photo-store.ts`) — it was built that way deliberately.
+Everything is stored **in the database**, which means it is covered by whatever
+backs up the database, and there is no second service to keep alive. The trade-off
+is honest: the database grows, roughly 300MB per thousand photos, and a good deal
+faster if you shoot a lot of clips. If that ever gets expensive, moving it all to
+cheap object storage is a change to one file (`lib/media-store.ts`) — it was built
+that way deliberately.
 
-Photos are behind your login, like everything else. `/api/journal/photo/<id>`
+It is all behind your login, like everything else. `/api/journal/media/<id>`
 returns nothing at all to someone who isn't signed in.
+
+### Getting a copy into your camera roll
+
+Hover (or tap) a photo or clip and there's a **download button**. On a phone it
+opens the share sheet, where **Save Image** / **Save Video** puts a copy in
+Photos. On a desktop it downloads.
+
+**It cannot be automatic, and that is a limit of the web rather than a decision.**
+No web page can write to a phone's photo library — a picture taken with the
+in-journal camera goes to the page and nowhere else. If you want something in
+your camera roll without the extra tap, shoot it with the phone's own camera app
+and use **Add photos**.
 
 ### Editing and deleting
 
-The pencil on an entry reopens it in the composer; the bin deletes it, and asks
-twice. **Deleting an entry deletes its photos**, because they are part of it
-rather than attachments that outlive it. Removing a single photo — the × on its
-thumbnail while editing — takes effect immediately, not on save.
+The pencil on an entry reopens it; the bin deletes it, and asks twice. **Deleting
+an entry deletes its photos and clips**, because they are part of it rather than
+attachments that outlive it. Removing a single photo — the × on its thumbnail
+while editing — takes effect immediately, not on save.
 
 ### Sending them to her one day
 

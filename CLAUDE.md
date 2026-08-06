@@ -127,15 +127,16 @@ dashboard/UI ecosystem, easy Google auth, and a clean path to embedding an AI as
                      the contribution map, going-out, agenda
 /components/calendar → month grid, week/day time grid, item chips, the event panel
 /components/projects → the project panel
-/components/areas  → the area page's journal, and the photo picker
+/components/areas  → the area page's journal, the media picker and the camera sheet
 /components/docs   → the Docs tab, shared by a project page and an area page
 /components/tasks  → the by-track task list, shared by both too, and the checklist
                      a task's subtasks render as (board, Today and both pages)
 /lib/area-detail.ts → everything one area is, for /areas/[slug]
-/lib/journal.ts    → reading the journal (never selects photo bytes)
-/lib/journal-actions.ts → server actions for entries and photos
-/lib/photo-store.ts → the **only** module that touches photo bytes (§6)
-/app/api/journal/photo/[id] → serves one photo, auth-gated
+/lib/journal.ts    → reading the journal (never selects media bytes)
+/lib/journal-actions.ts → server actions for entries and their photos/clips
+/lib/journal-filters.ts → the camera's colour grades (client-safe: no Prisma)
+/lib/media-store.ts → the **only** module that touches photo/video bytes (§6)
+/app/api/journal/media/[id] → serves one photo or clip, auth-gated
 /lib/sun.ts        → sunrise/sunset (client-safe: no Prisma import)
 /lib/theme.ts      → theme types, storage keys, the pre-paint boot script
 /lib/theme-store.ts → the theme as an external store (browser-only) — §11
@@ -341,7 +342,7 @@ of which hung off a Project._
 - [x] **`JournalEntry`** — the first noun in this app that points backwards. No due date,
       no status, nothing to tick. §6, "The journal"
 - [x] **`JournalPhoto`, stored in Postgres** — downscaled to 1600px in the browser before
-      upload (4MB → 75KB, measured), served auth-gated from `/api/journal/photo/[id]`,
+      upload (4MB → 75KB, measured), served auth-gated from `/api/journal/media/[id]`,
       and behind a one-file seam so moving to R2 later is cheap. §6, "Photos live in
       Postgres"
 - [x] **`ProjectDoc` → `Doc`** — a doc hangs off a project *or* an area. Hand-written
@@ -547,6 +548,39 @@ day, which is what it is actually used for._
       out to be wanted
 - [ ] **The phone layout still has not been looked at on a real device.** The day heading is
       a single short row and adds no breakpoint, but that is reasoning, not a check
+
+### Phase 4.16 — The journal only accepts today, and grows a camera
+_Built 2026-08-06, hours after 4.15 and partly undoing it. The "+" on a past day was the
+wrong half of that change: **a day that has passed should be closed**, and what makes the
+record worth reading later is that its times came from a clock rather than from a field._
+- [x] **`happenedOn` is set once from the server's clock and never editable.** No date input,
+      no `+` on any day heading, and an update omits the column entirely. §6, "The date is
+      not a field"
+- [x] **Editing is untouched and is a different act** — fixing what an entry says, never when
+      it happened
+- [x] **`JournalPhoto` → `JournalMedia`** (`20260806140000_journal_media`) with `kind` and
+      `durationMs`. Hand-written, every statement a RENAME or an additive ALTER, applied with
+      `migrate deploy` — the `Doc` precedent, for the third time
+- [x] **`lib/photo-store.ts` → `lib/media-store.ts`**, `/api/journal/photo/[id]` →
+      `/api/journal/media/[id]`. The one-file seam §6 promised held
+- [x] **An in-journal camera** — live preview, front/back flip, shutter, and a **ten-second
+      clip** with audio. `components/areas/camera-sheet.tsx`
+- [x] **Five colour-grade filters**, baked into what is stored, hidden entirely where
+      `ctx.filter` is unsupported rather than silently doing nothing. §6
+- [x] **"Save to photos"** on every photo and clip — `navigator.share` with a file, falling
+      back to a download. §6, "The camera roll cannot be written to"
+- [x] **`dim:<name>` → `meta:<name>`**, carrying size, kind and duration in one value
+- [ ] **The live camera has not been exercised**, because granting Chrome's camera permission
+      is the user's call. Everything around it is verified — the sheet opens, both capability
+      probes come back true on this browser, the filter row and clip button render, `putMedia`
+      accepts a codec-suffixed video mime, and the route serves `video/mp4` — but no frame has
+      been captured
+- [ ] **Face/AR filters** were considered and deliberately not built. §6
+- [ ] **Captions on photos.** The column still exists, is still written as `null`, and still
+      has no UI — now for clips too
+- [ ] **The phone layout still has not been looked at on a real device**, and this is the
+      change that most wants it: the camera is a phone feature and the sheet has only been
+      seen at 1568px
 
 ### Phase 5 — Montblanc (AI assistant)
 - [ ] Chat drawer with streaming (Claude via AI SDK), available on every surface
@@ -898,12 +932,13 @@ Built ones are in `prisma/schema.prisma`, which is the source of truth; this is 
   `lib/doc-actions.ts`), slug (minted once, never follows a rename), title, body
   (Markdown), sortOrder. Cascades with its owner — the only relation that does.
   Was `ProjectDoc` until 2026-08-05 ✅
-- **JournalEntry** — areaId, happenedOn (`@db.Date` — the day it is *about*), title
-  (nullable), body (Markdown). Points **backwards**: no due date, no status, nothing to
-  tick. See §6, "The journal" ✅
-- **JournalPhoto** — entryId, data (`BYTEA` — in Postgres on purpose, §6), mimeType, width,
-  height, byteSize, caption, sortOrder. Cascades with its entry. **Nothing but
-  `lib/photo-store.ts` selects `data`** ✅
+- **JournalEntry** — areaId, happenedOn (`@db.Date` — **set once from the server's clock and
+  never editable**, §6, "The date is not a field"), title (nullable), body (Markdown).
+  Points **backwards**: no due date, no status, nothing to tick. See §6, "The journal" ✅
+- **JournalMedia** — entryId, data (`BYTEA` — in Postgres on purpose, §6), mimeType, width,
+  height, byteSize, **kind** (`photo` | `video`), **durationMs** (nullable, video only),
+  caption, sortOrder. Cascades with its entry. **Nothing but `lib/media-store.ts` selects
+  `data`**. Was `JournalPhoto` until 2026-08-06 ✅
 - **Event** — id, title, notes, location, start, end (both real timestamps, `end`
   inclusive), allDay, recurrence (`none` | `daily` | `weekdays` | `weekly` |
   `monthly`), daysOfWeek, repeatUntil (`@db.Date`, null = forever), areaId,
@@ -1479,7 +1514,12 @@ they were written six hours apart. **Write a second entry** and it sorts in besi
 first with its date repeated, so two entries about one day look exactly like two entries
 about two days.
 
-So entries are **grouped by `happenedOn`**, and each day heading carries its own **"+"**.
+So entries are **grouped by `happenedOn`**, and each day heading carried its own **"+"**.
+
+> **The "+" was removed the same day** — see "The date is not a field" below. Adding to a
+> day that has passed turned out to be the thing that shouldn't exist, not the feature. The
+> grouping and the timestamp are untouched and are the half that was right.
+
 Four things fell out:
 
 1. **Each entry shows the time it was written**, which is what the day heading frees up
@@ -1494,10 +1534,8 @@ Four things fell out:
    when you got round to typing it. This is `createdAt` — a real timestamp, formatted
    **local** — sitting next to `happenedOn`, a `@db.Date` formatted **UTC**, which is §6's
    "Dates are a trap here" with both traps in one component.
-3. **Today's heading has no "+".** The open composer directly above it already is that
-   button, and two identical forms on screen for the same day reads as a bug rather than a
-   choice. Everything the composer principle says (§6, "The journal") still holds for
-   today, which is the day it was written for.
+3. ~~**Today's heading has no "+".**~~ Superseded hours later: **no** heading has one, and
+   the open composer is the only way in. See below.
 4. **The grouping is done in `getJournal`, in one pass over rows the query already
    sorted.** The order is `happenedOn desc, createdAt desc`, so consecutive rows of a day
    arrive together and a day boundary is "this key differs from the last one". No `Map`,
@@ -1511,6 +1549,144 @@ disagree. Same reason `TaskLineView.recurrence` was deleted when its one caller 
 day bottom-up is the argument for reversing it, and it is a real one; it was not taken
 because a journal you are *writing* is scanned from the top, and the newest thing is the
 one you just wrote.
+
+### The date is not a field — decided 2026-08-06
+
+**`happenedOn` is set once, on create, from the server's clock, and nothing can move it.**
+The date input is gone from the composer, an update never writes the column, and no day
+heading has a "+". You cannot journal into a day that has passed.
+
+This reverses the position `JournalEntry` shipped with — the column's own comment said "the
+day it is *about*, not the day it was typed", and the reasoning was that you write up
+Tuesday on Thursday. That reasoning was about a journal nobody had used yet. **The journal
+turned out to be written live**, several times through a day, thirty seconds after the
+thing happened, and against that use an editable date is not a convenience; it is the one
+thing that makes the record worth less.
+
+The argument is exactly the one this file keeps arriving at from the other direction.
+Everywhere else the rule has been **the app must not assert things nobody told it** — no
+seeded tasks, no invented events, no due dates that were guesses. This is its mirror:
+**what the app records for itself, it should not let anyone overwrite.** A time that came
+from the clock is a fact. A time somebody chose is a claim, and a journal of claims has to
+be trusted rather than simply read. Years out, the useful thing about an entry is not that
+it says it is about the 3rd; it is that it was genuinely written at 21:04 on the 3rd, which
+is *why* it says what it says and in the tone it says it.
+
+Three consequences, each chosen over an obvious alternative:
+
+1. **Editing is untouched, and it is a different act.** The pencil still fixes a word,
+   finishes a sentence, or attaches the photo you meant to. That is correcting a record.
+   Back-dating one is writing a record later and presenting it as contemporaneous, and the
+   distinction is the whole feature. `saveJournalEntry`'s update branch simply omits
+   `happenedOn`, so a stray value posted alongside an `id` is inert rather than a silent
+   move — the same shape as `saveDoc` refusing to re-own a doc.
+2. **The day is computed server-side, not accepted from the form.** Taking it from the
+   client would put the fact back in the hands of whatever posted it, which is the thing
+   being removed. It is `Date.UTC(local y, m, d)` — a `@db.Date` standing in for a local
+   calendar day, §6's first date trap.
+3. **The "written 7 Aug" branch survives for old rows.** Every entry created from now on
+   has a day and a writing-time that agree by construction, so the branch is unreachable
+   for new data. It is three lines, and it is what stops the app printing "21:04" under a
+   Tuesday heading for one of the handful of rows written while the date *was* a field.
+
+**The honest cost, stated rather than smoothed over:** a day genuinely missed is a day
+genuinely lost. Something that happened on Tuesday and was not written on Tuesday can only
+be recorded as a Thursday entry that says so. That is the trade, and it is the right one
+for a journal — it is the wrong one for a diary you fill in on Sundays, which is a
+different product.
+
+### A clip is a photo that costs twenty times as much — decided 2026-08-06
+
+`JournalPhoto` became **`JournalMedia`**, with a `kind` and a nullable `durationMs`, and the
+journal's camera can record **ten seconds**.
+
+The rename is the `ProjectDoc → Doc` precedent for the third time: a hand-written migration
+where every statement is a RENAME or an additive ALTER, applied with `migrate deploy` rather
+than diffed, because `prisma migrate dev` turns a model rename into a DROP plus a CREATE and
+these are the rows §6 already calls the one kind in this app that cannot be recreated. The
+alternative was leaving the model called `JournalPhoto` and storing video in it, which is
+the "a codebase that reads like a different app than its screens" problem §2 exists to stop.
+
+**Ten seconds is a storage decision wearing a UX hat, and both readings are true.** A clip
+at 720p/1.5Mbps is about 2MB against ~75KB for a photo, and these live in Postgres for the
+reasons below. Twenty-five clips cost what a whole month of photos does. Ten seconds is also
+simply the right length for the thing being filmed — she does the thing or she doesn't — so
+the cap did not have to be argued for twice.
+
+Four things fell out:
+
+1. **`MAX_PHOTO_BYTES` became `MAX_MEDIA_BYTES` and did not move.** Still 6MB, still under
+   `serverActions.bodySizeLimit`, so an oversized file is refused with a sentence rather
+   than by a truncated request. A ten-second clip lands at a third of it.
+2. **`baseMime` exists because `MediaRecorder` reports its codecs.** The recorder hands back
+   `video/webm;codecs=vp8,opus` or `video/mp4;codecs=avc1…`, and that string lands on the
+   `File`. Storing it whole would be honest and useless — nothing downstream branches on the
+   codec, and the accept-list would have to enumerate every combination any browser might
+   pick. The base type is stored; the codec is discarded.
+3. **The container is negotiated, not sniffed.** Safari muxes MP4 and rejects WebM; Chrome
+   and Firefox are the other way round. `MediaRecorder.isTypeSupported` is a question the
+   browser can actually answer, so the list is tried in order and the first `true` wins.
+   Browser-sniffing would be a table that goes stale.
+4. **The route now says `Accept-Ranges` matters.** It does not implement ranges, and gets
+   away with it only because 6MB is small enough to send whole. That is written down because
+   it stops being true the moment the cap moves.
+
+**A photo's `dim:<name>` became `meta:<name>`**, carrying size, kind and duration in one
+value. The browser has already decoded the photo to downscale it and recorded the clip
+itself, so it knows all three; the alternative is a native image *and* video library in the
+dependency list to re-derive numbers the client had in hand.
+
+### The camera roll cannot be written to, so it is a button — decided 2026-08-06
+
+The ask was for the journal's camera to save its photos to the phone's camera roll
+automatically. **No web API can do that**, and it is worth recording that this is a platform
+limit rather than a thing left undone: a photo captured through `getUserMedia`, or through a
+file input's `capture` attribute, goes to the page and nowhere else. iOS in particular does
+not put it in Photos.
+
+What exists instead is **`navigator.share` with a file**, which opens the native share sheet
+where "Save Image" is one tap. Where that is unavailable — every desktop browser, and
+Firefox — it falls back to a download, which on Android lands in the gallery and on a
+desktop lands in Downloads.
+
+Two decisions inside that:
+
+1. **The button lives on the entry, not in the camera.** A photo that arrived from the
+   library is just as likely to be the one you want to send someone, and a control that only
+   appears for camera-captured photos would be a rule you have to learn.
+2. **The camera says so on screen.** One line under the shutter, because the failure mode
+   otherwise is silent and delayed: you take twenty photos of her over a week and find out
+   afterwards that none of them are in Photos.
+
+**And the library picker stays**, which is the other half of the answer. Shooting with the
+phone's own camera app *does* save to the roll, and "Add photos" attaches it — so the route
+that needs no extra tap already exists, it just isn't the in-app camera.
+
+### Filters are colour grades, not face filters — decided 2026-08-06
+
+Five presets — None, Warm, Faded, Mono, Dreamy — chosen before the shot and **baked into
+what gets stored**. Not stickers: dog ears and sparkles need a face-landmark model of
+several megabytes shipped into the page and tracked per frame, which is a build in its own
+right rather than a detail of this one.
+
+Three things make them honest:
+
+1. **One CSS filter string, two consumers.** The same value is the preview element's
+   `filter` and the canvas context's `ctx.filter`. A second implementation for the baked
+   copy is how a preview comes to lie about the result.
+2. **The picker is hidden where the canvas cannot bake.** `ctx.filter` arrived late in
+   Safari and is *silently ignored* where it is missing — so the preview would show a warm,
+   faded photo and the stored one would come out untouched, and you would find out after the
+   moment had passed. `canBakeFilters()` probes it, and where it fails there are no filters
+   rather than fake ones.
+3. **An unfiltered clip records the camera track directly.** Only a filtered one repaints
+   through a canvas at 30fps, which on a phone is real work. The default costs nothing.
+
+Vignette is the one grade that is not a `filter` function, so it is a radial gradient —
+drawn onto the canvas after the frame, laid over the preview as an overlay. Two
+implementations of one value, which is exactly what rule 1 warns about; it is accepted here
+because there is no third option, and both live in `lib/journal-filters.ts` next to each
+other rather than at opposite ends of the app.
 
 ### Photos live in Postgres — decided 2026-08-05
 
@@ -1526,9 +1702,10 @@ covers the DB, and behave identically in local dev and on Railway.
 The honest cost is size — roughly 300MB per thousand photos — and it was accepted knowing
 the database is the expensive place to keep them. So the reversal is made cheap on purpose:
 
-- **`lib/photo-store.ts` is the only module that touches bytes.** Moving to R2 means adding
+- **`lib/media-store.ts` is the only module that touches bytes.** Moving to R2 means adding
   a nullable `storageKey`, reimplementing three functions, and backfilling. Nothing else in
-  the app reads `data`.
+  the app reads `data`. (It was `lib/photo-store.ts` until clips arrived on 2026-08-06 — the
+  seam held, which is what it was for.)
 - **Every other query names its columns.** Postgres stores a column this size out-of-line,
   so one unqualified `findMany` on that table would drag every image into memory to render
   a list of thumbnails. This is a real footgun and the reason the model carries a comment.
@@ -1541,7 +1718,7 @@ the database is the expensive place to keep them. So the reversal is made cheap 
 - **The browser also measures the image**, and sends the dimensions along as `dim:<name>`.
   It has already decoded the file, so this is free — and the alternative is a native image
   library in the dependency list to learn two integers the client had in hand.
-- **`/api/journal/photo/[id]` re-checks the session.** A route handler is its own public
+- **`/api/journal/media/[id]` re-checks the session.** A route handler is its own public
   endpoint, the same rule every server action follows. Without it this would be the one
   genuinely public thing in the app, and it would be pictures of a baby. The cache header
   is `private`, and `immutable` is honest: a photo row's bytes are written once, so editing
@@ -1817,6 +1994,23 @@ originally — shifts every publish time by the machine's offset.
   2026-08-04 — its file never matched what was applied, and the honest fix there is to
   repoint the recorded checksum at the file, because the file is the deliberate rebuild and
   the database already reflects it.
+
+- **A browser capability is an external store, not a `useState` you fill in an effect.**
+  `canvas.getContext("2d").filter` support and `MediaRecorder`'s existence are facts about
+  the browser that decide whether a control renders at all — and the obvious shape,
+  `useState(false)` plus a `useEffect` that sets it, is rejected by the React Compiler's
+  lint for calling `setState` synchronously in an effect. That is a correct diagnosis rather
+  than a nuisance, and it is the same one §11 records for the theme clock: read it through
+  `useSyncExternalStore` with a no-op `subscribe` (the answer cannot change while the page is
+  open) and a `getServerSnapshot` of `false`, so the server renders the control absent and
+  hydration matches. The probe must also **cache**, because `getSnapshot` runs on every
+  render and allocating a canvas to re-answer a fixed question is silly. Do not cache the
+  server's `false` — that is a fact about there being no `document`, not about the browser.
+  Found 2026-08-06 in `components/areas/camera-sheet.tsx`.
+
+  The same lint flags **`Date.now()` called from a function declared in a component body**,
+  even when every caller is an event handler — it cannot tell. Wrap it in a module-level
+  `now()`; the wrapper is the whole fix.
 
 - **A shared class string must not bake in a width, because you cannot override it later.**
   Two Tailwind utilities for the same property have equal specificity, so the winner is
@@ -2140,7 +2334,96 @@ Three rules inside it:
 
 ---
 
-_Last updated: 2026-08-06 · Status: **Phase 4.15 — the journal groups by day.**_
+_Last updated: 2026-08-06 · Status: **Phase 4.16 — the journal only accepts today, and has
+a camera.**_
+
+_**2026-08-06 — the "+" I shipped this morning was the wrong half of that change.** The
+verdict was exact: **a day that has already passed should not accept a new entry** — "it
+doesn't make sense" — and if you want to add to it, edit what you wrote. So the "+" is gone
+from every day heading, the **date field is gone from the composer**, and `happenedOn` is now
+set once from the server's clock and never moves. An update omits the column entirely._
+
+_**This is the mirror of the rule this file keeps arriving at.** Everywhere else it has been
+"the app must not assert things nobody told it" — no seeded tasks, no invented events, no
+guessed due dates. This is the other side: **what the app records for itself, nobody should
+be able to overwrite.** A time that came from a clock is a fact; a time somebody typed is a
+claim, and a journal of claims has to be trusted rather than simply read. Years out, the
+useful thing about an entry is not that it says it is about the 3rd — it is that it was
+genuinely written at 21:04 on the 3rd, which is why it says what it says. **Editing is
+untouched and is a different act**: fixing a word is correcting a record, back-dating one is
+writing a record later and presenting it as contemporaneous. The honest cost is stated
+rather than smoothed over — a day genuinely missed is a day genuinely lost, and that is the
+right trade for a journal and the wrong one for a diary you fill in on Sundays._
+
+_**And it has a camera.** Live preview, front/back flip, a shutter, and a **ten-second clip**
+with sound. `JournalPhoto` became **`JournalMedia`** with a `kind` and a `durationMs`, on a
+hand-written migration where every statement is a RENAME or an additive ALTER — the
+`ProjectDoc → Doc` precedent for the third time, because `migrate dev` turns a model rename
+into a DROP plus a CREATE and these are the rows that cannot be recreated. **`photo-store.ts`
+became `media-store.ts` and the one-file seam §6 promised held**, which is the first time
+that claim has been tested._
+
+_**Ten seconds is a storage decision wearing a UX hat**, and both readings are true: a clip
+is ~2MB against ~75KB for a photo, so twenty-five clips cost a month of photos — and ten
+seconds is simply the right length for the thing being filmed. `baseMime` exists because
+`MediaRecorder` reports the codecs it negotiated (`video/webm;codecs=vp8,opus`), and the
+container is **negotiated rather than sniffed** — Safari muxes MP4 and rejects WebM, Chrome
+is the other way round, and `isTypeSupported` is a question the browser can actually answer._
+
+_**Filters are colour grades, not face filters** — five presets, chosen before the shot and
+baked into what gets stored, with **one CSS filter string serving both the preview and the
+canvas** so a preview cannot lie about the result. The picker is **hidden entirely where
+`ctx.filter` is unsupported**, because that property is silently ignored rather than throwing:
+the preview would show a warm, faded photo and the stored one would come out untouched, and
+you would find out after the moment had passed. Dog ears would mean a face-landmark model of
+several megabytes tracked per frame, which is a build of its own and was not made._
+
+_**One ask could not be built as stated, and it is a platform limit rather than a gap.** No
+web page can write to a phone's photo library — a picture taken through `getUserMedia` goes
+to the page and nowhere else, iOS especially. So there is a **"Save to photos"** button on
+every photo and clip, which opens the native share sheet (`navigator.share` with a file)
+where "Save Image" is one tap, and falls back to a download elsewhere. The camera says so in
+one line under the shutter, because the failure mode otherwise is silent and delayed: you
+shoot twenty photos of her over a week and find out afterwards that none are in Photos. The
+library picker stays as the other half of the answer — shooting with the phone's own camera
+app **does** save to the roll, and "Add photos" attaches it._
+
+_Verified in a signed-in browser. The decisive test: opened the **5 August** entry, confirmed
+its form has no date input and posts no `happenedOn`, saved it unchanged, and watched it stay
+at 5 August 19:49 — before this it would have jumped into today's group. Confirmed the
+composer has no date field and no day heading has a "+", that the existing nine photos still
+serve from the renamed table and route, that the camera sheet opens with both capability
+probes true on this browser (filter row and 10s clip button both render), and that a `<video>`
+renders in the entry grid with its Save-to-photos button clear of the control bar.
+`putMedia` was exercised directly with a **codec-suffixed** `video/mp4;codecs=avc1…` and
+stored it as `video/mp4`, and the route served it back as `video/mp4`, 593061 bytes.
+`npx next build`, `tsc --noEmit` and `eslint` all pass._
+
+_**Two React Compiler lints were hit and both were right**, now recorded in §9: a browser
+capability read as `useState` + `useEffect` is rejected, and belongs in
+`useSyncExternalStore` for exactly the reason §11 gives for the theme clock; and `Date.now()`
+called from a component-body function is flagged even when every caller is an event handler,
+which a module-level `now()` wrapper fixes._
+
+_Outstanding from this change: **no frame has actually been captured.** Granting Chrome's
+camera permission is the user's call and I did not click Allow — everything around the
+capture is verified, but the record → upload → play round trip has not been run. **A
+synthetic test clip proved to be a bad fixture rather than a bug**: a Windows OS asset
+(`oobe-intro.mp4`) failed to decode from a `blob:` URL too, which exonerates the route and
+the component. **Face/AR filters** were considered and deliberately not built. **Captions
+still have no UI**, now for clips as well as photos. **And the phone layout still has not
+been looked at on a real device** — this is the change that most wants it, since the camera
+is a phone feature and the sheet has only been seen at 1568px._
+
+_**One thing went wrong on my side and is worth recording:** regenerating the Prisma client
+needs `next dev` stopped (the documented Windows `EPERM`), and in finding the dev server I
+killed the wrong process tree first — the **Sleepy Cat game's vite server**. It was restarted
+immediately. The dashboard's dev server is the `dotenv -e .env.local -- next dev` chain, not
+the bare `npm run dev` one._
+
+---
+
+_Previously: **Phase 4.15 — the journal groups by day.**_
 
 _**2026-08-06 — the journal was a list of days and it needed to be a list of moments
 inside days.** The ask was two things and they turn out to be one: show the time an entry
@@ -2680,11 +2963,11 @@ the day it is **about**, not the day it was typed._
 _**Photos are in Postgres, and the argument isn't cost.** These are the one kind of row
 here that genuinely cannot be recreated: a volume isn't in the database backup and an
 object store is a second account to keep alive. The price is size, so the reversal was made
-cheap on purpose — `lib/photo-store.ts` is the only module that touches bytes, and moving
+cheap on purpose — `lib/media-store.ts` is the only module that touches bytes, and moving
 to R2 later is that file plus a backfill. The browser downscales to 1600px before anything
 is sent: a 2400×1800 / 4MB source landed at 1600×1200 / **75KB**, measured end to end.
 That is not tidiness — a server action's default body cap is 1MB, which one phone photo
-clears before the file has finished being read. `/api/journal/photo/[id]` re-checks the
+clears before the file has finished being read. `/api/journal/media/[id]` re-checks the
 session, because without it that route would be the one genuinely public thing in the app._
 
 _**`ProjectDoc` became `Doc`**, hanging off a project *or* an area, on a hand-written

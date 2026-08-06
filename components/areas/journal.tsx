@@ -1,24 +1,22 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { BookHeart, Pencil, Plus, Trash2, X } from "lucide-react";
+import { BookHeart, Download, Pencil, Play, Trash2, X } from "lucide-react";
 
-import { PhotoInput, type PreparedPhoto } from "@/components/areas/photo-input";
+import { MediaInput, type PreparedMedia } from "@/components/areas/media-input";
 import { Markdown } from "@/components/ui/markdown";
 import {
   deleteJournalEntry,
-  deleteJournalPhoto,
+  deleteJournalMedia,
   saveJournalEntry,
 } from "@/lib/journal-actions";
 import type { JournalDayView, JournalEntryView } from "@/lib/journal";
 import { cn } from "@/lib/utils";
 
-/** Without a width, so the date input can take its own. `field` used to bake in
- *  `w-full`, and `${field} w-auto` on the date picker lost — two width utilities
- *  have equal specificity, so the one Tailwind emits later wins and it is not
- *  the one at the end of your class string. The date input was quietly claiming
- *  a whole row, which pushed the title to the next one and the composer's
- *  cancel × to a third. */
+/** Without a width, so a field can take its own. `field` used to bake in
+ *  `w-full`, and `${field} w-auto` on a sibling lost — two width utilities have
+ *  equal specificity, so the one Tailwind emits later wins and it is not the one
+ *  at the end of your class string. See CLAUDE.md §9. */
 const fieldBase =
   "rounded-chip bg-inset px-3 py-2 text-[13px] text-ink outline-none transition-[background-color,box-shadow] duration-(--duration-base) ease-soft placeholder:text-faint hover:bg-line/60 focus:bg-card focus:ring-2 focus:ring-accent/25";
 
@@ -26,26 +24,21 @@ const field = `w-full ${fieldBase}`;
 
 /**
  * The Journal tab: a composer at the top, then everything written, grouped by
- * the day it is about, newest day first.
+ * day, newest day first.
  *
  * **The composer is open, not behind a button.** Every other write in this app
  * goes through a panel, and a panel is right for a form you fill in
  * deliberately. This is the opposite case — the thing being recorded happened
  * thirty seconds ago and you are holding a baby, so the cost of one tap before
- * the cursor exists is the entry not getting written. Same argument as the idea
- * box on Today, one size up.
+ * the cursor exists is the entry not getting written.
  *
- * **A day is the unit you add to, so each day heading carries its own "+".**
- * A day is not one thing that happened; it is a morning, an afternoon and
- * whatever woke you at 3am. Before this, a second thought about Tuesday meant
- * either opening Tuesday's entry and editing a paragraph onto the end of it —
- * losing when each part was written — or a new entry that sorted in beside the
- * first with nothing saying they were the same day. Each entry now carries the
- * **time** it was written, and the day heading gathers them.
- *
- * Today's heading is the one without a "+", because the open composer directly
- * above it already is that button, and two identical forms on screen for the
- * same day reads as a bug rather than a choice.
+ * **You can only write into today, and the date is not a field** (2026-08-06).
+ * A day heading has no "+": a day that has passed is closed. What you *can* do
+ * is edit what you already wrote — the words and the photos are yours to fix —
+ * and that is the whole difference between correcting a record and back-filling
+ * one. The point is that a time on an entry is a fact rather than a value
+ * somebody chose, which is what makes reading it back years later worth
+ * anything. See CLAUDE.md §6, "The date is not a field".
  *
  * Nothing here can be overdue, ticked, or counted against a target. That is the
  * point of the noun (CLAUDE.md §6, "The Baby area is a journal, not a backlog").
@@ -54,23 +47,16 @@ export function Journal({
   areaId,
   areaName,
   days,
-  today,
 }: {
   areaId: string;
   areaName: string;
   days: JournalDayView[];
-  /** "YYYY-MM-DD" computed on the server, so the date input starts on the day
-   *  the rest of the page agrees is today rather than the browser's UTC guess. */
-  today: string;
 }) {
   const [editing, setEditing] = useState<string | null>(null);
-  /** The day whose "+" is open, as a day key. One at a time: two open composers
-   *  is two half-written entries and a question about which one you are in. */
-  const [adding, setAdding] = useState<string | null>(null);
 
   return (
     <div className="flex flex-col gap-5">
-      <Composer areaId={areaId} defaultDay={today} />
+      <Composer areaId={areaId} />
 
       {days.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-tile bg-inset px-6 py-12 text-center">
@@ -107,47 +93,14 @@ export function Journal({
                     {`${day.entries.length} entries`}
                   </span>
                 )}
-
-                {/* Beside the date rather than pushed to the far edge: at this
-                    width `ml-auto` would leave it a foot away from the day it
-                    adds to, reading as a page control rather than a day's.
-                    Quiet, not crimson — §9 allows one accent per region and the
-                    composer's Save button already spends it. */}
-                {!day.isToday && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setAdding((open) => (open === day.key ? null : day.key))
-                    }
-                    aria-label={`Add another entry for ${day.dayLabel}`}
-                    title="Add another entry for this day"
-                    className={cn(
-                      "grid size-7 shrink-0 place-items-center rounded-full transition-[background-color,color,transform] duration-(--duration-base) ease-soft active:scale-90",
-                      adding === day.key
-                        ? "rotate-45 bg-inset text-ink"
-                        : "text-faint hover:bg-inset hover:text-ink",
-                    )}
-                  >
-                    <Plus className="size-4" strokeWidth={2.2} />
-                  </button>
-                )}
               </div>
 
               <div className="flex flex-col gap-3">
-                {adding === day.key && (
-                  <Composer
-                    areaId={areaId}
-                    defaultDay={day.key}
-                    onDone={() => setAdding(null)}
-                  />
-                )}
-
                 {day.entries.map((entry) =>
                   editing === entry.id ? (
                     <Composer
                       key={entry.id}
                       areaId={areaId}
-                      defaultDay={today}
                       entry={entry}
                       onDone={() => setEditing(null)}
                     />
@@ -241,31 +194,44 @@ function Entry({
 
       {entry.body && <Markdown source={entry.body} />}
 
-      {entry.photos.length > 0 && (
+      {entry.media.length > 0 && (
         <ul
           className={cn(
             "mt-4 grid gap-2",
-            entry.photos.length === 1
+            entry.media.length === 1
               ? "grid-cols-1 sm:max-w-md"
               : "grid-cols-2 sm:grid-cols-3",
           )}
         >
-          {entry.photos.map((photo) => (
-            <li key={photo.id}>
-              {/* A plain <img>, not next/image: the bytes come from an
-                  auth-gated route handler, and routing them through the image
-                  optimiser would mean a second authenticated fetch of the same
-                  private data for no gain — they are already downscaled to
-                  ~1600px before they are stored. */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={`/api/journal/photo/${photo.id}`}
-                alt={photo.caption ?? ""}
-                width={photo.width || undefined}
-                height={photo.height || undefined}
-                loading="lazy"
-                className="w-full rounded-tile object-cover shadow-card"
-              />
+          {entry.media.map((item) => (
+            <li key={item.id} className="group relative">
+              {item.kind === "video" ? (
+                <video
+                  src={`/api/journal/media/${item.id}`}
+                  controls
+                  playsInline
+                  preload="metadata"
+                  width={item.width || undefined}
+                  height={item.height || undefined}
+                  className="w-full rounded-tile bg-inset shadow-card"
+                />
+              ) : (
+                /* A plain <img>, not next/image: the bytes come from an
+                   auth-gated route handler, and routing them through the image
+                   optimiser would mean a second authenticated fetch of the same
+                   private data for no gain — they are already downscaled to
+                   ~1600px before they are stored. */
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={`/api/journal/media/${item.id}`}
+                  alt={item.caption ?? ""}
+                  width={item.width || undefined}
+                  height={item.height || undefined}
+                  loading="lazy"
+                  className="w-full rounded-tile object-cover shadow-card"
+                />
+              )}
+              <SaveToPhotos item={item} />
             </li>
           ))}
         </ul>
@@ -274,23 +240,100 @@ function Entry({
   );
 }
 
+/**
+ * Puts a copy of one photo or clip in the phone's camera roll.
+ *
+ * **This is a button rather than something automatic, and it has to be.** No web
+ * API can write to the photo library — a photo taken through `getUserMedia`, or
+ * through a file input's `capture`, goes to the page and nowhere else. The
+ * nearest honest thing is the native share sheet, where "Save Image" / "Save
+ * Video" is one tap, and that is what `navigator.share` with a file opens on
+ * iOS and Android.
+ *
+ * Where the share sheet is unavailable — every desktop browser, and Firefox —
+ * it falls back to a download, which on Android lands in the gallery and on a
+ * desktop lands in Downloads. Both are the right answer for their platform, and
+ * neither is worth a separate button.
+ */
+function SaveToPhotos({
+  item,
+}: {
+  item: { id: string; kind: "photo" | "video" };
+}) {
+  const [busy, setBusy] = useState(false);
+
+  async function save() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const url = `/api/journal/media/${item.id}`;
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const extension = extensionFor(blob.type);
+      const file = new File([blob], `journal-${item.id}.${extension}`, {
+        type: blob.type,
+      });
+
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file] });
+        return;
+      }
+
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = file.name;
+      link.click();
+      URL.revokeObjectURL(objectUrl);
+    } catch {
+      // A share the user dismissed throws `AbortError`, and so does a share of
+      // a type the OS declines to handle. Neither is a failure worth a message
+      // on top of a sheet they just closed.
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={save}
+      disabled={busy}
+      aria-label={item.kind === "video" ? "Save clip" : "Save to photos"}
+      title="Save to photos"
+      className={cn(
+        "absolute right-2 grid size-8 place-items-center rounded-full bg-obsidian/75 text-white shadow-card backdrop-blur-sm transition-[opacity,transform] duration-(--duration-base) ease-soft active:scale-90 disabled:opacity-40",
+        // Clear of a <video>'s own control bar, which owns the bottom edge.
+        item.kind === "video" ? "top-2" : "bottom-2",
+        // Hover is not an affordance on a phone (CLAUDE.md §9).
+        "sm:opacity-0 sm:group-hover:opacity-100",
+      )}
+    >
+      <Download className="size-4" strokeWidth={2} />
+    </button>
+  );
+}
+
+function extensionFor(mimeType: string): string {
+  if (mimeType.includes("mp4")) return "mp4";
+  if (mimeType.includes("webm")) return "webm";
+  if (mimeType.includes("quicktime")) return "mov";
+  if (mimeType.includes("png")) return "png";
+  if (mimeType.includes("webp")) return "webp";
+  return "jpg";
+}
+
 function Composer({
   areaId,
-  defaultDay,
   entry,
   onDone,
 }: {
   areaId: string;
-  /** The day the date input starts on: today for the open composer at the top,
-   *  and that day's key for one opened from a day's "+". Still an editable
-   *  field either way — writing up Tuesday's afternoon on Thursday is the case
-   *  the whole `happenedOn` column exists for. */
-  defaultDay: string;
   entry?: JournalEntryView;
   onDone?: () => void;
 }) {
   const [pending, startTransition] = useTransition();
-  const [photos, setPhotos] = useState<PreparedPhoto[]>([]);
+  const [media, setMedia] = useState<PreparedMedia[]>([]);
   const [error, setError] = useState<string | null>(null);
   // Bumped on a successful save so React remounts the form and clears every
   // uncontrolled field — simpler and less fragile than resetting each by hand.
@@ -300,18 +343,21 @@ function Composer({
     event.preventDefault();
     const form = new FormData(event.currentTarget);
 
-    // The prepared (downscaled) files, plus the dimensions the browser already
-    // measured. The file input itself is unnamed, so nothing else is attached.
-    for (const photo of photos) {
-      form.append("photos", photo.file, photo.name);
-      form.append(`dim:${photo.name}`, `${photo.width}x${photo.height}`);
+    // The prepared files, plus what the browser already measured about each.
+    // The file input itself is unnamed, so nothing else is attached.
+    for (const item of media) {
+      form.append("media", item.file, item.name);
+      form.append(
+        `meta:${item.name}`,
+        `${item.width}x${item.height}:${item.kind}:${item.durationMs ?? 0}`,
+      );
     }
 
     setError(null);
     startTransition(async () => {
       try {
         await saveJournalEntry(form);
-        setPhotos([]);
+        setMedia([]);
         setRound((value) => value + 1);
         onDone?.();
       } catch (cause) {
@@ -332,25 +378,15 @@ function Composer({
       <input type="hidden" name="areaId" value={areaId} />
       {entry && <input type="hidden" name="id" value={entry.id} />}
 
+      {/* No date field. A new entry lands on today, from the server's clock, and
+          an edit never moves an existing one — the point of the journal is that
+          its times are facts rather than choices. §6, "The date is not a field". */}
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <input
-          type="date"
-          name="happenedOn"
-          defaultValue={entry?.happenedOn ?? defaultDay}
-          aria-label="The day this is about"
-          className={`${fieldBase} w-auto shrink-0`}
-        />
-        {/* Full width on a phone, beside the date from `sm` up. Sharing a row
-            with the date picker at 390px leaves the headline about twelve
-            characters wide, which is not a field you would type into.
-            `fieldBase`, not `field`: a `width: 100%` in a wrapping flex row
-            takes a whole line whatever the basis says, which is what put this
-            below the date at every width rather than only on a phone. */}
         <input
           name="title"
           defaultValue={entry?.title ?? ""}
           placeholder="A headline, if it deserves one"
-          className={`${fieldBase} min-w-0 basis-full sm:flex-1 sm:basis-auto`}
+          className={`${fieldBase} min-w-0 flex-1`}
         />
         {onDone && (
           <button
@@ -372,12 +408,10 @@ function Composer({
         className={`${field} resize-y leading-relaxed`}
       />
 
-      {entry && entry.photos.length > 0 && (
-        <ExistingPhotos photos={entry.photos} />
-      )}
+      {entry && entry.media.length > 0 && <ExistingMedia media={entry.media} />}
 
       <div className="mt-3 flex flex-wrap items-end justify-between gap-3">
-        <PhotoInput photos={photos} onChange={setPhotos} disabled={pending} />
+        <MediaInput media={media} onChange={setMedia} disabled={pending} />
         <button
           type="submit"
           className="rounded-chip bg-accent px-4 py-2 text-[13px] font-medium text-white transition-[background-color,transform] duration-(--duration-base) ease-soft hover:bg-accent-hover active:scale-[0.97]"
@@ -391,15 +425,11 @@ function Composer({
   );
 }
 
-/** The photos already on an entry being edited. Separate from `PhotoInput`,
- *  which only ever holds files not yet sent — mixing the two would mean one
- *  list where removing a thumbnail sometimes calls the server and sometimes
- *  doesn't. */
-function ExistingPhotos({
-  photos,
-}: {
-  photos: JournalEntryView["photos"];
-}) {
+/** The photos and clips already on an entry being edited. Separate from
+ *  `MediaInput`, which only ever holds files not yet sent — mixing the two
+ *  would mean one list where removing a thumbnail sometimes calls the server
+ *  and sometimes doesn't. */
+function ExistingMedia({ media }: { media: JournalEntryView["media"] }) {
   const [pending, startTransition] = useTransition();
 
   return (
@@ -409,19 +439,35 @@ function ExistingPhotos({
         pending && "pointer-events-none opacity-45",
       )}
     >
-      {photos.map((photo) => (
-        <li key={photo.id} className="group relative">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={`/api/journal/photo/${photo.id}`}
-            alt={photo.caption ?? ""}
-            loading="lazy"
-            className="size-20 rounded-tile object-cover shadow-card"
-          />
+      {media.map((item) => (
+        <li key={item.id} className="group relative">
+          {item.kind === "video" ? (
+            <>
+              <video
+                src={`/api/journal/media/${item.id}`}
+                muted
+                playsInline
+                preload="metadata"
+                className="size-20 rounded-tile bg-inset object-cover shadow-card"
+              />
+              <span className="pointer-events-none absolute bottom-1 left-1 flex items-center gap-0.5 rounded-full bg-obsidian/80 px-1.5 py-0.5 text-[10px] font-medium text-white">
+                <Play className="size-2.5 fill-current" strokeWidth={0} />
+                {`${Math.round((item.durationMs ?? 0) / 1000)}s`}
+              </span>
+            </>
+          ) : (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={`/api/journal/media/${item.id}`}
+              alt={item.caption ?? ""}
+              loading="lazy"
+              className="size-20 rounded-tile object-cover shadow-card"
+            />
+          )}
           <button
             type="button"
-            onClick={() => startTransition(() => deleteJournalPhoto(photo.id))}
-            aria-label="Remove photo"
+            onClick={() => startTransition(() => deleteJournalMedia(item.id))}
+            aria-label="Remove"
             className="absolute -right-1.5 -top-1.5 grid size-6 place-items-center rounded-full bg-obsidian text-white shadow-card transition-transform duration-(--duration-base) ease-soft active:scale-90 sm:opacity-0 sm:group-hover:opacity-100"
           >
             <X className="size-3.5" strokeWidth={2.5} />

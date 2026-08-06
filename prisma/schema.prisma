@@ -279,8 +279,11 @@ model Doc {
 /// area has no project and should not need one to be written about. Areas are
 /// the coarse, ~5-ever noun, which is the right grain for "a journal".
 model JournalEntry {
-  /// The day it is *about*, not the day it was typed — the two differ whenever
-  /// you write up Tuesday on Thursday, which with a baby is most of the time.
+  /// The day this is about. **Set once, on create, to the day you wrote it, and
+  /// never editable** — decided 2026-08-06. It used to be a field you could
+  /// change, on the reasoning that you write up Tuesday on Thursday; the journal
+  /// turned out to be written *live*, through the day, and a date you can move
+  /// is a date that has to be trusted rather than known.
   /// `@db.Date` for the same reason `Task.dueDate` is: it stands in for a
   /// calendar day, so it is UTC midnight and formats with `timeZone: "UTC"`
   /// (CLAUDE.md §6, "Dates are a trap here").
@@ -298,35 +301,48 @@ model JournalEntry {
   areaId String
   area   Area   @relation(fields: [areaId], references: [id], onDelete: Cascade)
 
-  photos JournalPhoto[]
+  media JournalMedia[]
 
   @@index([areaId, happenedOn])
 }
 
-/// A photo on a journal entry, stored **in Postgres** as bytes.
+/// A photo **or a short video** on a journal entry, stored in Postgres as bytes.
 ///
-/// Decided 2026-08-05 over a Railway volume and over S3/R2. The deciding
-/// argument is not cost, it is that these are the one kind of row in this app
-/// that genuinely cannot be recreated: a volume is not in the database backup
-/// and an object store is a second account to keep alive. Bytes in the DB are
-/// covered by whatever backs up the DB, and behave identically in local dev and
-/// on Railway. The honest cost is size, which is why uploads are downscaled to
-/// ~1600px in the browser before they are ever sent.
+/// Was `JournalPhoto` until 2026-08-06, when clips arrived and the name became a
+/// lie. Renamed by hand — every statement in `20260806140000_journal_media` is a
+/// RENAME or an additive ALTER, because `prisma migrate dev` diffs a model rename
+/// as a drop plus a create and these are the one kind of row in this app that
+/// genuinely cannot be recreated.
 ///
-/// **Nothing reads `data` except `lib/photo-store.ts`.** Postgres stores a
-/// column this size out-of-line, so an unqualified `findMany` on this table
-/// would drag every image into memory to render a list of thumbnails. Every
+/// Which is also why they are in Postgres at all (decided 2026-08-05, over a
+/// Railway volume and over S3/R2). The deciding argument is not cost: a volume is
+/// not in the database backup and an object store is a second account to keep
+/// alive. Bytes in the DB are covered by whatever backs up the DB, and behave
+/// identically in local dev and on Railway. The honest cost is size, which is why
+/// photos are downscaled to ~1600px in the browser before they are ever sent, and
+/// why a clip is capped at ten seconds and recorded at a deliberately modest
+/// bitrate — see `MAX_CLIP_MS` in `components/areas/camera-sheet.tsx`.
+///
+/// **Nothing reads `data` except `lib/media-store.ts`.** Postgres stores a column
+/// this size out-of-line, so an unqualified `findMany` on this table would drag
+/// every image *and every clip* into memory to render a list of thumbnails. Every
 /// other query must name its columns.
-model JournalPhoto {
+model JournalMedia {
   id String @id @default(cuid())
 
-  /// The image itself. See the note above: select this only to serve it.
+  /// The image or clip itself. See the note above: select this only to serve it.
   data     Bytes
   mimeType String
+  /// Video is stored at its recorded pixel size, so this is the aspect ratio the
+  /// player is reserved at as well as the size a photo is drawn at.
   width    Int
   height   Int
   byteSize Int
   caption  String?
+
+  kind MediaKind @default(photo)
+  /// Milliseconds, video only. Null on a photo.
+  durationMs Int?
 
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
@@ -335,6 +351,11 @@ model JournalPhoto {
   entry   JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
 
   @@index([entryId, sortOrder])
+}
+
+enum MediaKind {
+  photo
+  video
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

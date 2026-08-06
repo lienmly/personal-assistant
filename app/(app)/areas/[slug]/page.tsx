@@ -179,12 +179,7 @@ export default async function AreaPage({
       </nav>
 
       {tab === "journal" && (
-        <Journal
-          areaId={area.id}
-          areaName={area.name}
-          days={days}
-          today={today}
-        />
+        <Journal areaId={area.id} areaName={area.name} days={days} />
       )}
 
       {tab === "docs" && (

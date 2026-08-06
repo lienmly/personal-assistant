@@ -4,10 +4,11 @@ import { localDayKey, todayKey } from "@/lib/utils";
 /**
  * Reading the journal.
  *
- * **Never selects `JournalPhoto.data`.** A list of twenty entries with four
+ * **Never selects `JournalMedia.data`.** A list of twenty entries with four
  * photos each would otherwise pull eighty images into memory to render eighty
- * `<img>` tags that are going to fetch them separately anyway. Only
- * `lib/photo-store.ts` reads bytes; see the note on the model.
+ * `<img>` tags that are going to fetch them separately anyway — and a clip is
+ * twenty times the size of a photo, so the same mistake costs twenty times as
+ * much now. Only `lib/media-store.ts` reads bytes; see the note on the model.
  */
 
 /** `happenedOn` is a `@db.Date` — UTC midnight standing in for a local calendar
@@ -41,48 +42,44 @@ const writtenFormat = new Intl.DateTimeFormat("en-GB", {
   month: "short",
 });
 
-export type JournalPhotoView = {
+export type JournalMediaView = {
   id: string;
+  kind: "photo" | "video";
   caption: string | null;
   width: number;
   height: number;
+  durationMs: number | null;
 };
 
 export type JournalEntryView = {
   id: string;
-  /** "YYYY-MM-DD". Still here even though the day it belongs to carries the
-   *  same key: it is what the edit composer's date input starts on, and moving
-   *  an entry to another day is a legitimate edit. */
-  happenedOn: string;
   title: string | null;
   body: string;
-  photos: JournalPhotoView[];
+  media: JournalMediaView[];
   /**
-   * When this was written, as a clock time — "14:32" — but **only when it was
-   * written on the day it is about**. Otherwise "written 7 Aug".
+   * When this was written, as a clock time — "14:32".
    *
-   * The two dates differ whenever you write up Tuesday on Thursday, which with
-   * a baby is most of the time, and a bare "21:04" under a Tuesday heading is a
-   * claim that something happened at nine on Tuesday night. It didn't; that is
-   * when you got round to typing it. The stamp is only a time when it is
-   * genuinely a time of that day.
+   * Since 2026-08-06 a new entry's day is set from the server's clock and can't
+   * be edited, so this and the day heading above it always agree. The "written
+   * 7 Aug" branch below survives for **rows written before that**, when the date
+   * was a field: a bare "21:04" under a Tuesday heading would be claiming
+   * something happened at nine on Tuesday night when in fact that is when it got
+   * typed. Three lines to never tell that lie about an old row.
    */
   timeLabel: string;
-  /** True when `timeLabel` is a clock time rather than a later write-up date.
-   *  The two read differently and the entry says so. */
+  /** True when `timeLabel` is a clock time rather than a later write-up date. */
   sameDay: boolean;
 };
 
 /**
  * One calendar day, with everything written about it.
  *
- * The grouping is the point rather than a tidy-up: a day is the unit you add
- * to. Each header carries its own "+", so a morning and an afternoon are two
- * entries under one date instead of one entry you have to go back and edit —
- * which is what journaling *throughout* a day actually looks like.
+ * The grouping is the point rather than a tidy-up: a day is what you add to
+ * through the day. A morning and an afternoon are two entries under one date,
+ * each stamped with its own time, rather than one entry you go back and extend.
  */
 export type JournalDayView = {
-  /** "YYYY-MM-DD" — the key the composer opened from this day prefills with. */
+  /** "YYYY-MM-DD". */
   key: string;
   dayLabel: string;
   shortLabel: string;
@@ -90,11 +87,13 @@ export type JournalDayView = {
   entries: JournalEntryView[];
 };
 
-const PHOTO_SELECT = {
+const MEDIA_SELECT = {
   id: true,
+  kind: true,
   caption: true,
   width: true,
   height: true,
+  durationMs: true,
 } as const;
 
 export async function getJournal(
@@ -113,7 +112,7 @@ export async function getJournal(
       createdAt: true,
       title: true,
       body: true,
-      photos: { orderBy: { sortOrder: "asc" }, select: PHOTO_SELECT },
+      media: { orderBy: { sortOrder: "asc" }, select: MEDIA_SELECT },
     },
   });
 
@@ -128,10 +127,9 @@ export async function getJournal(
 
     const view: JournalEntryView = {
       id: entry.id,
-      happenedOn,
       title: entry.title,
       body: entry.body,
-      photos: entry.photos,
+      media: entry.media,
       timeLabel: sameDay
         ? timeFormat.format(entry.createdAt)
         : `written ${writtenFormat.format(entry.createdAt)}`,
