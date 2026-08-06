@@ -52,7 +52,23 @@ photo:
 | Headline | Only when it deserves one. "First time she laughed" does; most days it doesn't. |
 | What happened | Markdown, same as docs — headings, lists, **bold**, links. |
 
-Entries are listed newest first, and today's is badged **Today**.
+### A day at a time
+
+Entries are **grouped under the day they are about**, newest day first, and
+today's heading is badged **Today**. Each entry inside a day carries the **time
+it was written** — 09:14, 14:40, 21:02 — so a day reads as a day rather than as
+one undated block.
+
+Every past day's heading has a **+**. That is how you add a second entry to a day
+you have already written about: the morning and the afternoon are two entries
+under one date, not one paragraph you go back and extend. Today's heading has no
++, because the open composer at the top of the tab already is that button.
+
+One detail that keeps it honest: the time only shows as a clock time when you
+wrote the entry **on the day it is about**. Write up Tuesday on Thursday and the
+stamp reads *written 6 Aug* instead, because "21:04" under a Tuesday heading
+would be claiming something happened at nine on Tuesday night when in fact that
+is when you got round to typing it.
 
 ### Photos
 

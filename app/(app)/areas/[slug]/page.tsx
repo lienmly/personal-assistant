@@ -80,7 +80,7 @@ export default async function AreaPage({
   // Only the active tab's heavy read runs. The journal pulls every entry and
   // its photo metadata for this area, which is the one query here that grows
   // without bound — no reason to run it to render the Docs tab.
-  const [entries, areas, allProjects] = await Promise.all([
+  const [days, areas, allProjects] = await Promise.all([
     tab === "journal" ? getJournal(area.id, today) : Promise.resolve([]),
     tab === "tasks"
       ? db.area.findMany({
@@ -182,7 +182,7 @@ export default async function AreaPage({
         <Journal
           areaId={area.id}
           areaName={area.name}
-          entries={entries}
+          days={days}
           today={today}
         />
       )}

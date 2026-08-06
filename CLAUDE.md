@@ -525,6 +525,29 @@ one new doc, and **no other code changed** — which is now the fifth time the f
 - [ ] **There is no quarterly recurrence**, so "apply to the next batch" cannot be a
       repeating row — the enum is daily/weekdays/weekly/monthly
 
+### Phase 4.15 — The journal groups by day
+_Built 2026-08-06. No schema change and no migration: `createdAt` was already on the row,
+unread. The flat list was right for a milestone log and wrong for journaling **through** a
+day, which is what it is actually used for._
+- [x] **Entries group under the day they are about**, newest day first, done in one pass
+      over rows `getJournal` already sorted. §6, "A day is the unit you add to"
+- [x] **Each entry shows the time it was written**, and only as a clock time when it was
+      written on the day it is about — otherwise "written 6 Aug". `createdAt` is a real
+      timestamp beside a `@db.Date`, so both halves of §6's date rule are in one component
+- [x] **A "+" on every past day's heading** opens a composer prefilled with that day.
+      Today's heading has none — the open composer above it already is that button
+- [x] `JournalEntryView` lost `dayLabel`, `shortLabel` and `isToday`; the day carries them
+- [x] **Two latent width bugs fixed** — `field` baked in `w-full`, so `${field} w-auto` on
+      the date picker lost (equal specificity, and the winner is whichever utility Tailwind
+      emits later, not the one at the end of your class string). The date input had been
+      taking a whole row at every width, pushing the headline to a second and the edit
+      composer's cancel × to a third. §9
+- [ ] **Entries within a day are newest-first**, matching the rest of the app. Reading a day
+      bottom-up is a real argument and was not taken; one line in `getJournal` if it turns
+      out to be wanted
+- [ ] **The phone layout still has not been looked at on a real device.** The day heading is
+      a single short row and adds no breakpoint, but that is reasoning, not a check
+
 ### Phase 5 — Montblanc (AI assistant)
 - [ ] Chat drawer with streaming (Claude via AI SDK), available on every surface
 - [ ] Montblanc persona/prompt
@@ -1443,6 +1466,52 @@ Four things fell out:
 the right shape for it — every entry has a date and a body, and photos are addressable by
 URL — so it is a job that reads rows rather than a schema change.
 
+### A day is the unit you add to — decided 2026-08-06
+
+The journal shipped as a flat list of entries, newest first, each labelled with its date.
+That is the right list for a milestone log — "she rolled over on the 3rd" — and the wrong
+one for what it is actually used for, which is **journaling through a day**. A day is not
+one thing that happened; it is a morning, an afternoon, and whatever woke you at 3am.
+
+Before this, a second thought about Tuesday had two homes and both lose something. **Edit
+Tuesday's entry** and the two moments become one paragraph, with nothing recording that
+they were written six hours apart. **Write a second entry** and it sorts in beside the
+first with its date repeated, so two entries about one day look exactly like two entries
+about two days.
+
+So entries are **grouped by `happenedOn`**, and each day heading carries its own **"+"**.
+Four things fell out:
+
+1. **Each entry shows the time it was written**, which is what the day heading frees up
+   room for — the date has moved up to the group, and what an entry has left to say about
+   *when* is the clock. The grouping and the timestamp are one change rather than two: a
+   time is meaningless without the day above it, and a repeated date is what was crowding
+   it out.
+2. **The time is only a clock time when the entry was written on the day it is about.**
+   Otherwise it reads "written 6 Aug". The two dates differ whenever you write up Tuesday
+   on Thursday, which with a baby is most of the time, and a bare "21:04" under a Tuesday
+   heading is a claim that something happened at nine on Tuesday night. It didn't; that is
+   when you got round to typing it. This is `createdAt` — a real timestamp, formatted
+   **local** — sitting next to `happenedOn`, a `@db.Date` formatted **UTC**, which is §6's
+   "Dates are a trap here" with both traps in one component.
+3. **Today's heading has no "+".** The open composer directly above it already is that
+   button, and two identical forms on screen for the same day reads as a bug rather than a
+   choice. Everything the composer principle says (§6, "The journal") still holds for
+   today, which is the day it was written for.
+4. **The grouping is done in `getJournal`, in one pass over rows the query already
+   sorted.** The order is `happenedOn desc, createdAt desc`, so consecutive rows of a day
+   arrive together and a day boundary is "this key differs from the last one". No `Map`,
+   no second sort, and no iteration order to reason about.
+
+`JournalEntryView` lost `dayLabel`, `shortLabel` and `isToday` in the process — the day
+carries all three now, and leaving a second copy on the entry is how the two come to
+disagree. Same reason `TaskLineView.recurrence` was deleted when its one caller went.
+
+**Entries within a day stay newest-first**, matching every other list in the app. Reading a
+day bottom-up is the argument for reversing it, and it is a real one; it was not taken
+because a journal you are *writing* is scanned from the top, and the newest thing is the
+one you just wrote.
+
 ### Photos live in Postgres — decided 2026-08-05
 
 `JournalPhoto.data` is `BYTEA`. Chosen over a Railway volume and over S3/R2, and the
@@ -1748,6 +1817,18 @@ originally — shifts every publish time by the machine's offset.
   2026-08-04 — its file never matched what was applied, and the honest fix there is to
   repoint the recorded checksum at the file, because the file is the deliberate rebuild and
   the database already reflects it.
+
+- **A shared class string must not bake in a width, because you cannot override it later.**
+  Two Tailwind utilities for the same property have equal specificity, so the winner is
+  whichever one the compiled stylesheet defines *last* — not the one written last in your
+  `className`. `` `${field} w-auto` `` where `field` starts `w-full` therefore stays 100%
+  wide, silently. In a `flex-wrap` row that is worse than it sounds: a `width: 100%` child
+  takes a whole line whatever its `basis` says, so `basis-full sm:basis-auto` never gets to
+  do anything and the "beside it from `sm` up" layout never happens at any width. The
+  journal composer had this on both its date and headline inputs from the day it was
+  written, and it read as a design choice rather than a bug — the cancel × ended up alone on
+  a third row. Found 2026-08-06. The fix is a `fieldBase` with no width and a
+  `field = \`w-full ${fieldBase}\`` for the callers that want one.
 
 - **`lib/markdown.ts` now consumes continuation lines**, in both list runs and blockquotes.
   It used to break a bullet run at the first line that wasn't a bullet, so a wrapped list
@@ -2059,8 +2140,53 @@ Three rules inside it:
 
 ---
 
-_Last updated: 2026-08-05 · Status: **Phase 4.14 — Coding Mom and Forge get their
-backlogs.**_
+_Last updated: 2026-08-06 · Status: **Phase 4.15 — the journal groups by day.**_
+
+_**2026-08-06 — the journal was a list of days and it needed to be a list of moments
+inside days.** The ask was two things and they turn out to be one: show the time an entry
+was written, and put a **"+"** on each day so you can keep adding to it. A day is not one
+thing that happened — it is a morning, an afternoon, and whatever woke you at 3am — and the
+flat list had no way to say that. Editing yesterday's entry to append the afternoon loses
+that the two were written six hours apart; writing a second entry put it beside the first
+with the date repeated, so two entries about one day looked exactly like two entries about
+two days._
+
+_So entries **group under `happenedOn`**, newest day first, and the date moves up to the
+group heading — which is precisely what frees the room for the time. **No schema change and
+no migration**: `createdAt` was already on the row and had never been read._
+
+_**One thing was got right rather than cheaply**: the stamp is a clock time only when the
+entry was written on the day it is about. Otherwise it reads "written 6 Aug". A bare
+"21:04" under a Tuesday heading is a claim that something happened at nine on Tuesday night,
+and with a baby, writing up Tuesday on Thursday is most of the time. That puts a real
+timestamp formatted **local** next to a `@db.Date` formatted **UTC** in one component, which
+is §6's "Dates are a trap here" with both traps side by side._
+
+_**Today's heading deliberately has no "+"** — the always-open composer directly above it
+already is that button, and two identical forms on screen for the same day reads as a bug._
+
+_**Two latent layout bugs came out on the way**, neither of them the ask and both visible
+from the day the journal was written. `field` baked in `w-full`, so `${field} w-auto` on the
+date picker lost — equal specificity means the winner is whichever utility Tailwind emits
+last, not the one at the end of your class string. The date input had been claiming a whole
+row at every width, which pushed the headline to a second row and the edit composer's cancel
+× onto a third, where it read as a design choice. §9._
+
+_Verified in a signed-in browser. Added a second entry to 5 August from its "+" and watched
+it group under the existing one with the heading gaining "2 entries" and the new row reading
+**written 6 Aug**; added one for today from the top composer and watched a **Today**-badged
+group appear above it stamped **12:49**. Deleted both afterwards and confirmed the page back
+at one entry. `tsc --noEmit` and `eslint` pass; console clean, no hydration warning._
+
+_Outstanding from this change: **entries within a day stay newest-first**, matching the rest
+of the app — reading a day bottom-up is a real argument and is one line in `getJournal` if it
+turns out to be wanted. **And the phone layout still has not been looked at on a real
+device**; the day heading is one short row and adds no breakpoint, but that is reasoning, not
+a check._
+
+---
+
+_Previously: **Phase 4.14 — Coding Mom and Forge get their backlogs.**_
 
 _**2026-08-05 — the two projects the purge left emptiest now have work on them.** Coding Mom
 and Forge were the last two carrying zero tasks and no focus line, and they arrived together
