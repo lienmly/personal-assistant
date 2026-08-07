@@ -4,7 +4,11 @@ import { revalidatePath } from "next/cache";
 
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { deleteMedia, putMedia } from "@/lib/media-store";
+import {
+  MAX_MEDIA_PER_ENTRY,
+  deleteMedia,
+  putMedia,
+} from "@/lib/media-store";
 
 /** Server actions are their own public endpoints — the route guard in the
  *  layout does not cover them, so each one re-checks the session. */
@@ -90,6 +94,22 @@ export async function saveJournalEntry(form: FormData) {
 
   if (!id && !title && !body && files.length === 0) {
     throw new Error("Write something or add a photo");
+  }
+
+  // **Counted against what the entry already holds, and before anything is
+  // written.** The composer knows its own cap and disables the buttons at it,
+  // but it is a form and this is an endpoint (the same reason every action here
+  // re-checks the session). Checking first also means an over-full submit costs
+  // you the submit rather than leaving an entry created and half its photos
+  // stored — the one case where the per-file store-as-you-go below would land
+  // somewhere you did not ask for.
+  const existing = id
+    ? await db.journalMedia.count({ where: { entryId: id } })
+    : 0;
+  if (existing + files.length > MAX_MEDIA_PER_ENTRY) {
+    throw new Error(
+      `An entry holds ${MAX_MEDIA_PER_ENTRY} photos or clips${existing > 0 ? ` — this one already has ${existing}` : ""}. Start another entry for the rest; they still read as one day.`,
+    );
   }
 
   const entry = id

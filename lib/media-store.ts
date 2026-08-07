@@ -46,6 +46,22 @@ export const ACCEPTED_MIME = [
 export const MAX_MEDIA_BYTES = 6 * 1024 * 1024;
 
 /**
+ * How many photos and clips one entry may hold.
+ *
+ * Ten is a **storage** number wearing a layout number's clothes, the same way
+ * the clip's ten seconds is (§6, "A clip is a photo that costs twenty times as
+ * much"). Ten photos is ~750KB in a database where every byte is a byte of
+ * database; ten *clips* is 20MB, which is why the cap counts items rather than
+ * kinds and is deliberately not generous. It is also as many as the grid can
+ * show without becoming a contact sheet you scroll past instead of look at.
+ *
+ * A second entry is always available and costs nothing — a day already holds as
+ * many as you like, and they read as one flow. So the cap constrains a single
+ * moment, not the day, which is why it can be this low without losing anything.
+ */
+export const MAX_MEDIA_PER_ENTRY = 10;
+
+/**
  * "video/webm;codecs=vp8,opus" → "video/webm".
  *
  * `MediaRecorder` reports the type it actually negotiated, codecs and all, and

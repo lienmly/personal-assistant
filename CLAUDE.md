@@ -127,7 +127,8 @@ dashboard/UI ecosystem, easy Google auth, and a clean path to embedding an AI as
                      the contribution map, going-out, agenda
 /components/calendar → month grid, week/day time grid, item chips, the event panel
 /components/projects → the project panel
-/components/areas  → the area page's journal, the media picker and the camera sheet
+/components/areas  → the area page's journal, the media grid and its viewer, the
+                     media picker and the camera sheet
 /components/docs   → the Docs tab, shared by a project page and an area page
 /components/tasks  → the by-track task list, shared by both too, and the checklist
                      a task's subtasks render as (board, Today and both pages)
@@ -543,9 +544,9 @@ day, which is what it is actually used for._
       emits later, not the one at the end of your class string). The date input had been
       taking a whole row at every width, pushing the headline to a second and the edit
       composer's cancel × to a third. §9
-- [ ] **Entries within a day are newest-first**, matching the rest of the app. Reading a day
-      bottom-up is a real argument and was not taken; one line in `getJournal` if it turns
-      out to be wanted
+- [x] ~~**Entries within a day are newest-first**, matching the rest of the app~~ —
+      **reversed 2026-08-06.** The "real argument" named here turned out to be the right
+      one: see Phase 4.17. It was the one line in `getJournal` it was said to be
 - [ ] **The phone layout still has not been looked at on a real device.** The day heading is
       a single short row and adds no breakpoint, but that is reasoning, not a check
 
@@ -581,6 +582,35 @@ record worth reading later is that its times came from a clock rather than from 
 - [ ] **The phone layout still has not been looked at on a real device**, and this is the
       change that most wants it: the camera is a phone feature and the sheet has only been
       seen at 1568px
+
+### Phase 4.17 — A day is a thread
+_Built 2026-08-06, hours after 4.16 and the third pass at the same object. 4.15 grouped
+entries by day; 4.16 closed every day but today; this one **draws** the day as one thread and
+puts the composer at the end of it. No schema change and no migration._
+- [x] **One card per day, entries as nodes on a thread** — same rows, same timestamps, but
+      the connection is drawn rather than asserted by a heading. §6, "A day is a thread"
+- [x] **Days run newest-first, entries within a day run oldest-first** — reversing 4.15's
+      call, which had named this argument "a real one" and declined it. One line in
+      `getJournal`
+- [x] **The composer is today's last node**, open when the day is empty and behind a **"+"**
+      once it has started. `getJournal` now always returns today, empty or not
+- [x] **No past day has a "+"** — 4.16's rule, now visible in the layout instead of only
+      enforced in the action
+- [x] **Uniform square media tiles, capped at `max-w-xl`** — the ragged rows were
+      `object-cover` on a box with no fixed height, and the 420px tiles were a grid
+      stretching to a 1300px column. §6, "A thumbnail is a promise"
+- [x] **A full-screen viewer** — tap a tile, arrows and Esc, portalled to `<body>` because
+      `animate-rise` leaves a transform on every day section. `--color-viewer` is its own
+      token, for the reason `--color-scrim` is
+- [x] **"Save to photos" moved onto the viewer**, off every tile
+- [x] **`MAX_MEDIA_PER_ENTRY = 10`**, counted against what the entry already holds, checked
+      in the composer and again in the action before anything is written. §6
+- [ ] **Captions still have no UI.** The column exists, is still written as `null`, and the
+      viewer is now the obvious place for one — it is the only screen with room
+- [ ] **Reordering media.** They arrive in the order picked; there is no drag handle, and
+      the cap keeps the list short enough that it has not bitten
+- [ ] **The phone layout still has not been looked at on a real device.** The thread indents
+      6px below `sm` and the grid drops to two columns, both of which are judgements
 
 ### Phase 5 — Montblanc (AI assistant)
 - [ ] Chat drawer with streaming (Claude via AI SDK), available on every surface
@@ -1535,20 +1565,24 @@ Four things fell out:
    **local** — sitting next to `happenedOn`, a `@db.Date` formatted **UTC**, which is §6's
    "Dates are a trap here" with both traps in one component.
 3. ~~**Today's heading has no "+".**~~ Superseded hours later: **no** heading has one, and
-   the open composer is the only way in. See below.
+   the open composer is the only way in. See below — and then superseded again the same
+   day, in the other direction: **today has a "+" and no other day does**, which is the
+   two halves of this finally agreeing. See "A day is a thread" below.
 4. **The grouping is done in `getJournal`, in one pass over rows the query already
-   sorted.** The order is `happenedOn desc, createdAt desc`, so consecutive rows of a day
-   arrive together and a day boundary is "this key differs from the last one". No `Map`,
-   no second sort, and no iteration order to reason about.
+   sorted.** The order is `happenedOn desc, createdAt asc` (it was `desc, desc` until the
+   thread arrived), so consecutive rows of a day arrive together and a day boundary is
+   "this key differs from the last one". No `Map`, no second sort, and no iteration order
+   to reason about.
 
 `JournalEntryView` lost `dayLabel`, `shortLabel` and `isToday` in the process — the day
 carries all three now, and leaving a second copy on the entry is how the two come to
 disagree. Same reason `TaskLineView.recurrence` was deleted when its one caller went.
 
-**Entries within a day stay newest-first**, matching every other list in the app. Reading a
-day bottom-up is the argument for reversing it, and it is a real one; it was not taken
+~~**Entries within a day stay newest-first**, matching every other list in the app. Reading
+a day bottom-up is the argument for reversing it, and it is a real one; it was not taken
 because a journal you are *writing* is scanned from the top, and the newest thing is the
-one you just wrote.
+one you just wrote.~~ **Reversed hours later** — the argument named as real was the right
+one. See the next section.
 
 ### The date is not a field — decided 2026-08-06
 
@@ -1594,6 +1628,117 @@ genuinely lost. Something that happened on Tuesday and was not written on Tuesda
 be recorded as a Thursday entry that says so. That is the trade, and it is the right one
 for a journal — it is the wrong one for a diary you fill in on Sundays, which is a
 different product.
+
+### A day is a thread, and the composer is its last node — decided 2026-08-06
+
+The grouping two sections up was right and **the shape it was drawn in still said the old
+thing.** Each entry stayed a floating white card, identical to every other, so two thoughts
+about one afternoon looked exactly like two thoughts about two afternoons — the heading
+above them was the only thing claiming otherwise, and a heading loses that argument to six
+identical tiles underneath it.
+
+So a **day** is the card, and the entries are nodes on one thread inside it. Same rows, same
+timestamps, no schema change: what changed is that the connection is drawn rather than
+asserted. This is the third pass at the same object, and the three agree — group by the day
+(4.15), let only today be written into (4.16), and now say on screen that a day is one
+train of thought rather than a folder.
+
+Four things fell out, each chosen over an obvious alternative:
+
+1. **The days run up and the entries inside a day run down**, and the two directions are not
+   in conflict. A list of days is a list, and every list in this app is newest-first. **A day
+   is not a list** — it is one train of thought from morning to night, and a train of thought
+   read bottom-up is not one. This reverses 4.15's call, which had named the argument for
+   reversing it "a real one" and declined it; reading a day *as a day* is what settled it.
+2. **The composer is the last node of today**, not a form above the whole page. It was
+   already directly above today's group and it read as a separate thing hovering over the
+   journal rather than as the next thing in it. As a node it is literally where the next
+   thought goes — which is the entire content of the request for a "+".
+3. **It is open when today is empty and behind a "+" once the day has started.** The open
+   composer's justification (4.8: the thing happened thirty seconds ago and you are holding
+   a baby, so one tap before the cursor exists is the entry not getting written) is about
+   *starting* the day. Once there is a day to read, a permanently open form halfway down it
+   is something you scroll past, and the tap has bought you a readable page. Both states are
+   the same node, so nothing moves when it opens.
+4. **Only today gets one, which is what makes the "+" honest.** A past day heading has no
+   button, no composer and no way in — §6's "The date is not a field", unchanged and now
+   visible in the layout rather than only enforced in the action.
+
+**`getJournal` always returns today**, empty or not, because the composer lives inside a day
+and the one day you can write into therefore has to *be* a day before it is a record. An
+empty group is what an unwritten day looks like; the "Nothing written yet" card is now about
+the journal as a whole, not about today.
+
+The thread's line is drawn **per node** rather than once down the list, because the nodes are
+different heights and it has to stop at the last dot. It is one of the few places §9's
+"separation by contrast, not borders" gives way, and for the reason the rule allows: the line
+is not a divider between things, it is the statement that they are connected.
+
+### A thumbnail is a promise that the whole photo is there — decided 2026-08-06
+
+The photos on an entry were "all over the place", and the diagnosis is exact: each one was
+rendered at **its own aspect ratio** in a grid with automatic rows, so a portrait, a square
+and a panorama produced three heights and rows that did not line up. `object-cover` was
+already on the image and was doing nothing — a box with no fixed height is never the wrong
+shape to cover.
+
+Three things, and the third is what makes the first two allowed:
+
+1. **Uniform square tiles**, so the cover crop finally has something to crop to. Two columns
+   on a phone, three from `sm`.
+2. **Capped at `max-w-xl`, which was the bigger half of the bug.** The journal column is
+   ~1300px on this monitor, so three tiles sharing it are **420px each** — a contact sheet
+   rendered at poster size. A tile stretches to its container by default and a photo should
+   not; the cap makes a thumbnail thumbnail-sized at every width.
+3. **Tapping opens it uncropped, full screen**, and without that the crop would be a
+   permanent loss — a grid that hides the top of somebody's head with no way to see it is
+   worse than the ragged rows were. **A single photo is exempt from the crop entirely**: one
+   photo is not a grid, it is *the* photo, and squaring it buys a tidy row of one.
+
+Three notes on the viewer:
+
+- **It is portalled to `<body>`, and that is not fussiness.** `animate-rise` finishes with
+  `transform: translateY(0)` under `animation-fill-mode: both`, so every day section on the
+  page permanently carries a transform — and a transformed ancestor is a containing block
+  for `position: fixed`, which would pin a "full screen" viewer to the day it came from.
+  The portal renders only when open, so there is no `document` touched on the server.
+  React's delegated `onAnimationEnd` still works through it: Next mounts React on
+  `document`, so the portal container is *inside* the root container.
+- **`--color-viewer` is a third job, not a heavier scrim.** A scrim dims a page you can
+  still read; this has to disappear so the photo is the only thing on screen. It is nearly
+  the same value in both themes for that reason — a photo viewer is dark everywhere, and
+  inverting it with the theme would be §11's elevation ladder applied to something that is
+  not part of the page. Same lesson as `--color-scrim` itself: two jobs sharing a value is
+  a coincidence that a second theme finds.
+- **"Save to photos" moved onto the viewer.** On a tile it was a control on every square of
+  a grid whose whole job is to be quiet, and below `sm` it is always visible (hover is not
+  an affordance on a phone), so seven photos meant seven buttons. One level in, it is still
+  on every photo and clip.
+
+### Ten photos an entry — decided 2026-08-06
+
+`MAX_MEDIA_PER_ENTRY = 10`, checked in the composer *and* in the action.
+
+Ten is a **storage** number wearing a layout number's clothes, exactly as the clip's ten
+seconds is. Ten photos is ~750KB in a database where every byte is a byte of database
+(§6, "Photos live in Postgres"); ten *clips* is 20MB, which is why the cap counts items
+rather than kinds and is deliberately not generous. It is also as many as the grid shows
+before it becomes a contact sheet you scroll past instead of look at.
+
+**The cap constrains a moment, not a day, which is why it can be this low without losing
+anything** — a day already holds as many entries as you like and they read as one thread, so
+"start another entry for the rest" is not a consolation, it is the better record anyway.
+That is what the message says rather than just refusing.
+
+Two smaller things:
+
+- **The server counts what the entry already holds**, or the cap would be per-*submit*
+  rather than per-entry: ten photos, save, ten more. The composer is told the existing
+  count for the same reason, so the counter reads "7 of 10" while editing.
+- **It is checked before the entry is created or updated.** Media is stored one file at a
+  time and deliberately not in a transaction with the entry (a photo that fails should cost
+  you that photo, not the paragraph) — so a late refusal would leave an entry created with
+  half its photos attached.
 
 ### A clip is a photo that costs twenty times as much — decided 2026-08-06
 
@@ -2334,8 +2479,84 @@ Three rules inside it:
 
 ---
 
-_Last updated: 2026-08-06 · Status: **Phase 4.16 — the journal only accepts today, and has
-a camera.**_
+_Last updated: 2026-08-06 · Status: **Phase 4.17 — a day is a thread.**_
+
+_**2026-08-06 — the journal grouped by day this morning and still looked like a filing
+cabinet.** Three asks, and the first one names the problem exactly: a "+" for today, because
+one day has several entries and **they should look connected, like a flow of thoughts**. The
+grouping shipped in 4.15 was right and the shape was still the old one — each entry a
+floating white card identical to every other, so two thoughts about one afternoon looked
+exactly like two thoughts about two afternoons, with a heading above them losing that
+argument to six identical tiles. So a **day** is now the card and the entries are nodes on
+one thread inside it. No schema change and no migration; what changed is that the connection
+is **drawn** rather than asserted._
+
+_**The days run up and the entries inside a day run down**, and that is not a contradiction.
+A list of days is a list, and every list here is newest-first. A day is not a list — it is
+one train of thought from morning to night, and a train of thought read bottom-up is not
+one. This reverses 4.15, which had named the argument for reversing it "a real one" and
+declined it; reading a day *as a day* rather than as a log is what settled it._
+
+_**The composer is the last node of today**, which is what the "+" was asking for. It was
+already directly above today's group and it read as a form hovering over the journal rather
+than as the next thing in it. **It is open when today is empty and behind a "+" once the day
+has started** — the always-open composer's justification is about *starting* a day (the
+thing happened thirty seconds ago and you are holding a baby), and once there is a day to
+read, a permanently open form halfway down it is something you scroll past. **Only today
+gets one**, which is 4.16's rule finally visible in the layout instead of only enforced in
+the action: a day that has gone has no button, no composer and no way in._
+
+_**The photos were "all over the place" for two reasons and the second was the bigger one.**
+Each was rendered at its own aspect ratio in a grid with automatic rows, so a portrait, a
+square and a panorama gave three heights — `object-cover` was already there and was doing
+nothing, because a box with no fixed height is never the wrong shape to cover. And the grid
+**stretched to the container**: three tiles sharing a 1300px column are **420px each**, a
+contact sheet at poster size. Uniform squares, capped at `max-w-xl`. **A single photo is
+exempt from the crop** — one photo is not a grid, it is the photo._
+
+_**Cropping is only honest because tapping opens the whole thing**, so there is a full-screen
+viewer with arrows and Esc, and "Save to photos" moved into it — on a tile it was a control
+on every square of a grid whose job is to be quiet, and below `sm` those are always visible.
+**It is portalled to `<body>`, which is load-bearing rather than tidy**: `animate-rise`
+finishes with `transform: translateY(0)` under `fill-mode: both`, so every day section
+permanently carries a transform, and a transformed ancestor is a containing block for
+`position: fixed` — the "full screen" viewer would have been pinned inside the day it came
+from. **`--color-viewer` is its own token** for the same reason `--color-scrim` got one: a
+scrim dims a page you can still read, and this one has to disappear._
+
+_**Ten photos an entry**, checked in the composer and again in the action. It is a storage
+number wearing a layout number's clothes, exactly as the clip's ten seconds is — ten photos
+is ~750KB in a database where every byte is a byte of database, and ten *clips* is 20MB,
+which is why the cap counts items rather than kinds. **The cap constrains a moment, not a
+day**, which is why it can be this low: a day holds as many entries as you like and they read
+as one thread, so "start another entry for the rest" is the better record anyway, and that is
+what the message says rather than just refusing. The server counts what the entry already
+holds, or the cap would be per-submit rather than per-entry — ten photos, save, ten more._
+
+_Verified in a signed-in browser, light and dark. Added a second entry to today from the "+"
+and watched it land **below** the 13:05 one at 16:46 with the heading gaining "2 entries" and
+the composer collapsing back to the "+"; deleted it afterwards and confirmed the count back
+at 2. Confirmed a past day has no "+" and its thread ends at its last entry, that an area
+with nothing in it opens with the composer live and the explainer below, that the edit
+composer opens in place inside the thread and its counter reads **7 of 10**, and that the
+viewer opens at the right index, steps with the arrow keys (1/7 → 6/7), closes on Escape and
+releases the page's scroll lock. `npx next build`, `tsc --noEmit` and `eslint` all pass;
+console clean._
+
+_**One diagnosis I got wrong and corrected before it shipped**, worth recording because the
+wrong version was already in a comment: Escape appeared not to close the viewer — the exit
+animation ran to completion and left it mounted — and I blamed React's delegated
+`onAnimationEnd` not reaching a portal, and replaced it with a native listener. The real
+cause is that this **Chrome window is occluded, so `document.visibilityState` is `hidden`,
+and Chrome dispatches no `animationend` at all** — a native listener on the element gets
+nothing either, which is what disproved it. Next mounts React on `document`, so a portal into
+`<body>` is inside the root container and the delegated listener sees the event normally;
+verified by dispatching the event by hand. Reverted to `onAnimationEnd`, matching
+`ContentPanel`. **The harness's own state can look exactly like a bug in the code.**_
+
+---
+
+_Previously: **Phase 4.16 — the journal only accepts today, and has a camera.**_
 
 _**2026-08-06 — the "+" I shipped this morning was the wrong half of that change.** The
 verdict was exact: **a day that has already passed should not accept a new entry** — "it

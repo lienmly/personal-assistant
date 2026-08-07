@@ -18,6 +18,12 @@ const ACCEPTED_IMAGES = ["image/jpeg", "image/png", "image/webp"];
  *  is still more than any screen this is read on and about a tenth the bytes. */
 const MAX_EDGE = 1600;
 
+/** Mirrors `MAX_MEDIA_PER_ENTRY` in `lib/media-store.ts`, which is the one that
+ *  actually decides — that module imports `lib/db` and this is a client bundle,
+ *  the same rule `ACCEPTED_IMAGES` above follows. This copy exists so the cap is
+ *  a disabled button rather than an error after the upload. */
+const MAX_PER_ENTRY = 10;
+
 export type PreparedMedia = {
   /** A stable key for React, and what pairs the file with its metadata in the
    *  FormData — see `metaFor` in `lib/journal-actions.ts`. */
@@ -56,15 +62,24 @@ export function MediaInput({
   media,
   onChange,
   disabled,
+  existingCount = 0,
 }: {
   media: PreparedMedia[];
   onChange: (media: PreparedMedia[]) => void;
   disabled?: boolean;
+  /** How many the entry already holds. Only non-zero when editing, and it has
+   *  to be counted here or the cap would be per-*submit* rather than per-entry:
+   *  ten photos, save, ten more. The server counts the same way. */
+  existingCount?: number;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [working, setWorking] = useState(false);
   const [rejected, setRejected] = useState<string[]>([]);
   const [cameraOpen, setCameraOpen] = useState(false);
+  const [overflowed, setOverflowed] = useState(false);
+
+  const remaining = Math.max(0, MAX_PER_ENTRY - existingCount - media.length);
+  const full = remaining === 0;
 
   // Object URLs are a manual allocation; without this every pick leaks one per
   // item for as long as the page lives.
@@ -78,9 +93,15 @@ export function MediaInput({
   }, []);
 
   async function pick(event: React.ChangeEvent<HTMLInputElement>) {
-    const files = [...(event.target.files ?? [])];
+    const all = [...(event.target.files ?? [])];
     event.target.value = "";
-    if (files.length === 0) return;
+    if (all.length === 0) return;
+
+    // Take what fits and say what didn't, rather than refusing the whole pick —
+    // selecting twelve photos and getting none is a worse answer than getting
+    // ten and being told.
+    const files = all.slice(0, remaining);
+    setOverflowed(all.length > files.length);
 
     setWorking(true);
     setRejected([]);
@@ -126,7 +147,7 @@ export function MediaInput({
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
-          disabled={disabled || working}
+          disabled={disabled || working || full}
           onClick={() => inputRef.current?.click()}
           className="flex items-center gap-1.5 rounded-chip bg-inset px-3 py-2 text-[12.5px] text-muted transition-colors duration-(--duration-quick) hover:text-ink active:scale-[0.97] disabled:opacity-50"
         >
@@ -136,7 +157,7 @@ export function MediaInput({
 
         <button
           type="button"
-          disabled={disabled || working}
+          disabled={disabled || working || full}
           onClick={() => setCameraOpen(true)}
           className="flex items-center gap-1.5 rounded-chip bg-inset px-3 py-2 text-[12.5px] text-muted transition-colors duration-(--duration-quick) hover:text-ink active:scale-[0.97] disabled:opacity-50"
         >
@@ -144,9 +165,9 @@ export function MediaInput({
           Camera
         </button>
 
-        {media.length > 0 && (
+        {(media.length > 0 || existingCount > 0) && (
           <span className="text-[11.5px] text-faint">
-            {media.length} {media.length === 1 ? "item" : "items"}
+            {`${existingCount + media.length} of ${MAX_PER_ENTRY}`}
           </span>
         )}
       </div>
@@ -166,6 +187,14 @@ export function MediaInput({
       {rejected.length > 0 && (
         <p className="mt-2 text-[12px] text-accent">
           {`Couldn't read ${rejected.join(", ")} — try saving it as a JPEG first.`}
+        </p>
+      )}
+
+      {/* The cap is per entry and a day holds as many entries as you like, so
+          the message says where the rest go rather than just refusing them. */}
+      {(overflowed || full) && (
+        <p className="mt-2 text-[12px] text-muted">
+          {`That's ${MAX_PER_ENTRY} — the most one entry holds. Add another entry for the rest; they read as one day.`}
         </p>
       )}
 

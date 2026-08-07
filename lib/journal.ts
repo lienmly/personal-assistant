@@ -87,6 +87,21 @@ export type JournalDayView = {
   entries: JournalEntryView[];
 };
 
+/** Today's day, formatted the same way as one that came out of the database.
+ *  A `@db.Date` is UTC midnight standing in for a local day, so a key turned
+ *  back into a `Date` is built in UTC and formatted in UTC — the same rule, in
+ *  the same direction, as every other date on this page. */
+function emptyDay(key: string): JournalDayView {
+  const date = new Date(`${key}T00:00:00.000Z`);
+  return {
+    key,
+    dayLabel: dayFormat.format(date),
+    shortLabel: shortDayFormat.format(date),
+    isToday: true,
+    entries: [],
+  };
+}
+
 const MEDIA_SELECT = {
   id: true,
   kind: true,
@@ -102,10 +117,14 @@ export async function getJournal(
 ): Promise<JournalDayView[]> {
   const entries = await db.journalEntry.findMany({
     where: { areaId },
-    // Newest day first, and newest-written first within a day — writing two
-    // entries about the same afternoon should read in the order you wrote them,
-    // most recent at the top, like everything else on this page.
-    orderBy: [{ happenedOn: "desc" }, { createdAt: "desc" }],
+    // **Newest day first, but oldest-written first *within* a day** — the two
+    // directions are deliberate and they are not in conflict. The list of days
+    // is a list, and a list of days is read newest-first like everything else
+    // here. A day is not a list: it is one train of thought from morning to
+    // night, and a train of thought read bottom-up is not one. So the entries
+    // under a heading run in the order they were written, and the composer sits
+    // at the *end* of today, which is where the next one goes.
+    orderBy: [{ happenedOn: "desc" }, { createdAt: "asc" }],
     select: {
       id: true,
       happenedOn: true,
@@ -149,6 +168,13 @@ export async function getJournal(
       });
     }
   }
+
+  // **Today is always the first day, whether or not anything is written in it
+  // yet.** The composer lives at the foot of today's flow rather than floating
+  // above the whole page, so today has to be a place before it is a record —
+  // otherwise the one day you can actually write into is the one day with no
+  // heading to write under. An empty group is what an unwritten day looks like.
+  if (days[0]?.key !== today) days.unshift(emptyDay(today));
 
   return days;
 }

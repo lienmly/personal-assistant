@@ -37,11 +37,12 @@ There is nothing here to fall behind on. That is the feature.
 
 ### Writing one
 
-The composer sits open at the top of the tab, not behind a button. Every other
-write in this app goes through a panel, which is right for a form you fill in
-deliberately — but here the thing you're recording happened thirty seconds ago
-and you are probably holding her, so one tap before the cursor exists is the
-entry not getting written.
+The composer is the **last thing on today's thread** — the place the next thought
+goes. On a day you haven't written in yet it is already open, cursor ready, no
+button in the way: the thing you're recording happened thirty seconds ago and you
+are probably holding her, so one tap before the cursor exists is the entry not
+getting written. Once the day has something in it, it tucks behind a **"+ Add to
+today"** so the day stays readable, and tapping that opens it in the same spot.
 
 Two fields, both optional except that you need **either** some text **or** a
 photo:
@@ -73,10 +74,18 @@ otherwise.
 
 ### A day at a time
 
-Entries are **grouped under the day they were written**, newest day first, and
-today's heading is badged **Today**. Each entry inside a day carries its **time** —
-09:14, 14:40, 21:02 — so a day reads as a day rather than as one undated block,
-and you add to it through the day by just writing another one at the top.
+**One card per day, and inside it the day is a thread.** Days run newest-first;
+the entries *within* a day run in the order you wrote them, top to bottom, each
+carrying its **time** — 09:14, 14:40, 21:02. So a day reads the way it happened,
+a morning then an afternoon then whatever woke you at 3am, and you add to it by
+tapping the **+** at the bottom of the thread.
+
+The two directions are on purpose. A list of days is a list, so the newest is at
+the top like everything else in this app. A day isn't a list — it's one train of
+thought, and a train of thought read bottom-up isn't one.
+
+Today's heading is badged **Today**, and it is the only day with a **+**. Past
+days have no way in, which is the rule above made visible.
 
 (Entries written before 6 August 2026, when the date *was* a field, can have a day
 and a writing-time that disagree. Those read *written 6 Aug* instead of a clock
@@ -101,6 +110,13 @@ face-tracking model into the page.
 in the database like everything else here, and ten seconds costs about 2MB against
 75KB for a photo. It is long enough for her to do the thing.
 
+**Ten photos or clips per entry.** Same reasoning: ten photos is small, ten clips
+is 20MB, so the limit counts items rather than trying to be clever about which
+kind. It caps a *moment*, not a day — a day holds as many entries as you like and
+they all read as one thread, so if you have more than ten, the next entry is the
+right home for them anyway. The composer shows where you are ("7 of 10") and the
+buttons switch off when you get there.
+
 Photos are **shrunk in your browser before they are sent** — a 4MB phone photo
 becomes about 75KB at 1600px on the long edge, which is still larger than any
 screen you'll read this on. You don't have to do anything; it just happens, and it
@@ -116,11 +132,20 @@ that way deliberately.
 It is all behind your login, like everything else. `/api/journal/media/<id>`
 returns nothing at all to someone who isn't signed in.
 
+### Looking at them
+
+Photos and clips sit under an entry as a tidy grid of squares — **tap one and it
+opens full screen**, uncropped, with arrows (or the ← → keys) to step through the
+rest and Esc to close. The squares are a contact sheet; the real photo is one tap
+away, which is what makes cropping them to a neat grid fair. A lone photo isn't
+cropped at all — one photo isn't a grid, it's *the* photo. A clip shows its first
+frame with a play button, and plays in the viewer.
+
 ### Getting a copy into your camera roll
 
-Hover (or tap) a photo or clip and there's a **download button**. On a phone it
-opens the share sheet, where **Save Image** / **Save Video** puts a copy in
-Photos. On a desktop it downloads.
+Open a photo or clip full screen and there's a **download button** in the corner.
+On a phone it opens the share sheet, where **Save Image** / **Save Video** puts a
+copy in Photos. On a desktop it downloads.
 
 **It cannot be automatic, and that is a limit of the web rather than a decision.**
 No web page can write to a phone's photo library — a picture taken with the

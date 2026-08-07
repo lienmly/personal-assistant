@@ -44,6 +44,14 @@
      tokens. */
   --color-scrim: rgba(20, 17, 15, 0.25);
 
+  /* The ground behind a full-screen photo. A *third* job again, not a heavier
+     scrim: a scrim dims a page you can still read, and this one has to
+     disappear so the photo is the only thing on screen. Nearly the same value
+     in both themes for that reason — a photo viewer is dark everywhere, and
+     inverting it with the theme would be the elevation ladder (§11) applied to
+     something that is not part of the page. */
+  --color-viewer: rgba(20, 17, 15, 0.92);
+
   /* Radii — the reference is *very* round */
   --radius-card: 1.5rem;
   --radius-tile: 1.125rem;
@@ -207,6 +215,7 @@
   /* A dim needs to be genuinely dark here, and heavier: there is less contrast
      between a panel and its backdrop to begin with */
   --color-scrim: rgba(0, 0, 0, 0.6);
+  --color-viewer: rgba(0, 0, 0, 0.94);
 
   --tint-shadow: rgba(0, 0, 0, 0.44);
   --tint-float: rgba(0, 0, 0, 0.55);
