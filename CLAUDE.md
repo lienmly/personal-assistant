@@ -632,9 +632,11 @@ task row you should be able to open.** No schema change and no migration._
 - [x] **Arrows move a card between columns**, visible outright on touch and on hover on a
       pointer device (§9). The tick stays where it is on every other surface — it is the
       one-tap path from To do straight to done, which is most rows
-- [x] **Each column scrolls itself** (`max-h-[70vh]`) — Sleepy Cat has 88 rows in To do and
-      one in Done, so without it the page is 88 cards tall and the other two columns are a
-      screenful of nothing beside it
+- [x] **Each column shows twelve and offers the rest** — Sleepy Cat has 88 rows in To do and
+      one in Done, so uncapped the page is 88 cards tall with two empty columns beside it.
+      Shipped as `max-h-[70vh] overflow-y-auto` and **corrected the same day**: a scrollbar in
+      a design that has none, and a column that swallowed the wheel once it hit its own
+      bottom. The run headings stopped being sticky with it. §6
 - [x] **The journal's two media buttons became one dropdown** — Photos · Camera
 - [x] **The dropdown opens upward, and that is load-bearing** — §9, "A popup inside an
       `animate-rise` section"
@@ -1782,6 +1784,29 @@ which workstream you are in thirty rows down. Two details it needed:
 `groupByTrack` is shared with the Tracks view, so the two cannot disagree about track order
 or about what an untracked row is called.
 
+**A capped column, not a scrolling one — corrected 2026-08-07.** The cap shipped as
+`max-h-[70vh] overflow-y-auto`, which is the reflexive way to bound a kanban column and is
+wrong here twice.
+
+- **It is a scrollbar in a design that has none anywhere else.** §9's whole vocabulary is
+  near-invisible chrome — no borders, shadows you have to look for — and a grey bar down the
+  side of the busiest column is the loudest thing on the screen.
+- **It makes the wheel mean two things depending on where the pointer is.** A column that
+  had reached its own bottom simply *swallowed* the scroll rather than passing it to the
+  page, so the board appeared stuck. This was hit while verifying the feature and mistaken
+  for a bug in the data before the cause was clear.
+
+Twelve cards and a "N more →" removes both, and it is a pattern the board already had — it
+is what the Done column was doing. Expanding is **per column**, because unfurling To do
+should not also unfurl eighty finished rows underneath it. The honest cost is that an
+expanded column makes the page long, which is exactly the thing the cap exists to prevent —
+but it is now a per-column choice you made, rather than a default you have to fight.
+
+The run headings **stopped being sticky** with it, and that is the change following through
+rather than a loss: sticky was justified only by a long scroll *inside* the column, and with
+no inner scroll it would have pinned itself against the page instead — three headings
+floating over a board.
+
 Four decisions inside it:
 
 1. **Arrows move a card; the tick still finishes it.** Replacing the tick with arrows would
@@ -1789,10 +1814,12 @@ Four decisions inside it:
    control in the place every other surface in this app puts the same one. The arrows are
    what the columns *add*: they are the only way to say "I have started this" without
    opening the panel.
-2. **Every column scrolls itself.** Sleepy Cat is 88 · 0 · 1, so an uncapped board is a page
-   88 cards tall with two empty columns beside it — and on a phone, where they stack, you
-   would scroll all 88 before reaching Doing.
-3. **Done shows ten and offers the rest.** A done column is a record, not a queue.
+2. **Every column shows twelve and offers the rest.** Sleepy Cat is 88 · 0 · 1, so an
+   uncapped board is a page 88 cards tall with two empty columns beside it — and on a phone,
+   where they stack, you would pass all 88 before reaching Doing. **This began as
+   `max-h-[70vh] overflow-y-auto` and that was the wrong instrument** — see below.
+3. **One cap for all three columns**, rather than a queue rule and a record rule. The
+   mechanism is the same and a single number is the one you can predict.
 4. **A repeating card is not special-cased.** Ticking it advances the row rather than
    finishing it, so it reappears under To do dated forward — which is what happens on every
    other surface, and what the `Repeat` chip on the card is there to warn about. A kanban
@@ -2673,8 +2700,8 @@ different questions (how is this moving, versus what kind of work is left), and 
 lost by choosing the columns because **each column is cut into track runs**. **Arrows move a
 card and the tick still finishes it**: replacing the tick would make the commonest move — To
 do straight to Done — two presses, and put a different control where every other surface puts
-the same one. **Each column scrolls itself**, because Sleepy Cat is 88 · 0 · 1 and an uncapped
-board is a page 88 cards tall with two empty columns beside it._
+the same one. **Each column shows twelve and offers the rest**, because Sleepy Cat is 88 · 0 · 1
+and an uncapped board is a page 88 cards tall with two empty columns beside it._
 
 _**The journal's two media buttons became one dropdown, and the camera goes full screen on a
 phone.** A viewfinder in a card is a viewfinder occupying a third of a screen you are holding
@@ -2727,6 +2754,20 @@ a card slides visibly through it (the heading's own padding has to do that job),
 busiest row in the app — `Wed & Sun`, `9 Aug`, a link — had to be checked for wrapping before
 this was safe. `groupByTrack` is shared with the Tracks view so the two cannot disagree about
 track order._
+
+_**And the column scrollbar went, which was the second thing shipped wrong.** Bounding a
+kanban column with `max-h` and `overflow-y-auto` is the reflex, and it fails here twice: it
+puts a grey bar down the busiest column in **a design whose entire vocabulary is
+near-invisible chrome** (§9), and it makes the wheel mean two different things depending on
+where the pointer is — a column that has reached its own bottom *swallows* the scroll instead
+of passing it to the page, which I hit while verifying and briefly mistook for the board being
+stuck. **Twelve cards and a "N more →"** removes both, and it is not a new pattern: it is what
+the Done column was already doing, now applied to all three with one number instead of a queue
+rule and a record rule. Expanding is **per column**, so unfurling To do does not also unfurl
+eighty finished rows. **The run headings stopped being sticky** with it — sticky was only ever
+justified by a long scroll inside the column, and without one it would have pinned itself
+against the page instead, leaving three headings floating over the board. Confirmed after: the
+only scroll region left on the page is the app shell's own `<main>`._
 
 _Outstanding from this change: **no drag-and-drop between columns** — HTML5 DnD does not work
 on touch, so it would be a desktop-only half of a feature beside arrows that already work

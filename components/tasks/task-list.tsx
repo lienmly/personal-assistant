@@ -37,15 +37,14 @@ import { cn } from "@/lib/utils";
  * left*, which is why they exist at all (CLAUDE.md §6, "free text, not an
  * enum") and why they are one tap away rather than gone. Stages lead because
  * progress is what a Tasks tab is opened to check; each column is still cut into
- * track runs under a sticky heading, so choosing the columns never costs you
+ * track runs under its own heading, so choosing the columns never costs you
  * which workstream a row belongs to.
  *
  * **The track is on the run, not on the card**, and that is the whole reason the
  * heading exists. A chip per card put the same word — "Setup", four times
  * running — on a line of its own beneath every title, which both repeated itself
  * and doubled the height of every card in the column. Said once per run it is
- * the same information in a third of the space, and sticky it survives the
- * scroll, which is the only thing the per-card chip was better at.
+ * the same information in a third of the space.
  */
 
 type View = "stages" | "tracks";
@@ -58,9 +57,21 @@ const STAGES = [
 
 type Stage = (typeof STAGES)[number]["id"];
 
-/** How many finished rows a column shows before it asks. A done column is a
- *  record, not a queue, and on Sleepy Cat it is the longest of the three. */
-const DONE_SHOWN = 10;
+/**
+ * How many cards a column shows before it offers the rest.
+ *
+ * This is what replaced an inner scrollbar per column. The cap was always
+ * needed — Sleepy Cat is 88 · 0 · 1, and an uncapped board is a page 88 cards
+ * tall with two empty columns beside it — but `overflow-y-auto` was the wrong
+ * way to get it. It put a scrollbar inside a design that has none anywhere else
+ * (§9: chrome is near-invisible), and worse, it made the wheel do two different
+ * things depending on where the pointer was: a column that had hit its own
+ * bottom simply swallowed the scroll instead of moving the page.
+ *
+ * One number for all three columns, rather than a queue rule and a record rule.
+ * The mechanism is the same and a single cap is the one you can predict.
+ */
+const SHOWN_PER_COLUMN = 12;
 
 /**
  * Rows → track runs, in track order. Shared by both views, which is the point:
@@ -101,7 +112,9 @@ export function TaskList({
 }) {
   const [view, setView] = useState<View>("stages");
   const [showDone, setShowDone] = useState(false);
-  const [allDone, setAllDone] = useState(false);
+  /** Which columns are showing everything. Per stage, because expanding "To do"
+   *  should not also unfurl 80 finished rows underneath it. */
+  const [expanded, setExpanded] = useState<Partial<Record<Stage, boolean>>>({});
   const [panel, setPanel] = useState<
     { mode: "edit"; task: TaskView } | { mode: "new"; track: string | null } | null
   >(null);
@@ -186,8 +199,8 @@ export function TaskList({
         <div className="grid gap-3 md:grid-cols-3">
           {STAGES.map((stage, index) => {
             const all = columns[stage.id];
-            const rows =
-              stage.id === "done" && !allDone ? all.slice(0, DONE_SHOWN) : all;
+            const open = expanded[stage.id] ?? false;
+            const rows = open ? all : all.slice(0, SHOWN_PER_COLUMN);
             return (
               <section
                 key={stage.id}
@@ -212,23 +225,16 @@ export function TaskList({
                         : "Nothing ticked off yet"}
                   </p>
                 ) : (
-                  // Each column scrolls itself. Sleepy Cat has 88 rows in "To
-                  // do" and one in "Done", so without this the page is 88 cards
-                  // tall and the other two columns are a screenful of nothing
-                  // beside it — and on a phone, where they stack, you would
-                  // scroll all 88 before reaching "Doing".
-                  <div className="flex max-h-[70vh] flex-col gap-3 overflow-y-auto">
+                  // No inner scroll: the column is as tall as what it shows,
+                  // and what it shows is capped. There is one scroll region on
+                  // this page and it is the page.
+                  <div className="flex flex-col gap-3">
                     {groupByTrack(rows).map((group) => (
                       <div key={group.track || "untracked"} className="flex flex-col">
-                        {/* The track, said once for the run rather than on
-                            every card. Sticky, because the whole reason a card
-                            could carry it was so you still knew which
-                            workstream you were in thirty rows down.
-
-                            Its padding, not a `gap`, is what separates it from
-                            the first card — a gap is transparent, and a card
-                            scrolling under a pinned heading shows through it. */}
-                        <p className="sticky top-0 z-10 bg-inset pb-2 text-[10.5px] font-semibold uppercase tracking-[0.09em] text-faint">
+                        {/* The track, said once for the run rather than on every
+                            card — a chip per card repeated the same word down
+                            the column and cost each card a second line. */}
+                        <p className="pb-2 text-[10.5px] font-semibold uppercase tracking-[0.09em] text-faint">
                           {group.track || "Untracked"}
                         </p>
                         <div className="flex flex-col gap-2">
@@ -246,15 +252,20 @@ export function TaskList({
                   </div>
                 )}
 
-                {stage.id === "done" && all.length > DONE_SHOWN && (
+                {all.length > SHOWN_PER_COLUMN && (
                   <button
                     type="button"
-                    onClick={() => setAllDone((value) => !value)}
+                    onClick={() =>
+                      setExpanded((current) => ({
+                        ...current,
+                        [stage.id]: !open,
+                      }))
+                    }
                     className="mt-2 w-full rounded-tile px-2 py-1.5 text-[12px] text-muted transition-colors duration-(--duration-quick) hover:text-ink"
                   >
-                    {allDone
+                    {open
                       ? "Show fewer"
-                      : `${all.length - DONE_SHOWN} more →`}
+                      : `${all.length - SHOWN_PER_COLUMN} more →`}
                   </button>
                 )}
               </section>
