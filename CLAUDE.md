@@ -623,8 +623,12 @@ task row you should be able to open.** No schema change and no migration._
 - [x] **`boardSelect` gained four columns** — `areaId`, `projectId`, `repeatUntil` and the
       occurrence count — which is what `toTaskView` needs and the whole cost of the above
 - [x] **The Tasks tab has stage columns** — To do · Doing · Done, with a **Stages / Tracks**
-      segmented control. Stages lead; the track survives as a chip on every card. §6,
-      "Stages and tracks answer different questions"
+      segmented control. Stages lead; each column is cut into track runs. §6, "Stages and
+      tracks answer different questions"
+- [x] **The track is a sticky run heading, not a chip on every card** — corrected hours after
+      shipping, because "Setup" four times running on a line of its own beneath each title
+      both repeated itself and doubled every card's height. The repeat badge, due date and
+      link moved onto the title's row, so an ordinary card is one line. §6
 - [x] **Arrows move a card between columns**, visible outright on touch and on hover on a
       pointer device (§9). The tick stays where it is on every other surface — it is the
       one-tap path from To do straight to done, which is most rows
@@ -1752,9 +1756,31 @@ had — and a **Stages / Tracks** control between them.
 **Stages lead, and tracks are not demoted.** They answer genuinely different questions:
 stages are *how is this moving*, tracks are *what kind of work is left*, which is why free
 text tracks exist at all (§6, "Two fields on Task"). The reason stages default is only that
-the first question is the one this tab is for. Nothing is lost by choosing them, because the
-**track is a chip on every card** — the columns re-cut the same rows rather than replacing
-what they told you.
+the first question is the one this tab is for. Nothing is lost by choosing them, because
+**each column is itself cut into track runs** — the columns re-cut the same rows rather than
+replacing what they told you.
+
+**The track is on the run, not on the card — corrected 2026-08-07, hours after shipping.**
+The first version put a track chip on every card, and it was wrong twice over in the same
+place: Forge's To do column opened with the word "Setup" four times running, each on **a line
+of its own beneath the title**, so the chip both repeated itself and doubled the height of
+every card in the column. Thirty-one cards took the room of sixty-two.
+
+Said once per run it is the same information in a third of the space, and the run heading is
+**sticky**, which recovers the one thing a per-card chip was genuinely better at: knowing
+which workstream you are in thirty rows down. Two details it needed:
+
+- **The heading's own padding separates it from the first card, not a `gap`.** A flex gap is
+  transparent, so a card scrolling underneath a pinned heading shows through the strip below
+  it. Found by scrolling, not by reading.
+- **What is left after the track moved out — a repeat badge, a due date, a link — went onto
+  the title's row.** That is what makes an ordinary card one line tall rather than merely
+  shorter, and it is only affordable *because* the track left: the busiest row in the app
+  ("Batch-create the week's content", `Wed & Sun`, `9 Aug`, a link) fits without wrapping.
+  A checklist still goes below, because it is not a chip.
+
+`groupByTrack` is shared with the Tracks view, so the two cannot disagree about track order
+or about what an untracked row is called.
 
 Four decisions inside it:
 
@@ -2644,7 +2670,7 @@ in flight rendered identically to one with forty and none — `doing` was a smal
 one line, `done` was behind a button. So: **three stage columns**, and a Stages / Tracks
 control between them. **Stages lead and tracks are not demoted** — they answer genuinely
 different questions (how is this moving, versus what kind of work is left), and nothing is
-lost by choosing the columns because the **track is a chip on every card**. **Arrows move a
+lost by choosing the columns because **each column is cut into track runs**. **Arrows move a
 card and the tick still finishes it**: replacing the tick would make the commonest move — To
 do straight to Done — two presses, and put a different control where every other surface puts
 the same one. **Each column scrolls itself**, because Sleepy Cat is 88 · 0 · 1 and an uncapped
@@ -2686,6 +2712,21 @@ watched them return to 88 · 0 with the card in its original position. Confirmed
 view is unchanged and its "Show 1 done" only appears there. In the journal, confirmed the
 menu now opens **above** the button with a 6px gap and both items whole. `npx next build`,
 `tsc --noEmit` and `eslint` all pass._
+
+_**Corrected hours later, and the fix is the more interesting half.** The first version of
+the columns put a track chip on every card, which read as obviously right and was wrong twice
+in the same place: Forge's To do column opened with **"Setup" four times running, each on a
+line of its own beneath the title**, so the chip repeated itself *and* doubled the height of
+every card — thirty-one cards in the room of sixty-two. **The track belongs to the run, not
+to the card.** It is a sticky heading now, said once, which also recovers the one thing the
+chip was genuinely better at: knowing which workstream you are in thirty rows down. And with
+the track gone from the card, what was left — a repeat badge, a due date, a link — fits on the
+title's row, which is what makes an ordinary card **one line** rather than merely shorter. Two
+things only scrolling could have found: a flex `gap` under a pinned heading is transparent, so
+a card slides visibly through it (the heading's own padding has to do that job), and the
+busiest row in the app — `Wed & Sun`, `9 Aug`, a link — had to be checked for wrapping before
+this was safe. `groupByTrack` is shared with the Tracks view so the two cannot disagree about
+track order._
 
 _Outstanding from this change: **no drag-and-drop between columns** — HTML5 DnD does not work
 on touch, so it would be a desktop-only half of a feature beside arrows that already work

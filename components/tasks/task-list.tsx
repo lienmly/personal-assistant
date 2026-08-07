@@ -36,9 +36,16 @@ import { cn } from "@/lib/utils";
  * like a project with forty rows and none. Tracks answer *what kind of work is
  * left*, which is why they exist at all (CLAUDE.md §6, "free text, not an
  * enum") and why they are one tap away rather than gone. Stages lead because
- * progress is what a Tasks tab is opened to check; the track survives as a chip
- * on every card, so choosing the columns never costs you which workstream a row
- * belongs to.
+ * progress is what a Tasks tab is opened to check; each column is still cut into
+ * track runs under a sticky heading, so choosing the columns never costs you
+ * which workstream a row belongs to.
+ *
+ * **The track is on the run, not on the card**, and that is the whole reason the
+ * heading exists. A chip per card put the same word — "Setup", four times
+ * running — on a line of its own beneath every title, which both repeated itself
+ * and doubled the height of every card in the column. Said once per run it is
+ * the same information in a third of the space, and sticky it survives the
+ * scroll, which is the only thing the per-card chip was better at.
  */
 
 type View = "stages" | "tracks";
@@ -54,6 +61,28 @@ type Stage = (typeof STAGES)[number]["id"];
 /** How many finished rows a column shows before it asks. A done column is a
  *  record, not a queue, and on Sleepy Cat it is the longest of the three. */
 const DONE_SHOWN = 10;
+
+/**
+ * Rows → track runs, in track order. Shared by both views, which is the point:
+ * the columns and the track list must not disagree about what order the tracks
+ * come in or what an untracked row is called.
+ */
+function groupByTrack(rows: TaskView[]) {
+  const byTrack = new Map<string, TaskView[]>();
+  for (const task of rows) {
+    const key = task.track ?? "";
+    const bucket = byTrack.get(key);
+    if (bucket) bucket.push(task);
+    else byTrack.set(key, [task]);
+  }
+  return [...byTrack.entries()]
+    .map(([track, rows]) => ({ track, rows }))
+    .sort(
+      (a, b) =>
+        trackRank(a.track || null) - trackRank(b.track || null) ||
+        a.track.localeCompare(b.track),
+    );
+}
 
 export function TaskList({
   tasks,
@@ -77,25 +106,10 @@ export function TaskList({
     { mode: "edit"; task: TaskView } | { mode: "new"; track: string | null } | null
   >(null);
 
-  const groups = useMemo(() => {
-    const visible = tasks.filter(
-      (task) => showDone || task.status !== "done",
-    );
-    const byTrack = new Map<string, TaskView[]>();
-    for (const task of visible) {
-      const key = task.track ?? "";
-      const bucket = byTrack.get(key);
-      if (bucket) bucket.push(task);
-      else byTrack.set(key, [task]);
-    }
-    return [...byTrack.entries()]
-      .map(([track, rows]) => ({ track, rows }))
-      .sort(
-        (a, b) =>
-          trackRank(a.track || null) - trackRank(b.track || null) ||
-          a.track.localeCompare(b.track),
-      );
-  }, [tasks, showDone]);
+  const groups = useMemo(
+    () => groupByTrack(tasks.filter((task) => showDone || task.status !== "done")),
+    [tasks, showDone],
+  );
 
   /** The same rows, split by stage. Within a column the order the query gave
    *  them is kept — `sortOrder` then `createdAt` — so a card does not jump
@@ -203,14 +217,31 @@ export function TaskList({
                   // tall and the other two columns are a screenful of nothing
                   // beside it — and on a phone, where they stack, you would
                   // scroll all 88 before reaching "Doing".
-                  <div className="flex max-h-[70vh] flex-col gap-2 overflow-y-auto">
-                    {rows.map((task) => (
-                      <StageCard
-                        key={task.id}
-                        task={task}
-                        stage={stage.id}
-                        onOpen={() => setPanel({ mode: "edit", task })}
-                      />
+                  <div className="flex max-h-[70vh] flex-col gap-3 overflow-y-auto">
+                    {groupByTrack(rows).map((group) => (
+                      <div key={group.track || "untracked"} className="flex flex-col">
+                        {/* The track, said once for the run rather than on
+                            every card. Sticky, because the whole reason a card
+                            could carry it was so you still knew which
+                            workstream you were in thirty rows down.
+
+                            Its padding, not a `gap`, is what separates it from
+                            the first card — a gap is transparent, and a card
+                            scrolling under a pinned heading shows through it. */}
+                        <p className="sticky top-0 z-10 bg-inset pb-2 text-[10.5px] font-semibold uppercase tracking-[0.09em] text-faint">
+                          {group.track || "Untracked"}
+                        </p>
+                        <div className="flex flex-col gap-2">
+                          {group.rows.map((task) => (
+                            <StageCard
+                              key={task.id}
+                              task={task}
+                              stage={stage.id}
+                              onOpen={() => setPanel({ mode: "edit", task })}
+                            />
+                          ))}
+                        </div>
+                      </div>
                     ))}
                   </div>
                 )}
@@ -314,6 +345,10 @@ const MOVE_LABEL: Record<Stage, string> = {
  * row rather than finishing it, so it reappears under "To do" dated forward,
  * which is exactly what happens everywhere else and is what the `Repeat` chip
  * on the card warns about.
+ *
+ * It carries no track: the column groups by track and says it once per run.
+ * What is left — a repeat badge, a due date, a link — sits on the title's row
+ * rather than under it, so an ordinary card is one line tall.
  */
 function StageCard({
   task,
@@ -394,6 +429,43 @@ function StageCard({
               </span>
             </button>
 
+            {/* On the title's row, not under it. A chip on its own line
+                doubles the height of every card in the column, and a card is
+                mostly a title — so what is left after the track moved to the
+                run heading is short enough to sit beside one. */}
+            {repeat && (
+              <span
+                className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-inset px-1.5 py-0.5 text-[10.5px] text-muted"
+                title="Repeats — ticking it moves it to the next day"
+              >
+                <Repeat className="size-2.5" strokeWidth={2.4} />
+                {repeat}
+              </span>
+            )}
+            {task.dueLabel && (
+              <span
+                className={cn(
+                  "shrink-0 whitespace-nowrap rounded-full px-1.5 py-0.5 text-[10.5px]",
+                  task.overdue && !done
+                    ? "bg-accent-soft text-accent"
+                    : "bg-inset text-muted",
+                )}
+              >
+                {task.dueLabel}
+              </span>
+            )}
+            {task.link && (
+              <a
+                href={task.link}
+                target="_blank"
+                rel="noreferrer"
+                aria-label="Open link"
+                className="grid size-5 shrink-0 place-items-center rounded-full text-faint transition-colors duration-(--duration-quick) hover:text-ink"
+              >
+                <ExternalLink className="size-3" strokeWidth={2} />
+              </a>
+            )}
+
             {/* Visible outright on touch, revealed on hover on a pointer
                 device — §9. These are the only way to move a card without
                 opening the panel. */}
@@ -424,48 +496,6 @@ function StageCard({
               )}
             </div>
           </div>
-
-          {(task.track || task.dueLabel || repeat || task.link) && (
-            <div className="mt-1.5 flex flex-wrap items-center gap-1.5 pl-7.5">
-              {task.track && (
-                <span className="rounded-full bg-inset px-2 py-0.5 text-[10.5px] text-muted">
-                  {task.track}
-                </span>
-              )}
-              {repeat && (
-                <span
-                  className="flex items-center gap-1 rounded-full bg-inset px-2 py-0.5 text-[10.5px] text-muted"
-                  title="Repeats — ticking it moves it to the next day"
-                >
-                  <Repeat className="size-2.5" strokeWidth={2.4} />
-                  {repeat}
-                </span>
-              )}
-              {task.dueLabel && (
-                <span
-                  className={cn(
-                    "rounded-full px-2 py-0.5 text-[10.5px]",
-                    task.overdue && !done
-                      ? "bg-accent-soft text-accent"
-                      : "bg-inset text-muted",
-                  )}
-                >
-                  {task.dueLabel}
-                </span>
-              )}
-              {task.link && (
-                <a
-                  href={task.link}
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label="Open link"
-                  className="grid size-5 place-items-center rounded-full text-faint transition-colors duration-(--duration-quick) hover:text-ink"
-                >
-                  <ExternalLink className="size-3" strokeWidth={2} />
-                </a>
-              )}
-            </div>
-          )}
 
           {task.subtasks.length > 0 && (
             <div className="pl-7.5">
