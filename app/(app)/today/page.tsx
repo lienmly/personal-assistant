@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CalendarClock, Radio } from "lucide-react";
 
+import type { AreaView, BoardProjectView } from "@/components/board/types";
 import { Agenda } from "@/components/today/agenda";
 import { DoneMap } from "@/components/today/done-map";
 import { GoingOut } from "@/components/today/going-out";
@@ -17,7 +18,7 @@ import { getAgenda } from "@/lib/calendar";
 import { minutesOfDay } from "@/lib/calendar-keys";
 import { db } from "@/lib/db";
 import { getDormantProjects } from "@/lib/projects";
-import { repeatLabel } from "@/lib/task-view";
+import { repeatLabel, toTaskView } from "@/lib/task-view";
 import { getCompletionMap, getProjectBoards } from "@/lib/today";
 import { ensureSeriesSlots, getGoingOutToday } from "@/lib/studio";
 import { todayKey } from "@/lib/utils";
@@ -75,19 +76,36 @@ export default async function TodayPage() {
 
   const today = todayKey();
 
-  const [boards, history, items, agenda, dormant, areas] = await Promise.all([
-    getProjectBoards(),
-    getCompletionMap(),
-    getGoingOutToday(),
-    getAgenda(today),
-    // Both only exist for the settings panel, which moved onto this screen when
-    // the Projects roster was folded in (CLAUDE.md §6).
-    getDormantProjects(),
-    db.area.findMany({
-      orderBy: { sortOrder: "asc" },
-      select: { id: true, name: true, color: true },
-    }),
-  ]);
+  const [boards, history, items, agenda, dormant, areas, projects] =
+    await Promise.all([
+      getProjectBoards(),
+      getCompletionMap(),
+      getGoingOutToday(),
+      getAgenda(today),
+      // Both only exist for the settings panel, which moved onto this screen
+      // when the Projects roster was folded in (CLAUDE.md §6).
+      getDormantProjects(),
+      db.area.findMany({
+        orderBy: { sortOrder: "asc" },
+        select: { id: true, name: true, color: true },
+      }),
+      // The task panel's project picker. Same list the Hunt Board and a project
+      // page hand it, so a task re-filed from Today lands where it would have
+      // landed anywhere else.
+      db.project.findMany({
+        where: { status: { in: ["active", "simmering"] } },
+        orderBy: [{ priority: "asc" }, { sortOrder: "asc" }],
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          status: true,
+          priority: true,
+          areaId: true,
+          area: { select: { id: true, name: true, color: true } },
+        },
+      }),
+    ]);
 
   const dateLabel = new Intl.DateTimeFormat("en-GB", {
     weekday: "long",
@@ -124,6 +142,7 @@ export default async function TodayPage() {
       areaColor: task.area.color,
       repeatLabel: repeatLabel(task),
       subtasks: task.subtasks,
+      edit: toTaskView(task, today),
     })),
   }));
 
@@ -208,6 +227,8 @@ export default async function TodayPage() {
               boards={boardViews}
               areas={areas}
               dormant={dormant}
+              projects={projects as BoardProjectView[]}
+              taskAreas={areas as AreaView[]}
             />
           </Card>
 

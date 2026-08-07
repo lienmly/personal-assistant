@@ -4,6 +4,7 @@ import { ArrowLeft, CalendarDays, Radio, Repeat } from "lucide-react";
 
 import type { AreaView, BoardProjectView, TaskView } from "@/components/board/types";
 import { DocsTab, type DocView } from "@/components/docs/docs-tab";
+import { NextUp } from "@/components/projects/next-up";
 import { TaskList } from "@/components/tasks/task-list";
 import { Card, CardHeader, StatTile } from "@/components/ui/card";
 import { Markdown } from "@/components/ui/markdown";
@@ -250,33 +251,11 @@ export default async function ProjectPage({
             <Card>
               <CardHeader title="Next up" count={`${stats.open} open`} />
               {nextTasks.length > 0 ? (
-                <ul className="flex flex-col gap-1.5">
-                  {nextTasks.map((task) => (
-                    <li
-                      key={task.id}
-                      className="flex items-center gap-3 rounded-tile bg-inset px-3.5 py-2.5"
-                    >
-                      {task.track && (
-                        <span className="shrink-0 rounded-full bg-card px-2 py-0.5 text-[11px] text-muted">
-                          {task.track}
-                        </span>
-                      )}
-                      <span className="min-w-0 flex-1 truncate text-[13px] text-ink">
-                        {task.title}
-                      </span>
-                      {task.dueLabel && (
-                        <span
-                          className={cn(
-                            "shrink-0 text-[11.5px]",
-                            task.overdue ? "text-accent" : "text-faint",
-                          )}
-                        >
-                          {task.dueLabel}
-                        </span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
+                <NextUp
+                  tasks={nextTasks}
+                  projects={panelProjects}
+                  areas={areas as AreaView[]}
+                />
               ) : (
                 <p className="rounded-tile bg-inset px-4 py-6 text-center text-[13px] text-muted">
                   Nothing open. Add the next thing on the Tasks tab.

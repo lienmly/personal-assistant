@@ -1,7 +1,14 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Check, ExternalLink, Plus, Repeat } from "lucide-react";
+import {
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  ExternalLink,
+  Plus,
+  Repeat,
+} from "lucide-react";
 
 import { TaskPanel } from "@/components/board/task-panel";
 import type { AreaView, BoardProjectView, TaskView } from "@/components/board/types";
@@ -12,7 +19,7 @@ import { trackRank } from "@/lib/tracks";
 import { cn } from "@/lib/utils";
 
 /**
- * One owner's task list, grouped by track.
+ * One owner's task list — as three stage columns, or grouped by track.
  *
  * Not the Hunt Board with a filter applied: the board's job is *choosing*
  * across projects, so it carries scope pills and a capture box, neither of
@@ -22,7 +29,32 @@ import { cn } from "@/lib/utils";
  * Was `ProjectTasks` until 2026-08-05. An area page needs the identical screen —
  * the Baby area has tasks and no project to hang them off — and the only thing
  * that differed was what a *new* row defaults to, which is now a prop.
+ *
+ * **Two views since 2026-08-07, and they answer different questions.** Stages
+ * (`open` → `doing` → `done`) answer *how is this moving*, which a flat list
+ * cannot: a project with forty rows and three of them in flight looks exactly
+ * like a project with forty rows and none. Tracks answer *what kind of work is
+ * left*, which is why they exist at all (CLAUDE.md §6, "free text, not an
+ * enum") and why they are one tap away rather than gone. Stages lead because
+ * progress is what a Tasks tab is opened to check; the track survives as a chip
+ * on every card, so choosing the columns never costs you which workstream a row
+ * belongs to.
  */
+
+type View = "stages" | "tracks";
+
+const STAGES = [
+  { id: "open", label: "To do" },
+  { id: "doing", label: "Doing" },
+  { id: "done", label: "Done" },
+] as const;
+
+type Stage = (typeof STAGES)[number]["id"];
+
+/** How many finished rows a column shows before it asks. A done column is a
+ *  record, not a queue, and on Sleepy Cat it is the longest of the three. */
+const DONE_SHOWN = 10;
+
 export function TaskList({
   tasks,
   defaults,
@@ -38,7 +70,9 @@ export function TaskList({
   areas: AreaView[];
   emptyHint?: string;
 }) {
+  const [view, setView] = useState<View>("stages");
   const [showDone, setShowDone] = useState(false);
+  const [allDone, setAllDone] = useState(false);
   const [panel, setPanel] = useState<
     { mode: "edit"; task: TaskView } | { mode: "new"; track: string | null } | null
   >(null);
@@ -63,7 +97,19 @@ export function TaskList({
       );
   }, [tasks, showDone]);
 
-  const doneCount = tasks.filter((task) => task.status === "done").length;
+  /** The same rows, split by stage. Within a column the order the query gave
+   *  them is kept — `sortOrder` then `createdAt` — so a card does not jump
+   *  position when its neighbour moves. */
+  const columns = useMemo(() => {
+    const byStage: Record<Stage, TaskView[]> = { open: [], doing: [], done: [] };
+    for (const task of tasks) {
+      const stage = (task.status as Stage) ?? "open";
+      (byStage[stage] ?? byStage.open).push(task);
+    }
+    return byStage;
+  }, [tasks]);
+
+  const doneCount = columns.done.length;
 
   return (
     <>
@@ -76,7 +122,37 @@ export function TaskList({
           <Plus className="size-4" strokeWidth={2.4} />
           New task
         </button>
-        {doneCount > 0 && (
+
+        {/* A segmented control, black for the selection — the reference's own
+            pattern for a two-option switch, and small enough not to compete
+            with the page's hero tile (§9). */}
+        <div className="flex gap-1 rounded-chip bg-inset p-1">
+          {(
+            [
+              { id: "stages", label: "Stages" },
+              { id: "tracks", label: "Tracks" },
+            ] as const
+          ).map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              onClick={() => setView(option.id)}
+              className={cn(
+                "rounded-chip px-3 py-1.5 text-[12.5px] transition-[background-color,color] duration-(--duration-base) ease-soft active:scale-[0.97]",
+                view === option.id
+                  ? "bg-obsidian font-medium text-white"
+                  : "text-muted hover:text-ink",
+              )}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Only in the track view. In columns the finished rows have their own
+            column, so a control that hides them would be hiding a third of the
+            layout. */}
+        {view === "tracks" && doneCount > 0 && (
           <button
             type="button"
             onClick={() => setShowDone((value) => !value)}
@@ -87,7 +163,74 @@ export function TaskList({
         )}
       </div>
 
-      {groups.length === 0 ? (
+      {tasks.length === 0 ? (
+        <p className="rounded-tile bg-inset px-4 py-8 text-center text-[13px] text-muted">
+          {emptyHint ??
+            "Nothing open on this project. Add the next thing before you forget it."}
+        </p>
+      ) : view === "stages" ? (
+        <div className="grid gap-3 md:grid-cols-3">
+          {STAGES.map((stage, index) => {
+            const all = columns[stage.id];
+            const rows =
+              stage.id === "done" && !allDone ? all.slice(0, DONE_SHOWN) : all;
+            return (
+              <section
+                key={stage.id}
+                style={{ animationDelay: `${index * 45}ms` }}
+                className="animate-rise rounded-tile bg-inset p-3"
+              >
+                <div className="mb-2.5 flex items-center justify-between gap-2 px-1">
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.09em] text-faint">
+                    {stage.label}
+                  </span>
+                  <span className="rounded-full bg-card px-2 py-0.5 text-[11px] font-medium text-muted">
+                    {all.length}
+                  </span>
+                </div>
+
+                {all.length === 0 ? (
+                  <p className="px-1 py-4 text-center text-[12px] text-faint">
+                    {stage.id === "open"
+                      ? "Nothing waiting"
+                      : stage.id === "doing"
+                        ? "Nothing in flight"
+                        : "Nothing ticked off yet"}
+                  </p>
+                ) : (
+                  // Each column scrolls itself. Sleepy Cat has 88 rows in "To
+                  // do" and one in "Done", so without this the page is 88 cards
+                  // tall and the other two columns are a screenful of nothing
+                  // beside it — and on a phone, where they stack, you would
+                  // scroll all 88 before reaching "Doing".
+                  <div className="flex max-h-[70vh] flex-col gap-2 overflow-y-auto">
+                    {rows.map((task) => (
+                      <StageCard
+                        key={task.id}
+                        task={task}
+                        stage={stage.id}
+                        onOpen={() => setPanel({ mode: "edit", task })}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {stage.id === "done" && all.length > DONE_SHOWN && (
+                  <button
+                    type="button"
+                    onClick={() => setAllDone((value) => !value)}
+                    className="mt-2 w-full rounded-tile px-2 py-1.5 text-[12px] text-muted transition-colors duration-(--duration-quick) hover:text-ink"
+                  >
+                    {allDone
+                      ? "Show fewer"
+                      : `${all.length - DONE_SHOWN} more →`}
+                  </button>
+                )}
+              </section>
+            );
+          })}
+        </div>
+      ) : groups.length === 0 ? (
         <p className="rounded-tile bg-inset px-4 py-8 text-center text-[13px] text-muted">
           {emptyHint ??
             "Nothing open on this project. Add the next thing before you forget it."}
@@ -141,6 +284,208 @@ export function TaskList({
         />
       )}
     </>
+  );
+}
+
+/** Where each arrow sends a card. `null` means the arrow is not drawn — there
+ *  is nothing to the left of "To do" and nothing to the right of "Done". */
+const MOVE: Record<Stage, { back: Stage | null; next: Stage | null }> = {
+  open: { back: null, next: "doing" },
+  doing: { back: "open", next: "done" },
+  done: { back: "open", next: null },
+};
+
+const MOVE_LABEL: Record<Stage, string> = {
+  open: "To do",
+  doing: "Doing",
+  done: "Done",
+};
+
+/**
+ * One card in a stage column.
+ *
+ * The tick is kept beside the arrows rather than replaced by them: it is the
+ * same control in the same place on every other surface in this app, and it is
+ * the one-tap path from "To do" straight to done, which is most rows. The
+ * arrows are what the columns add — they are the only way to say *I have
+ * started this* without opening the panel.
+ *
+ * A repeating card is deliberately not special-cased. Ticking it advances the
+ * row rather than finishing it, so it reappears under "To do" dated forward,
+ * which is exactly what happens everywhere else and is what the `Repeat` chip
+ * on the card warns about.
+ */
+function StageCard({
+  task,
+  stage,
+  onOpen,
+}: {
+  task: TaskView;
+  stage: Stage;
+  onOpen: () => void;
+}) {
+  const [pending, startTransition] = useTransition();
+  const [subPending, startSubtask] = useTransition();
+  const [subtaskFinishes, setSubtaskFinishes] = useState(false);
+  const done = stage === "done";
+  const busy = pending || subPending;
+  const repeat = repeatLabel(task);
+  const moves = MOVE[stage];
+
+  // The card leaves this column while the move is in flight, for the reason
+  // CLAUDE.md §10 gives: what removes it is the revalidated data arriving, so
+  // without this it blinks out. Derived from `isPending`, so a failed action
+  // unfolds it again rather than leaving a gap.
+  const leaving =
+    pending || (subPending && subtaskFinishes && task.recurrence === "none");
+
+  const move = (to: Stage) => startTransition(() => setTaskStatus(task.id, to));
+
+  return (
+    <div
+      className={cn(
+        "grid transition-[grid-template-rows,opacity] duration-(--duration-base) ease-exit",
+        leaving
+          ? "grid-rows-[0fr] opacity-0 delay-[140ms]"
+          : "grid-rows-[1fr] opacity-100",
+      )}
+    >
+      <div className="overflow-hidden">
+        <div
+          className={cn(
+            "group rounded-tile bg-card p-2.5 shadow-card transition-[opacity,transform] duration-(--duration-base) ease-soft",
+            busy && "pointer-events-none opacity-45",
+            done && "opacity-70",
+          )}
+        >
+          <div className="flex items-start gap-2.5">
+            <button
+              type="button"
+              disabled={busy}
+              aria-label={done ? "Reopen this task" : "Mark as done"}
+              onClick={() => move(done ? "open" : "done")}
+              className={cn(
+                "mt-px grid size-5 shrink-0 place-items-center rounded-full transition-[background-color,color,transform] duration-(--duration-base) ease-soft active:scale-90",
+                done
+                  ? "bg-good text-white"
+                  : "bg-inset text-transparent hover:bg-line hover:text-muted",
+              )}
+            >
+              <Check
+                key={done ? "done" : "todo"}
+                className={cn("size-3", done && "animate-pop")}
+                strokeWidth={3}
+              />
+            </button>
+
+            <button
+              type="button"
+              onClick={onOpen}
+              title="Open this task"
+              className="min-w-0 flex-1 text-left"
+            >
+              <span
+                className={cn(
+                  "block text-[12.5px] leading-snug text-ink",
+                  done && "line-through",
+                )}
+              >
+                {task.title}
+              </span>
+            </button>
+
+            {/* Visible outright on touch, revealed on hover on a pointer
+                device — §9. These are the only way to move a card without
+                opening the panel. */}
+            <div className="flex shrink-0 items-center gap-0.5 sm:opacity-0 sm:group-hover:opacity-100">
+              {moves.back && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  aria-label={`Move to ${MOVE_LABEL[moves.back]}`}
+                  title={`Move to ${MOVE_LABEL[moves.back]}`}
+                  onClick={() => moves.back && move(moves.back)}
+                  className="grid size-5 place-items-center rounded-full text-faint transition-[background-color,color,transform] duration-(--duration-base) ease-soft hover:bg-inset hover:text-ink active:scale-90"
+                >
+                  <ChevronLeft className="size-3.5" strokeWidth={2.4} />
+                </button>
+              )}
+              {moves.next && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  aria-label={`Move to ${MOVE_LABEL[moves.next]}`}
+                  title={`Move to ${MOVE_LABEL[moves.next]}`}
+                  onClick={() => moves.next && move(moves.next)}
+                  className="grid size-5 place-items-center rounded-full text-faint transition-[background-color,color,transform] duration-(--duration-base) ease-soft hover:bg-inset hover:text-ink active:scale-90"
+                >
+                  <ChevronRight className="size-3.5" strokeWidth={2.4} />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {(task.track || task.dueLabel || repeat || task.link) && (
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5 pl-7.5">
+              {task.track && (
+                <span className="rounded-full bg-inset px-2 py-0.5 text-[10.5px] text-muted">
+                  {task.track}
+                </span>
+              )}
+              {repeat && (
+                <span
+                  className="flex items-center gap-1 rounded-full bg-inset px-2 py-0.5 text-[10.5px] text-muted"
+                  title="Repeats — ticking it moves it to the next day"
+                >
+                  <Repeat className="size-2.5" strokeWidth={2.4} />
+                  {repeat}
+                </span>
+              )}
+              {task.dueLabel && (
+                <span
+                  className={cn(
+                    "rounded-full px-2 py-0.5 text-[10.5px]",
+                    task.overdue && !done
+                      ? "bg-accent-soft text-accent"
+                      : "bg-inset text-muted",
+                  )}
+                >
+                  {task.dueLabel}
+                </span>
+              )}
+              {task.link && (
+                <a
+                  href={task.link}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label="Open link"
+                  className="grid size-5 place-items-center rounded-full text-faint transition-colors duration-(--duration-quick) hover:text-ink"
+                >
+                  <ExternalLink className="size-3" strokeWidth={2} />
+                </a>
+              )}
+            </div>
+          )}
+
+          {task.subtasks.length > 0 && (
+            <div className="pl-7.5">
+              <Checklist
+                subtasks={task.subtasks}
+                busy={busy}
+                onTick={(subtaskId, subtaskDone) => {
+                  setSubtaskFinishes(
+                    subtaskDone && ticksTheLastBox(task.subtasks, subtaskId),
+                  );
+                  startSubtask(() =>
+                    setTaskStatus(subtaskId, subtaskDone ? "done" : "open"),
+                  );
+                }}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -207,6 +552,12 @@ function TaskRow({ task, onOpen }: { task: TaskView; onOpen: () => void }) {
               {task.title}
             </span>
           </button>
+
+          {task.status === "doing" && (
+            <span className="shrink-0 rounded-full bg-warn-soft px-2 py-0.5 text-[10px] font-medium text-warn">
+              doing
+            </span>
+          )}
 
           {repeat && (
             <span

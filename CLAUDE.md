@@ -612,6 +612,40 @@ puts the composer at the end of it. No schema change and no migration._
 - [ ] **The phone layout still has not been looked at on a real device.** The thread indents
       6px below `sm` and the grid drops to two columns, both of which are judgements
 
+### Phase 4.18 — A task opens where you are reading it
+_Built 2026-08-07. Four asks, and the first two are one ask: **a task row you can read is a
+task row you should be able to open.** No schema change and no migration._
+- [x] **Today's rows open the task panel** — `TaskLineView.edit` carries the whole `TaskView`,
+      exactly as `ProjectBoardView.edit` carries the project's. §6, "A task opens where you
+      are reading it"
+- [x] **A project's Overview "Next up" opens it too** — `components/projects/next-up.tsx`.
+      Still read-only otherwise: no tick, no play, because Overview is a summary
+- [x] **`boardSelect` gained four columns** — `areaId`, `projectId`, `repeatUntil` and the
+      occurrence count — which is what `toTaskView` needs and the whole cost of the above
+- [x] **The Tasks tab has stage columns** — To do · Doing · Done, with a **Stages / Tracks**
+      segmented control. Stages lead; the track survives as a chip on every card. §6,
+      "Stages and tracks answer different questions"
+- [x] **Arrows move a card between columns**, visible outright on touch and on hover on a
+      pointer device (§9). The tick stays where it is on every other surface — it is the
+      one-tap path from To do straight to done, which is most rows
+- [x] **Each column scrolls itself** (`max-h-[70vh]`) — Sleepy Cat has 88 rows in To do and
+      one in Done, so without it the page is 88 cards tall and the other two columns are a
+      screenful of nothing beside it
+- [x] **The journal's two media buttons became one dropdown** — Photos · Camera
+- [x] **The dropdown opens upward, and that is load-bearing** — §9, "A popup inside an
+      `animate-rise` section"
+- [x] **The camera is full screen on a phone**, a centred card from `sm` up. §6, "A camera in
+      a window"
+- [ ] **No drag-and-drop between columns.** HTML5 DnD does not work on touch, so it would be
+      a desktop-only half of a feature beside arrows that already work everywhere. The arrows
+      are the whole interaction; revisit if the board is ever used mostly on a desktop
+- [ ] **The camera's full-screen layout has not been seen at a phone width.** `resize_window`
+      still reports success while the renderer stays at 2560px — the standing gap below. What
+      *was* checked is that every `sm:` class compiles and sits behind `min-width: 40rem`,
+      which is reasoning plus a grep, not a look
+- [ ] **No frame has still ever been captured** — granting Chrome's camera permission is the
+      user's call, unchanged from Phase 4.16
+
 ### Phase 5 — Montblanc (AI assistant)
 - [ ] Chat drawer with streaming (Claude via AI SDK), available on every surface
 - [ ] Montblanc persona/prompt
@@ -1674,6 +1708,90 @@ different heights and it has to stop at the last dot. It is one of the few place
 "separation by contrast, not borders" gives way, and for the reason the rule allows: the line
 is not a divider between things, it is the statement that they are connected.
 
+### A task opens where you are reading it — decided 2026-08-07
+
+Today showed you a task's title, its track, its due date and its checklist, and the only
+thing you could do to it was tick it. Changing anything else meant going to the Hunt Board,
+finding the same row in a list of a hundred and ninety, and coming back. The project page's
+Overview had the same hole one surface over: "Next up" answered *what is next* and then made
+you go to the Tasks tab to act on it.
+
+That is a **detour through a surface you did not want**, and it is the same complaint the
+Projects roster died of (§6, "The roster folded into Today") — a second screen you have to
+visit to finish a thought the first screen started.
+
+The fix is the one this app already had a pattern for. A project card carries `edit:
+ProjectEditView`, everything the settings panel needs, so the pencil opens it with no round
+trip. A task row now carries `edit: TaskView` for the same reason and at the same cost: four
+more columns on `boardSelect`, on a query that was already running.
+
+Three things fell out:
+
+1. **The panel is owned by `ProjectsCard`, not by each row.** One panel can be open at a
+   time, and the project list its picker needs is fetched once for the whole screen rather
+   than per card.
+2. **The title is the hit target, and only the title.** The tick, the play toggle and the
+   link all already do something, and a whole-row click would swallow whichever one you
+   actually meant. This is what the Hunt Board and the Tasks tab already do.
+3. **Overview stays read-only apart from opening.** No tick and no play there: it is a
+   summary of the Tasks tab, and giving it the full row controls would make it a second,
+   worse copy of one — the argument §6 already makes about the calendar not being an editor
+   for tasks.
+
+### Stages and tracks answer different questions — decided 2026-08-07
+
+The Tasks tab grouped by track and nothing else, so **it could not say how anything was
+moving**. A project with forty rows and three of them in flight rendered identically to a
+project with forty rows and none: `doing` was a small amber word on one line of one group,
+and `done` was behind a "Show N done" button. That is a list of work, and what a Tasks tab
+is opened to check is progress.
+
+So there are three columns — `open` → `doing` → `done`, the states `Task.status` has always
+had — and a **Stages / Tracks** control between them.
+
+**Stages lead, and tracks are not demoted.** They answer genuinely different questions:
+stages are *how is this moving*, tracks are *what kind of work is left*, which is why free
+text tracks exist at all (§6, "Two fields on Task"). The reason stages default is only that
+the first question is the one this tab is for. Nothing is lost by choosing them, because the
+**track is a chip on every card** — the columns re-cut the same rows rather than replacing
+what they told you.
+
+Four decisions inside it:
+
+1. **Arrows move a card; the tick still finishes it.** Replacing the tick with arrows would
+   have made the commonest move — To do straight to Done — two presses, and put a different
+   control in the place every other surface in this app puts the same one. The arrows are
+   what the columns *add*: they are the only way to say "I have started this" without
+   opening the panel.
+2. **Every column scrolls itself.** Sleepy Cat is 88 · 0 · 1, so an uncapped board is a page
+   88 cards tall with two empty columns beside it — and on a phone, where they stack, you
+   would scroll all 88 before reaching Doing.
+3. **Done shows ten and offers the rest.** A done column is a record, not a queue.
+4. **A repeating card is not special-cased.** Ticking it advances the row rather than
+   finishing it, so it reappears under To do dated forward — which is what happens on every
+   other surface, and what the `Repeat` chip on the card is there to warn about. A kanban
+   that quietly did something else with recurrence would be a fourth place recurrence means
+   a fourth thing.
+
+### A camera in a window is a camera you are looking at a third of — decided 2026-08-07
+
+The journal's camera sheet was a centred card at every width. On a phone that is a viewfinder
+occupying a third of a screen you are holding up at a baby, which is the one surface in this
+app where the content genuinely wants the whole viewport: **the preview *is* the screen**, and
+every native camera behaves this way.
+
+So below `sm` it is full-bleed — header, a `flex-1` preview taking whatever the controls
+leave, and the controls at the bottom over `env(safe-area-inset-bottom)`, because full screen
+on a phone means the home indicator is genuinely over the bottom of this element. From `sm` up
+there is a pointer, a large display and other things worth still seeing, so it stays the card
+it was.
+
+**The two media buttons became one dropdown** at the same time, and for a smaller reason:
+"Add photos", "Camera" and the counter were three controls across the top of a composer whose
+whole justification is that it is quiet enough to type into without deciding anything first
+(§6, "The journal"). The choice between library and camera is real — it is the one §6 sets
+out under `MediaInput` — but it is not one you make often enough to spend a permanent row on.
+
 ### A thumbnail is a promise that the whole photo is there — decided 2026-08-06
 
 The photos on an entry were "all over the place", and the diagnosis is exact: each one was
@@ -2157,6 +2275,17 @@ originally — shifts every publish time by the machine's offset.
   even when every caller is an event handler — it cannot tell. Wrap it in a module-level
   `now()`; the wrapper is the whole fix.
 
+- **A popup inside an `animate-rise` section must open upward, or be portalled.**
+  `animate-rise` ends on `transform: translateY(0)` under `animation-fill-mode: both`, so
+  every element carrying it **permanently has a transform** — and a transform makes a
+  stacking context. A dropdown opened *downward* out of one section is therefore painted
+  over by the **next** section, whatever z-index it is given, because the two sections are
+  siblings and the later one wins. The journal's media menu hit this: it rendered, and the
+  next day's card sliced it off mid-item, so it read as an overflow bug. This is the same
+  mechanism §6 records for the media viewer, which needs a portal because it is `fixed`;
+  a two-item menu does not — **opening upward keeps it inside its own section**, and costs
+  no portal and no position maths. Found 2026-08-07.
+
 - **A shared class string must not bake in a width, because you cannot override it later.**
   Two Tailwind utilities for the same property have equal specificity, so the winner is
   whichever one the compiled stylesheet defines *last* — not the one written last in your
@@ -2457,6 +2586,19 @@ Three rules inside it:
     Prisma query) still work, which is why the 2026-08-03 calendar change could be
     verified against the database but not in a browser. `D:` has 114 GB free; the fix is
     clearing `C:`, not moving anything.
+- **The dev server can serve stale CSS while its JS is current, and it looks exactly like a
+  broken class.** Found 2026-08-07: a new `bottom-full` was in the DOM's `className` and had
+  no effect, and the *removed* `top-full` still worked — which is the tell. Turbopack had
+  updated the JS chunk and not regenerated the stylesheet, so the browser was one edit behind
+  on CSS only. Touching `globals.css` and touching the component both failed to shake it
+  loose. **The decisive check is `npx next build` and a grep of the emitted CSS**
+  (`.next/static/chunks/*.css`) for the escaped class — `grep -F '.bottom-full{'` — which
+  answers "is this utility real" independently of the dev server. Use `-F`: Tailwind escapes
+  `:` `[` `/` `.` with backslashes, and a regex without it silently matches nothing and reads
+  as a missing class. A production `next start` on another port is the way to *see* the fix
+  without restarting the dev server. Same family as the `animationend` note in the 4.17 log:
+  the harness's own state can look exactly like a bug in the code.
+
 - **The app assumes the server's local time is *my* local time**, and Phase 4 makes that
   assumption load-bearing rather than theoretical. Every "today", every publish window and
   the whole calendar grid is computed server-side with `new Date()` and the local-time
@@ -2479,7 +2621,84 @@ Three rules inside it:
 
 ---
 
-_Last updated: 2026-08-06 · Status: **Phase 4.17 — a day is a thread.**_
+_Last updated: 2026-08-07 · Status: **Phase 4.18 — a task opens where you are reading it.**_
+
+_**2026-08-07 — four asks, and the first two turned out to be one.** Today showed a task's
+title, its track, its due date and its checklist, and the only thing you could do to it was
+tick it; changing anything else meant a trip to the Hunt Board to find the same row among a
+hundred and ninety. A project's Overview had the same hole one surface over — "Next up"
+answered *what is next* and then sent you to the Tasks tab to act on it. **A task row you can
+read is a task row you should be able to open**, and it is the detour the Projects roster
+died of, one noun down._
+
+_The fix needed no new pattern, because the app already had it: a project card carries
+`edit: ProjectEditView` so the pencil opens the panel with no round trip. A task line now
+carries `edit: TaskView` for the same reason and the same price — **four more columns on a
+query that was already running.** The title is the hit target and only the title; the tick,
+the play toggle and the link all already do something, and a whole-row click would swallow
+whichever one you meant. Overview stays read-only apart from opening, because it is a summary
+of the Tasks tab and the full row controls would make it a second, worse copy of one._
+
+_**The Tasks tab could not say how anything was moving.** A project with forty rows and three
+in flight rendered identically to one with forty and none — `doing` was a small amber word on
+one line, `done` was behind a button. So: **three stage columns**, and a Stages / Tracks
+control between them. **Stages lead and tracks are not demoted** — they answer genuinely
+different questions (how is this moving, versus what kind of work is left), and nothing is
+lost by choosing the columns because the **track is a chip on every card**. **Arrows move a
+card and the tick still finishes it**: replacing the tick would make the commonest move — To
+do straight to Done — two presses, and put a different control where every other surface puts
+the same one. **Each column scrolls itself**, because Sleepy Cat is 88 · 0 · 1 and an uncapped
+board is a page 88 cards tall with two empty columns beside it._
+
+_**The journal's two media buttons became one dropdown, and the camera goes full screen on a
+phone.** A viewfinder in a card is a viewfinder occupying a third of a screen you are holding
+up at a baby — this is the one surface here where the content genuinely wants the whole
+viewport, and every native camera agrees. Below `sm` it is full-bleed with the controls over
+`env(safe-area-inset-bottom)`; from `sm` up it is the card it was._
+
+_**One real bug found by looking, and its cause is now a §9 rule.** The media dropdown opened
+downward and the *next day's card sliced it off mid-item*, which reads as an overflow bug and
+is not one: `animate-rise` ends under `fill-mode: both`, so every day section permanently
+carries a transform, and a transform makes a stacking context — a later sibling section wins
+over any z-index inside an earlier one. Same mechanism the media viewer portals around in
+4.17. A two-item menu does not need a portal: **opening upward keeps it inside its own
+section**._
+
+_**And one non-bug that cost more time than the bug.** The upward fix appeared not to work —
+the new `bottom-full` was in the DOM's `className` and did nothing, while the `top-full` I had
+just deleted still worked. That combination is the tell: **Turbopack had updated the JS chunk
+and not regenerated the stylesheet**, so the browser was one edit behind on CSS only. Touching
+`globals.css` and touching the component both failed to shake it loose. `npx next build` plus
+a `grep -F` of the emitted CSS settled it in one step — `.bottom-full{bottom:100%}`, present,
+and `top-full` gone — and a production `next start` on port 3100 was where the fix was actually
+seen. §9 and Environment notes both record it, including that the grep must be `-F`, since
+Tailwind escapes `:` `[` `/` `.` and a regex without it silently matches nothing and reads as a
+missing class._
+
+_Verified in a signed-in browser, on the production build. Opened a Today row and confirmed
+the panel arrives fully populated — project, track, due date, status, notes, the Steps editor
+— then saved it unchanged and confirmed the row came back identical (still overdue, Setup,
+6 Aug, still under Sleepy Cat) with the Overdue tile unmoved, which is the test that matters:
+a missing column would have blanked one. Opened a "Next up" row on Sleepy Cat's Overview and
+got the same panel. On the Tasks tab, read the columns at 88 · 0 · 1, moved "Create the X
+account" To do → Doing with the arrow and watched the counts go 87 · 1, moved it back and
+watched them return to 88 · 0 with the card in its original position. Confirmed the Tracks
+view is unchanged and its "Show 1 done" only appears there. In the journal, confirmed the
+menu now opens **above** the button with a 6px gap and both items whole. `npx next build`,
+`tsc --noEmit` and `eslint` all pass._
+
+_Outstanding from this change: **no drag-and-drop between columns** — HTML5 DnD does not work
+on touch, so it would be a desktop-only half of a feature beside arrows that already work
+everywhere. **The camera's full-screen layout has not been seen at a phone width**:
+`resize_window` still reports success while the renderer stays at 2560px, so what was checked
+is that every `sm:` class compiles and sits behind `min-width: 40rem` — reasoning plus a grep,
+not a look. **The dev server on :3000 is still serving the stale stylesheet** and wants a
+restart before the journal menu looks right there. And **no frame has still ever been captured
+by the camera**, unchanged since 4.16._
+
+---
+
+_Previously: **Phase 4.17 — a day is a thread.**_
 
 _**2026-08-06 — the journal grouped by day this morning and still looked like a filing
 cabinet.** Three asks, and the first one names the problem exactly: a "+" for today, because

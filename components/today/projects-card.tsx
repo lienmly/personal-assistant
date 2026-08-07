@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { Archive, ChevronRight, FolderOpen, Plus } from "lucide-react";
 
+import { TaskPanel } from "@/components/board/task-panel";
+import type { AreaView, BoardProjectView, TaskView } from "@/components/board/types";
 import { ProjectPanel } from "@/components/projects/project-panel";
 import type {
   AreaOption,
@@ -30,15 +32,28 @@ import { cn } from "@/lib/utils";
  * The create button is deliberately not crimson. It was on the roster, where it
  * was that screen's primary action; on Today the primary action is ticking
  * something off, and §9 allows one accent per region.
+ *
+ * **It also owns the task panel.** Tapping a row's title on any card opens the
+ * same editor the Hunt Board opens, which is what stops "give this a due date"
+ * from being a trip to another surface and back. The state lives here rather
+ * than on each `ProjectBoard` so only one panel can ever be open, and so the
+ * project list it needs is fetched once for the whole screen.
  */
 export function ProjectsCard({
   boards,
   areas,
   dormant,
+  projects,
+  taskAreas,
 }: {
   boards: ProjectBoardView[];
   areas: AreaOption[];
   dormant: DormantProjectView[];
+  /** The task panel's project picker. */
+  projects: BoardProjectView[];
+  /** The same areas, in the shape the task panel wants. Passed separately
+   *  rather than cast at the use site so neither panel's contract bends. */
+  taskAreas: AreaView[];
 }) {
   // `undefined` = closed. `null` = open on a new project. A project = editing.
   // Same three-state convention the roster used, kept because "null means new"
@@ -46,6 +61,7 @@ export function ProjectsCard({
   const [editing, setEditing] = useState<ProjectEditView | null | undefined>(
     undefined,
   );
+  const [task, setTask] = useState<TaskView | null>(null);
   const [showDormant, setShowDormant] = useState(false);
 
   return (
@@ -58,6 +74,7 @@ export function ProjectsCard({
               board={board}
               delay={60 + Math.min(index, 8) * 40}
               onEdit={() => board.edit && setEditing(board.edit)}
+              onOpenTask={setTask}
             />
           ))}
         </div>
@@ -146,6 +163,16 @@ export function ProjectsCard({
           project={editing}
           areas={areas}
           onClose={() => setEditing(undefined)}
+        />
+      )}
+
+      {task && (
+        <TaskPanel
+          key={task.id}
+          task={task}
+          projects={projects}
+          areas={taskAreas}
+          onClose={() => setTask(null)}
         />
       )}
     </>

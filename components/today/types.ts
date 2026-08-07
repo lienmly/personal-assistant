@@ -1,6 +1,6 @@
 import type { ChannelPostState, ContentStage, Platform } from "@prisma/client";
 
-import type { SubtaskView } from "@/components/board/types";
+import type { SubtaskView, TaskView } from "@/components/board/types";
 import type { ProjectEditView } from "@/components/projects/types";
 
 /** Plain view types — the Today lists are client components, so they must not
@@ -27,6 +27,12 @@ export type TaskLineView = {
   /** The steps this job is done in. Expanded on Today — this is the surface
    *  you are on to tick things off, not to survey them. */
   subtasks: SubtaskView[];
+  /** The whole row, as the task panel edits it — carried on the line so tapping
+   *  the title opens the panel without a round trip. Exactly the shape
+   *  `ProjectBoardView.edit` is for a project, and for the same reason: Today is
+   *  where you already are, and "go to the Hunt Board to fix a due date" is a
+   *  detour through a surface you did not want. */
+  edit: TaskView;
 };
 
 /** One project, as Today shows it: the focus line and the few rows that are

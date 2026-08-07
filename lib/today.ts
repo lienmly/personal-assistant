@@ -24,6 +24,10 @@ import { localDayKey, todayKey } from "@/lib/utils";
  * days the baby won.
  */
 
+// Everything `toTaskView` needs, plus what the card itself renders. The extra
+// columns — `areaId`, `projectId`, `repeatUntil`, the occurrence count — exist
+// only so a row on Today can open the task panel without a second round trip,
+// which is the same trade `ProjectBoard.edit` already makes for the project.
 const boardSelect = {
   id: true,
   title: true,
@@ -35,6 +39,10 @@ const boardSelect = {
   sortOrder: true,
   recurrence: true,
   daysOfWeek: true,
+  repeatUntil: true,
+  areaId: true,
+  projectId: true,
+  _count: { select: { occurrences: true } },
   project: { select: { id: true, name: true, slug: true } },
   area: { select: { name: true, color: true } },
   // Single-object `orderBy` — see the note on `TASK_VIEW_SELECT`.

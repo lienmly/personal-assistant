@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Camera, ImagePlus, Play, X } from "lucide-react";
+import { Camera, ChevronDown, ImagePlus, Play, Plus, X } from "lucide-react";
 
 import {
   CameraSheet,
@@ -73,13 +73,34 @@ export function MediaInput({
   existingCount?: number;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const [working, setWorking] = useState(false);
   const [rejected, setRejected] = useState<string[]>([]);
   const [cameraOpen, setCameraOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [overflowed, setOverflowed] = useState(false);
 
   const remaining = Math.max(0, MAX_PER_ENTRY - existingCount - media.length);
   const full = remaining === 0;
+
+  // A menu that stays open after you have clicked elsewhere is a menu you close
+  // by accident later. `pointerdown` rather than `click` so it beats the focus
+  // change, and Escape because a popup owes you that.
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onPointerDown(event: PointerEvent) {
+      if (!menuRef.current?.contains(event.target as Node)) setMenuOpen(false);
+    }
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setMenuOpen(false);
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
 
   // Object URLs are a manual allocation; without this every pick leaks one per
   // item for as long as the page lives.
@@ -144,26 +165,72 @@ export function MediaInput({
 
   return (
     <div>
+      {/* One control, two routes. They were two buttons side by side, which put
+          three things ("Add photos", "Camera", the counter) across the top of a
+          composer whose whole point is that it is quiet enough to type into.
+          The choice between library and camera is real (see the note above) but
+          it is not one you make often enough to spend a permanent row on. */}
       <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          disabled={disabled || working || full}
-          onClick={() => inputRef.current?.click()}
-          className="flex items-center gap-1.5 rounded-chip bg-inset px-3 py-2 text-[12.5px] text-muted transition-colors duration-(--duration-quick) hover:text-ink active:scale-[0.97] disabled:opacity-50"
-        >
-          <ImagePlus className="size-4" strokeWidth={2} />
-          {working ? "Preparing…" : "Add photos"}
-        </button>
+        <div ref={menuRef} className="relative">
+          <button
+            type="button"
+            disabled={disabled || working || full}
+            onClick={() => setMenuOpen((open) => !open)}
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            className="flex items-center gap-1.5 rounded-chip bg-inset px-3 py-2 text-[12.5px] text-muted transition-colors duration-(--duration-quick) hover:text-ink active:scale-[0.97] disabled:opacity-50"
+          >
+            <Plus className="size-4" strokeWidth={2} />
+            {working ? "Preparing…" : "Add media"}
+            <ChevronDown
+              className={cn(
+                "size-3.5 transition-transform duration-(--duration-base) ease-soft",
+                menuOpen && "rotate-180",
+              )}
+              strokeWidth={2}
+            />
+          </button>
 
-        <button
-          type="button"
-          disabled={disabled || working || full}
-          onClick={() => setCameraOpen(true)}
-          className="flex items-center gap-1.5 rounded-chip bg-inset px-3 py-2 text-[12.5px] text-muted transition-colors duration-(--duration-quick) hover:text-ink active:scale-[0.97] disabled:opacity-50"
-        >
-          <Camera className="size-4" strokeWidth={2} />
-          Camera
-        </button>
+          {/* Opens **upward**, and that is not a taste call. Every day in the
+              journal is a section carrying a transform from `animate-rise`
+              (`fill-mode: both` pins it), and a transform makes a stacking
+              context — so a menu dropped below this button is painted over by
+              the *next* day's card whatever its z-index says. That is the same
+              mechanism the media viewer has to portal around (§6). Upward, the
+              menu stays inside its own day, and no portal or position maths is
+              needed for a two-item list. */}
+          {menuOpen && (
+            <div
+              role="menu"
+              className="absolute bottom-full left-0 z-30 mb-1.5 flex w-48 animate-rise flex-col overflow-hidden rounded-tile bg-card p-1 shadow-float"
+            >
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  inputRef.current?.click();
+                }}
+                className="flex items-center gap-2.5 rounded-tile px-3 py-2 text-left text-[12.5px] text-ink transition-colors duration-(--duration-quick) hover:bg-inset"
+              >
+                <ImagePlus className="size-4 shrink-0 text-faint" strokeWidth={2} />
+                Photos
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setCameraOpen(true);
+                }}
+                className="flex items-center gap-2.5 rounded-tile px-3 py-2 text-left text-[12.5px] text-ink transition-colors duration-(--duration-quick) hover:bg-inset"
+              >
+                <Camera className="size-4 shrink-0 text-faint" strokeWidth={2} />
+                Camera
+              </button>
+            </div>
+          )}
+        </div>
 
         {(media.length > 0 || existingCount > 0) && (
           <span className="text-[11.5px] text-faint">

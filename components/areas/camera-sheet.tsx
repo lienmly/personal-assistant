@@ -411,13 +411,21 @@ export function CameraSheet({
   const remaining = Math.ceil((MAX_CLIP_MS - elapsed) / 1000);
 
   return (
+    /* Full screen on a phone, a dialog on a pointer device.
+     *
+     * A camera in a window is a camera you are holding a phone up to and
+     * looking at a third of. This is the one surface in the app where the
+     * content genuinely wants the whole viewport: the preview *is* the screen,
+     * and every native camera behaves this way. Above `sm` there is a pointer,
+     * a large display and other things worth still seeing, so it stays the
+     * centred card it was. */
     <div
-      className="animate-scrim-in fixed inset-0 z-50 flex items-center justify-center bg-scrim p-3"
+      className="animate-scrim-in fixed inset-0 z-50 bg-scrim sm:flex sm:items-center sm:justify-center sm:p-3"
       role="dialog"
       aria-modal="true"
       aria-label="Camera"
     >
-      <div className="animate-panel-in flex w-full max-w-lg flex-col overflow-hidden rounded-tile bg-card shadow-card">
+      <div className="animate-panel-in flex h-full w-full flex-col overflow-hidden bg-card sm:h-auto sm:max-w-lg sm:rounded-tile sm:shadow-card">
         <div className="flex items-center justify-between gap-2 px-4 py-3">
           <span className="text-[13px] font-medium text-ink">
             {recording ? `Recording · ${remaining}s` : "Camera"}
@@ -448,7 +456,9 @@ export function CameraSheet({
           </div>
         </div>
 
-        <div className="relative aspect-[4/3] w-full overflow-hidden bg-inset">
+        {/* `flex-1` with `min-h-0` so the preview takes whatever the header and
+            controls leave; a fixed 4:3 tile only once there is room for one. */}
+        <div className="relative w-full min-h-0 flex-1 overflow-hidden bg-inset sm:aspect-[4/3] sm:flex-none">
           <video
             ref={videoRef}
             playsInline
@@ -531,7 +541,14 @@ export function CameraSheet({
           )}
         </div>
 
-        <p className="px-4 pb-4 text-center text-[11.5px] leading-relaxed text-faint">
+        {/* `env(safe-area-inset-bottom)` because full screen on a phone means
+            the home indicator is genuinely over the bottom of this element. */}
+        <p
+          style={{
+            paddingBottom: "max(1rem, env(safe-area-inset-bottom))",
+          }}
+          className="px-4 text-center text-[11.5px] leading-relaxed text-faint"
+        >
           {/* Said plainly, because the alternative is finding out later. A web
               page cannot write to the photo library; the entry's "Save to
               photos" button is the nearest thing and it is one extra tap. */}

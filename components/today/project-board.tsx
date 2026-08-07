@@ -12,6 +12,7 @@ import {
   Repeat,
 } from "lucide-react";
 
+import type { TaskView } from "@/components/board/types";
 import { Checklist, ticksTheLastBox } from "@/components/tasks/checklist";
 import type {
   ProjectBoardView,
@@ -43,11 +44,14 @@ export function ProjectBoard({
   board,
   delay,
   onEdit,
+  onOpenTask,
 }: {
   board: ProjectBoardView;
   delay: number;
   /** Opens the settings panel. Not called for "One-offs", which has no row. */
   onEdit: () => void;
+  /** Opens the task panel on one of this card's rows. */
+  onOpenTask: (task: TaskView) => void;
 }) {
   return (
     <div
@@ -130,7 +134,11 @@ export function ProjectBoard({
       {board.tasks.length > 0 ? (
         <div className="flex flex-col">
           {board.tasks.map((task) => (
-            <TaskLine key={task.id} task={task} />
+            <TaskLine
+              key={task.id}
+              task={task}
+              onOpen={() => onOpenTask(task.edit)}
+            />
           ))}
         </div>
       ) : board.openTotal > 0 ? (
@@ -192,7 +200,13 @@ const BADGE: Record<TaskReason, { label: string; className: string } | null> = {
   open: null,
 };
 
-function TaskLine({ task }: { task: TaskLineView }) {
+function TaskLine({
+  task,
+  onOpen,
+}: {
+  task: TaskLineView;
+  onOpen: () => void;
+}) {
   // Two transitions, not one. Ticking done removes the row so it folds away;
   // the other buttons leave it in place, so they only recede. Sharing a single
   // `isPending` would collapse the row every time you pressed "start".
@@ -239,7 +253,15 @@ function TaskLine({ task }: { task: TaskLineView }) {
             <Check className="size-3" strokeWidth={3} />
           </button>
 
-          <div className="min-w-0 flex-1">
+          {/* The title is the way into the task, exactly as it is on the Hunt
+              Board and a project page. Before this, changing a due date from
+              Today meant leaving Today. */}
+          <button
+            type="button"
+            onClick={onOpen}
+            title="Open this task"
+            className="min-w-0 flex-1 text-left"
+          >
             <p className="truncate text-[13px] leading-snug text-ink">
               {task.title}
             </p>
@@ -275,7 +297,7 @@ function TaskLine({ task }: { task: TaskLineView }) {
                 )}
               </p>
             )}
-          </div>
+          </button>
 
           {/* "Doing" is the one thing on the screen that says *this is what I
               am on right now*, so it is a toggle and not a dropdown. */}
