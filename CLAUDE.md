@@ -652,6 +652,34 @@ task row you should be able to open.** No schema change and no migration._
 - [ ] **No frame has still ever been captured** — granting Chrome's camera permission is the
       user's call, unchanged from Phase 4.16
 
+### Phase 4.19 — A brand can be the work of a project
+_Built 2026-08-07. One nullable column, and it closes the gap the two-axis model has carried
+since 2026-07-30: Brand and Project only ever met on an item, so the app could not tell that
+three of four projects **run an account**. Found by asking why the Coding Mom project page
+showed 3 items and Studio showed 31 under the same name._
+- [x] **`Brand.projectId`** (`20260808024550_brand_owning_project`) — nullable, `SetNull`,
+      one index. Purely additive; `migrate dev` generated it and migrations were clean first
+- [x] **The Social media tab asks two questions** — "Posted as X" and "Covered elsewhere",
+      which partition the rows exactly. §6, "A brand can be the work of a project"
+- [x] **A project page shows its own channels** — Sleepy Cat's seven @sleepycatgame accounts
+      were invisible on the page about building them
+- [x] **The composer defaults the project from the brand**, and stops following the moment
+      you pick one yourself. An **existing item never moves on its own** — verified by saving
+      a brand-only item unchanged and confirming `projectId` stayed `null`
+- [x] **A "The work of" picker on Studio → Channels**, so the link is not seed-only
+- [x] **The stat tile counts the union** — Coding Mom reads 31, and Sleepy Cat's note reads
+      "7 accounts · 0 live" rather than "Nothing published yet"
+- [x] **The seed sets it on create only** — verified idempotent: a full `db:seed` left all
+      three links and the item count untouched
+- [ ] **Nothing links a channel to the tasks about creating it.** Sleepy Cat has seven
+      `planned` accounts and setup tasks for them, and the two are only connected by reading
+      both. Same shape as the Next Fest track having no link to its event (§6)
+- [ ] **Forge's borrowing of Coding Mom's audience is not modelled**, deliberately — it is
+      expressed per item, and the handoff is two tasks. A `Project.audienceBrandId` would be
+      a third place for the same fact to disagree
+- [ ] **The phone layout still has not been looked at on a real device.** The account row is
+      `flex-wrap` and the two sections stack, both of which are judgements, not checks
+
 ### Phase 5 — Montblanc (AI assistant)
 - [ ] Chat drawer with streaming (Claude via AI SDK), available on every surface
 - [ ] Montblanc persona/prompt
@@ -730,6 +758,66 @@ Cat devlog posted from Coding Mom's TikTok carries `projectId: sleepy-cat`. What
 is that both Coding Mom *series* now carry `projectId: coding-mom` — the daily short is
 that project's work, so posting has to bump its `lastTouchedAt` or Momentum reports it
 drifting on a day you posted.
+
+### A brand can be the work of a project — decided 2026-08-07
+
+The two axes were right and **they had no declared relationship**, which is a different
+fault and took a week of use to surface. Brand and Project only ever met on an individual
+`ContentItem`; nothing said that Sleepy Cat *the project* runs Sleepy Cat *the brand*. So
+`Brand.projectId` — nullable, `SetNull`, one index.
+
+The complaint that found it: the Coding Mom project page showed **3 items** while Studio
+showed **31** under the same name. Both numbers were correct and neither was useful. Three
+of the four projects run an account, and the app could not say so:
+
+| Project | Runs | Its channels | Items carrying its id |
+|---|---|---|---|
+| Sleepy Cat | Sleepy Cat | 7 × @sleepycatgame | 2, both from Coding Mom |
+| Coding Mom | Coding Mom | 6 × @codingmom | 3 of that brand's 31 |
+| Utaitai | Utaitai | 5 accounts | 1 |
+| Forge | **nothing** | — | 5 |
+
+**A project's Social media tab now asks two questions instead of one.** "Posted as X" is
+`brandId ∈ my brands` — what this project's own accounts publish. "Covered elsewhere" is
+`projectId = me` from any *other* brand — what the world says about it. They partition the
+result exactly, so nothing is listed twice, and each answers something the other cannot:
+Coding Mom is 31 · 0, Sleepy Cat 0 · 2, Forge 0 · 5.
+
+That is what makes the 20 brand-only items stop looking like an omission. They are about no
+project — "My dad was kind to me and dismissive of my mom" is not about anything you are
+shipping — but **publishing them is the entire job of the Coding Mom project**, so they
+belong on its page and on no other. Filing them under a project would be inventing the
+shadow project this section already refuses.
+
+Five things fell out, each chosen over an obvious alternative that fails:
+
+1. **It is a default, never a constraint.** It supplies the composer's project when you pick
+   a brand, and nothing else. A Sleepy Cat devlog from @codingmom is still one row with
+   `brandId: coding-mom` and `projectId: sleepy-cat`. **Whether Sleepy Cat rides Coding Mom
+   at all stays an item-by-item question**, which is what it has to be while that is
+   undecided — changing your mind is editing two items' brand, not a migration.
+2. **The project follows the brand only until you touch it.** Pick a project yourself and
+   the field stops following; **an existing item never moves on its own**, because whatever
+   it says now is a decision somebody made. Without that second rule, opening any of the 20
+   loose items and saving would have silently filed it under Coding Mom.
+3. **A list, not a single `brandId` on Project.** Splitting one voice in two — a Japanese
+   and a Chinese Utaitai — should not need a migration. Today every project runs one or
+   none. It also puts the column on the rare-churn table, and makes Forge's case expressible
+   as simply having none rather than as a null that means something else.
+4. **The seed sets it on create only**, and there is a picker for it on Studio → Channels.
+   The same rule the Project upsert's `update: {}` and the Series upsert's dropped
+   `isActive` both follow: once a column is editable in the app it is a decision, and a
+   re-seed that reverted it is the failure the editor exists to end. The picker exists at
+   all because the noun you cannot edit is the noun whose data goes wrong.
+5. **Merging Brand into Project was the tempting simplification and it destroys 27 of 31
+   items.** It looks free at three-of-four. It cannot express Forge's five essays (a brand
+   whose project isn't Forge), the two Sleepy Cat crossovers, or the 20 that are about
+   nothing. Forge is the proof the axes are real: it runs no account and has the most
+   coverage of any project.
+
+The stat tile counts the union rather than `projectId` alone, for the same reason — Coding
+Mom's real workload is 31, and Sleepy Cat's note now reads "7 accounts · 0 live" where it
+used to say "Nothing published yet" about a project with seven accounts to build.
 
 ### The sprint — introduced 2026-07-31, **retired 2026-08-04**
 
@@ -982,7 +1070,10 @@ Built ones are in `prisma/schema.prisma`, which is the source of truth; this is 
   drives drift warnings) ✅
 - **Sprint** — name, goal, startsOn/endsOn (`@db.Date`), status (`planning` | `active` |
   `done`), closedAt; Tasks join via `Task.sprintId` ✅
-- **Brand** — slug, name, tagline, color, sortOrder ✅
+- **Brand** — slug, name, tagline, color, sortOrder, **projectId** (nullable — the project
+  this identity is the *work of*; supplies the composer's default project and lets a project
+  page show its own channels and output. Never a constraint on an item — see §6, "A brand
+  can be the work of a project") ✅
 - **Channel** — brandId, platform, handle, label, url, state (`planned` | `live` | `paused`) ✅
 - **Series** — brandId, projectId (nullable), format, cadence, daysOfWeek, timeOfDay,
   startsOn/endsOn, horizonDays, isActive; channels via **SeriesChannel** ✅
@@ -2674,7 +2765,58 @@ Three rules inside it:
 
 ---
 
-_Last updated: 2026-08-07 · Status: **Phase 4.18 — a task opens where you are reading it.**_
+_Last updated: 2026-08-07 · Status: **Phase 4.19 — a brand can be the work of a project.**_
+
+_**2026-08-07 — "there are 3 items under Coding Mom and a bunch more in Studio, I'm
+confused."** Both numbers were right. Studio filters by **brand** and a project page filtered
+by **project**, and "Coding Mom" is both — a Brand (the voice) and a Project (the work of
+building its audience). The 31 items carrying that brand split 20 / 5 / 3 / 2 / 1 across no
+project, Forge, Coding Mom, Sleepy Cat and Utaitai, and the page was showing the 3._
+
+_**The two axes were not the flaw; the missing relationship between them was.** Brand and
+Project only ever met on an individual item, so nothing recorded that Sleepy Cat *the
+project* runs Sleepy Cat *the brand*. Three of four projects run an account and the app could
+not say so — which is why **Sleepy Cat's page never mentioned its seven @sleepycatgame
+accounts**, on the page about the tasks to create them. One nullable `Brand.projectId` closes
+it._
+
+_**A project's Social media tab now asks two questions.** "Posted as X" is what its own
+accounts publish; "Covered elsewhere" is what other people's accounts say about it. They
+partition the rows exactly — Coding Mom 31 · 0, Sleepy Cat 0 · 2, Forge 0 · 5. That is what
+makes the 20 brand-only items stop reading as an omission: they are about no project, and
+publishing them is nonetheless the **entire job** of the Coding Mom project._
+
+_**It is a default and never a constraint**, which was the explicit ask — whether Sleepy Cat
+gets posted under Coding Mom is undecided, so it stays an item-by-item question. The composer
+fills the project in from the brand and **stops following the moment you pick one yourself**;
+an existing item never moves on its own. Without that second rule, opening any of the 20
+loose items and saving would have quietly filed it under Coding Mom, which is the one way
+this change could have destroyed data. **Merging Brand into Project** was the tempting
+simplification and it breaks 27 of the 31: Forge runs no account and has the most coverage of
+any project, which is the axes being real rather than redundant._
+
+_Verified in a signed-in browser, dark theme. All four project pages read the counts the
+database says (partitions confirmed exact and disjoint by script first). Opened a new item
+and watched Project arrive pre-filled as Utaitai, switched the brand to Sleepy Cat and
+watched Project follow, then set Project to "None" by hand, switched the brand back, and
+watched it **stay** None. Opened the existing brand-only "The five baby purchases…", confirmed
+it read None rather than Coding Mom, saved it unchanged, and confirmed in the database that
+`projectId` was still `null` with 20 brand-only and 31 total items — unmoved. Round-tripped
+the new picker: unlinked Sleepy Cat, watched its page fall back to "runs no account of its
+own" with its two Coding Mom posts untouched, and relinked it. A full `db:seed` left every
+link and count alone. `npx next build`, `tsc --noEmit` and `eslint` all pass; console clean._
+
+_Outstanding from this change: **nothing links a channel to the tasks about creating it** —
+Sleepy Cat has seven `planned` accounts and setup rows for them, connected only by reading
+both, which is the same gap as the Next Fest track having no link to its event. **Forge's
+borrowing of Coding Mom's audience is deliberately not modelled**: it is expressed per item
+and the handoff is two tasks, and a `Project.audienceBrandId` would be a third place for the
+same fact to disagree. **And the phone layout still has not been looked at on a real
+device.**_
+
+---
+
+_Previously: **Phase 4.18 — a task opens where you are reading it.**_
 
 _**2026-08-07 — four asks, and the first two turned out to be one.** Today showed a task's
 title, its track, its due date and its checklist, and the only thing you could do to it was

@@ -58,6 +58,7 @@ export default async function StudioPage() {
     name: brand.name,
     slug: brand.slug,
     color: brand.color,
+    projectId: brand.projectId,
     channels: brand.channels.map((channel) => ({
       id: channel.id,
       platform: channel.platform,

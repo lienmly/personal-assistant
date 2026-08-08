@@ -10,6 +10,7 @@ import {
   deleteChannel,
   saveChannel,
   saveSeries,
+  setBrandProject,
   toggleSeries,
 } from "@/lib/studio-actions";
 import { cn } from "@/lib/utils";
@@ -36,6 +37,8 @@ export type BrandDetail = {
   name: string;
   tagline: string | null;
   color: string;
+  /** The project this identity is the work of — see `Brand.projectId`. */
+  projectId: string | null;
   channels: (ChannelView & { url: string | null; postCount: number })[];
   series: SeriesView[];
 };
@@ -56,6 +59,56 @@ const CADENCES = [
   { value: "weekly", label: "Chosen days" },
   { value: "custom", label: "Custom days" },
 ];
+
+/**
+ * "This account is the work of —". The link that lets a project show its own
+ * channels and its own output, and lets the composer stop leaving `projectId`
+ * empty by default.
+ *
+ * Saves on change rather than behind a button: it is one field with a handful
+ * of values, and there is nothing to review before committing it. Nothing moves
+ * when it changes — every content item keeps the brand and project it holds.
+ */
+function BrandProject({
+  brand,
+  projects,
+}: {
+  brand: BrandDetail;
+  projects: ProjectView[];
+}) {
+  const [pending, startTransition] = useTransition();
+  const [projectId, setProjectId] = useState(brand.projectId ?? "");
+
+  return (
+    <label
+      className={cn(
+        "mt-2 flex items-center gap-2 text-[12px] text-faint transition-opacity duration-(--duration-quick)",
+        pending && "pointer-events-none opacity-45",
+      )}
+    >
+      The work of
+      <select
+        value={projectId}
+        onChange={(event) => {
+          const next = event.target.value;
+          setProjectId(next);
+          const form = new FormData();
+          form.set("id", brand.id);
+          form.set("projectId", next);
+          startTransition(() => setBrandProject(form));
+        }}
+        className="rounded-chip bg-inset px-2 py-1 text-[12px] text-ink outline-none focus:ring-2 focus:ring-accent/25"
+      >
+        <option value="">no project — a voice on its own</option>
+        {projects.map((project) => (
+          <option key={project.id} value={project.id}>
+            {project.name}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
 
 export function ChannelManager({
   brands,
@@ -82,6 +135,7 @@ export function ChannelManager({
                   {brand.tagline}
                 </p>
               )}
+              <BrandProject brand={brand} projects={projects} />
             </div>
           </div>
 

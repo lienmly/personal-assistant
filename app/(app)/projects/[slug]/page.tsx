@@ -5,6 +5,7 @@ import { ArrowLeft, CalendarDays, Radio, Repeat } from "lucide-react";
 import type { AreaView, BoardProjectView, TaskView } from "@/components/board/types";
 import { DocsTab, type DocView } from "@/components/docs/docs-tab";
 import { NextUp } from "@/components/projects/next-up";
+import { ChannelBadge } from "@/components/studio/channel-badge";
 import { TaskList } from "@/components/tasks/task-list";
 import { Card, CardHeader, StatTile } from "@/components/ui/card";
 import { Markdown } from "@/components/ui/markdown";
@@ -38,6 +39,56 @@ const TAB_LABELS: Record<Tab, string> = {
   content: "Social media",
   docs: "Docs",
 };
+
+type ContentRow = Awaited<
+  ReturnType<typeof getProjectDetail>
+> extends infer D
+  ? D extends { items: (infer I)[] }
+    ? I
+    : never
+  : never;
+
+/** One line of the Social media tab, shared by both sections so they cannot
+ *  drift apart in shape. `showBrand` names the publisher, which only the
+ *  "covered elsewhere" list needs — in "Posted as X" the card heading has
+ *  already said it. */
+function ItemRow({
+  item,
+  index,
+  showBrand = false,
+}: {
+  item: ContentRow;
+  index: number;
+  showBrand?: boolean;
+}) {
+  return (
+    <li
+      className="flex animate-rise items-center gap-3 rounded-tile bg-inset px-3.5 py-2.5"
+      style={{ animationDelay: `${Math.min(index, 12) * 35}ms` }}
+    >
+      <span
+        className="size-2 shrink-0 rounded-full"
+        style={{ background: item.brand.color }}
+      />
+      <span className="min-w-0 flex-1 truncate text-[13px] text-ink">
+        {item.title || item.series?.name || "Empty slot"}
+      </span>
+      {showBrand && (
+        <span className="hidden shrink-0 text-[11.5px] text-muted sm:block">
+          {item.brand.name}
+        </span>
+      )}
+      <span className="shrink-0 rounded-full bg-card px-2 py-0.5 text-[11px] text-muted">
+        {item.stage}
+      </span>
+      {item.publishAt && (
+        <span className="hidden shrink-0 text-[11.5px] text-faint sm:block">
+          {stampFormat.format(item.publishAt)}
+        </span>
+      )}
+    </li>
+  );
+}
 
 export async function generateMetadata({
   params,
@@ -84,7 +135,8 @@ export default async function ProjectPage({
 
   if (!detail) notFound();
 
-  const { project, tasks, items, docs, series, events, stats } = detail;
+  const { project, tasks, items, own, elsewhere, docs, series, events, stats } =
+    detail;
   const tab: Tab = TABS.includes(query.tab as Tab) ? (query.tab as Tab) : "overview";
   const today = todayKey();
 
@@ -200,13 +252,18 @@ export default async function ProjectPage({
             stats.overdue > 0 ? `${stats.overdue} overdue` : "Nothing overdue"
           }
         />
+        {/* The note says accounts rather than published where there are any:
+            Sleepy Cat has seven channels and no posts, and "Nothing published
+            yet" was the whole story it could tell about its own presence. */}
         <StatTile
           label="Social media"
           value={String(stats.scheduled)}
           note={
-            stats.published > 0
-              ? `${stats.published} published`
-              : "Nothing published yet"
+            stats.channels > 0
+              ? `${stats.channels} accounts · ${stats.channelsLive} live`
+              : stats.published > 0
+                ? `${stats.published} published`
+                : "No accounts of its own"
           }
         />
         <StatTile
@@ -375,57 +432,113 @@ export default async function ProjectPage({
         </Card>
       )}
 
+      {/* Two questions, deliberately kept apart. "Posted as" is what this
+          project's own accounts publish — for Coding Mom that is its entire
+          job, most of which is about no project at all. "Covered elsewhere" is
+          what other people's accounts say about it — for Forge, which runs no
+          account, that is all it has. Asking `projectId` alone answered
+          neither properly. */}
       {tab === "content" && (
-        <Card>
-          <CardHeader
-            title="Social media content"
-            count={`${items.length} ${items.length === 1 ? "item" : "items"}`}
-          />
-          {items.length > 0 ? (
-            <ul className="flex flex-col gap-1.5">
-              {items.map((item, index) => (
-                <li
-                  key={item.id}
-                  className="flex animate-rise items-center gap-3 rounded-tile bg-inset px-3.5 py-2.5"
-                  style={{ animationDelay: `${Math.min(index, 12) * 35}ms` }}
-                >
-                  <span
-                    className="size-2 shrink-0 rounded-full"
-                    style={{ background: item.brand.color }}
+        <div className="space-y-5">
+          {project.brands.length > 0 ? (
+            project.brands.map((brand) => {
+              const posts = own.filter((item) => item.brandId === brand.id);
+              return (
+                <Card key={brand.id}>
+                  <CardHeader
+                    title={`Posted as ${brand.name}`}
+                    count={`${posts.length} ${posts.length === 1 ? "item" : "items"}`}
                   />
-                  <span className="min-w-0 flex-1 truncate text-[13px] text-ink">
-                    {item.title || item.series?.name || "Empty slot"}
-                  </span>
-                  <span className="shrink-0 rounded-full bg-card px-2 py-0.5 text-[11px] text-muted">
-                    {item.stage}
-                  </span>
-                  {item.publishAt && (
-                    <span className="hidden shrink-0 text-[11.5px] text-faint sm:block">
-                      {stampFormat.format(item.publishAt)}
-                    </span>
+                  <div className="mb-4 flex flex-wrap items-center gap-1.5">
+                    {brand.channels.map((channel) => (
+                      <span
+                        key={channel.id}
+                        className="flex items-center gap-1.5 rounded-chip bg-inset py-1 pl-1 pr-2.5"
+                      >
+                        <ChannelBadge
+                          platform={channel.platform}
+                          handle={channel.handle}
+                          label={channel.label}
+                          done={channel.state === "live"}
+                        />
+                        <span className="text-[12px] text-muted">
+                          @{channel.handle}
+                        </span>
+                        {channel.state !== "live" && (
+                          <span className="text-[11px] text-faint">
+                            {channel.state}
+                          </span>
+                        )}
+                      </span>
+                    ))}
+                    {brand.channels.length === 0 && (
+                      <span className="text-[12.5px] text-faint">
+                        No accounts on this brand yet.
+                      </span>
+                    )}
+                  </div>
+                  {posts.length > 0 ? (
+                    <ul className="flex flex-col gap-1.5">
+                      {posts.map((item, index) => (
+                        <ItemRow key={item.id} item={item} index={index} />
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="rounded-tile bg-inset px-3.5 py-3 text-[13px] text-muted">
+                      Nothing queued on this account yet.
+                    </p>
                   )}
-                </li>
-              ))}
-            </ul>
+                </Card>
+              );
+            })
           ) : (
-            <div className="flex flex-col items-center justify-center rounded-tile bg-inset px-6 py-10 text-center">
-              <span className="mb-3 grid size-10 place-items-center rounded-full bg-card text-faint shadow-card">
-                <Radio className="size-4.5" strokeWidth={1.8} />
-              </span>
-              <p className="text-sm font-medium text-ink">No social media content yet</p>
-              <p className="mt-1 max-w-xs text-[13px] leading-relaxed text-muted">
-                Social media content carrying this project shows up here, whichever brand
-                publishes it.
-              </p>
-            </div>
+            <Card>
+              <CardHeader title="Accounts" count="none" />
+              <div className="flex flex-col items-center justify-center rounded-tile bg-inset px-6 py-8 text-center">
+                <span className="mb-3 grid size-10 place-items-center rounded-full bg-card text-faint shadow-card">
+                  <Radio className="size-4.5" strokeWidth={1.8} />
+                </span>
+                <p className="text-sm font-medium text-ink">
+                  {project.name} runs no account of its own
+                </p>
+                <p className="mt-1 max-w-sm text-[13px] leading-relaxed text-muted">
+                  Its posts go out from another brand&rsquo;s audience. Give it
+                  one on Studio &rarr; Channels if that changes.
+                </p>
+              </div>
+            </Card>
           )}
+
+          {elsewhere.length > 0 && (
+            <Card>
+              <CardHeader
+                title="Covered elsewhere"
+                count={`${elsewhere.length} ${elsewhere.length === 1 ? "item" : "items"}`}
+              />
+              <p className="mb-3 text-[12.5px] leading-relaxed text-muted">
+                About this project, published from someone else&rsquo;s account.
+              </p>
+              <ul className="flex flex-col gap-1.5">
+                {elsewhere.map((item, index) => (
+                  <ItemRow key={item.id} item={item} index={index} showBrand />
+                ))}
+              </ul>
+            </Card>
+          )}
+
+          {items.length === 0 && project.brands.length > 0 && (
+            <p className="text-[12.5px] text-faint">
+              Nothing published or queued about {project.name} yet.
+            </p>
+          )}
+
           <Link
             href="/studio"
-            className="mt-4 inline-block text-[12.5px] text-muted hover:text-accent"
+            className="inline-block text-[12.5px] text-muted hover:text-accent"
           >
             Open Social Media →
           </Link>
-        </Card>
+        </div>
       )}
 
       {tab === "docs" && (

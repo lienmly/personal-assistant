@@ -201,6 +201,15 @@ model Project {
   areaId String
   area   Area   @relation(fields: [areaId], references: [id], onDelete: Cascade)
 
+  /// The brands this project *runs* — the accounts that are its own voice.
+  /// Sleepy Cat runs @sleepycatgame, Coding Mom runs @codingmom, Utaitai runs
+  /// its five. Forge runs none: it borrows Coding Mom's audience, and that
+  /// borrowing is expressed per item (`ContentItem.brandId`), not here.
+  ///
+  /// A list rather than a single `brandId` because splitting one project's
+  /// voice in two (a Japanese and a Chinese Utaitai, say) should not need a
+  /// migration. Today every project runs exactly one or none.
+  brands Brand[]
   items  ContentItem[]
   series Series[]
   tasks  Task[]
@@ -409,11 +418,36 @@ model Brand {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  /// The project this identity *is the work of*, if any — the missing link
+  /// between the two axes (§6, "Brand and Project are two axes"). Added
+  /// 2026-08-07.
+  ///
+  /// Brand answers *who is talking* and Project answers *what it's about*, and
+  /// that stays true per item. What was missing is that three of four projects
+  /// **run an account**: Sleepy Cat runs @sleepycatgame, Coding Mom runs
+  /// @codingmom, Utaitai runs its five. Without this the app could not show a
+  /// project its own channels, and the Coding Mom project page showed 3 of the
+  /// 31 items that *are* its entire job.
+  ///
+  /// Two things it deliberately is **not**:
+  ///
+  /// 1. **Not a constraint on an item.** It only supplies the default project
+  ///    when composing under this brand. A Sleepy Cat devlog posted from
+  ///    @codingmom is still one row with `brandId: coding-mom` and
+  ///    `projectId: sleepy-cat`, and changing your mind about whether Sleepy
+  ///    Cat rides Coding Mom is editing those items' brand — never a migration.
+  /// 2. **Not ownership of the content.** Deleting a project nulls this and
+  ///    leaves the brand and every post standing, same as every other relation
+  ///    pointing at a Project. Only docs cascade.
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
   channels Channel[]
   items    ContentItem[]
   series   Series[]
 
   @@index([sortOrder])
+  @@index([projectId])
 }
 
 /// One real account. Belongs to exactly one Brand.

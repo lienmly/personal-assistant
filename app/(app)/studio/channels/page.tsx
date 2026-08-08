@@ -27,6 +27,7 @@ export default async function ChannelsPage() {
     name: brand.name,
     tagline: brand.tagline,
     color: brand.color,
+    projectId: brand.projectId,
     channels: brand.channels.map((channel) => ({
       id: channel.id,
       platform: channel.platform,

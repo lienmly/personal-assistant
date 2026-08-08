@@ -221,12 +221,23 @@ const PROJECTS = [
   },
 ];
 
+/**
+ * `projectSlug` is the project this identity is *the work of* — see the note on
+ * `Brand.projectId`. Set on **create only**: there is a picker for it on
+ * Studio → Channels, so it is a decision made in the app, and a re-seed that
+ * reasserted it would be the same failure the Project upsert's `update: {}` and
+ * the Series upsert's dropped `isActive` both exist to prevent.
+ *
+ * Forge is deliberately absent: it runs no account of its own and rides Coding
+ * Mom's audience, which is expressed per item rather than here.
+ */
 const BRANDS = [
   {
     slug: "utaitai",
     name: "Utaitai",
     tagline: "The app's own voice — songs, language, learning.",
     color: "#de1f4c",
+    projectSlug: "utaitai",
     sortOrder: 0,
     channels: [
       {
@@ -253,6 +264,11 @@ const BRANDS = [
     tagline:
       "Me. Building apps and games for moms, babies and families — and being my own UGC.",
     color: "#c2557a",
+    // Both a Brand and a Project, and this is where that stops being a
+    // coincidence: the Coding Mom *project* is the work of running this account,
+    // so its page shows everything published here — including the ~20 items
+    // about no project at all, which are still that project's whole job.
+    projectSlug: "coding-mom",
     sortOrder: 1,
     channels: [
       { platform: "tiktok", handle: "codingmom", label: "Main", state: "planned" },
@@ -275,6 +291,7 @@ const BRANDS = [
     name: "Sleepy Cat",
     tagline: "The game's own account — devlog and art, aimed at players.",
     color: "#5b7fa8",
+    projectSlug: "sleepy-cat",
     sortOrder: 2,
     // Seven, as of 2026-08-05 — the game's own presence, created ahead of the
     // Steam page so the links on it point at something. All `planned`: the row
@@ -684,11 +701,19 @@ async function main() {
     });
   }
 
-  for (const { channels, ...brand } of BRANDS) {
+  for (const { channels, projectSlug, ...brand } of BRANDS) {
+    const owner = projectSlug
+      ? await db.project.findUnique({
+          where: { slug: projectSlug },
+          select: { id: true },
+        })
+      : null;
+
     const saved = await db.brand.upsert({
       where: { slug: brand.slug },
+      // `projectId` is create-only on purpose — see the note on BRANDS.
       update: { name: brand.name, tagline: brand.tagline, color: brand.color },
-      create: brand,
+      create: { ...brand, projectId: owner?.id ?? null },
     });
 
     for (const [index, channel] of channels.entries()) {

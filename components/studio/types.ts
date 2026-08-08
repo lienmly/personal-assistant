@@ -25,6 +25,9 @@ export type BrandView = {
   name: string;
   slug: string;
   color: string;
+  /** The project this brand is the work of, if any — see `Brand.projectId`.
+   *  Supplies the composer's default project; never a constraint on the item. */
+  projectId: string | null;
   channels: ChannelView[];
 };
 

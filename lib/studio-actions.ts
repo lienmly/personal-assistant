@@ -332,6 +332,34 @@ export async function saveBrand(form: FormData) {
   refresh();
 }
 
+/**
+ * Point a brand at the project whose work it is, or at nothing.
+ *
+ * Its own action rather than a field on `saveBrand` because there is no brand
+ * editor to hang it off — and because it has to be editable *somewhere*, or the
+ * link would be settable only from the seed, which is how the noun you cannot
+ * edit becomes the noun whose data is wrong (§6, "The roster is the editor").
+ *
+ * Changing it re-aims the composer's default and re-cuts both project pages'
+ * Social media tab. It moves no content: every item keeps the brand and project
+ * it was saved with.
+ */
+export async function setBrandProject(form: FormData) {
+  await requireSession();
+
+  const id = str(form, "id");
+  if (!id) throw new Error("Which brand?");
+
+  await db.brand.update({
+    where: { id },
+    data: { projectId: str(form, "projectId") },
+  });
+
+  // `refresh()` already revalidates `/projects/[slug]`, which is what this
+  // actually changes the most.
+  refresh();
+}
+
 export async function saveChannel(form: FormData) {
   await requireSession();
 

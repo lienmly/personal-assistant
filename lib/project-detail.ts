@@ -20,9 +20,35 @@ import { todayKey } from "@/lib/utils";
 export async function getProjectDetail(slug: string) {
   const project = await db.project.findUnique({
     where: { slug },
-    include: { area: { select: { id: true, name: true, color: true } } },
+    include: {
+      area: { select: { id: true, name: true, color: true } },
+      // The accounts this project runs, in one join rather than a second round
+      // trip. Usually one; Forge has none.
+      brands: {
+        orderBy: { sortOrder: "asc" },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          color: true,
+          channels: {
+            orderBy: { sortOrder: "asc" },
+            select: {
+              id: true,
+              platform: true,
+              handle: true,
+              label: true,
+              url: true,
+              state: true,
+            },
+          },
+        },
+      },
+    },
   });
   if (!project) return null;
+
+  const brandIds = project.brands.map((brand) => brand.id);
 
   const [tasks, items, docs, series, events] = await Promise.all([
     db.task.findMany({
@@ -33,8 +59,19 @@ export async function getProjectDetail(slug: string) {
       orderBy: [{ status: "asc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
       select: { ...TASK_VIEW_SELECT, completedAt: true },
     }),
+    // Two questions, one query. **What this project publishes** is everything
+    // going out of an account it runs — including the items about no project at
+    // all, which for Coding Mom are 20 of its 31 and are its entire job. **What
+    // is published about it** is anything carrying its id, whoever posts it:
+    // Forge's five hardware essays go out of Coding Mom's account, and before
+    // this the Forge page was the only place they appeared at all.
+    //
+    // Asking `projectId` alone was the bug — it showed Coding Mom 3 of 31, and
+    // showed Sleepy Cat nothing about the seven accounts it has to build.
     db.contentItem.findMany({
-      where: { projectId: project.id },
+      where: {
+        OR: [{ projectId: project.id }, ...(brandIds.length > 0 ? [{ brandId: { in: brandIds } }] : [])],
+      },
       orderBy: [{ publishAt: "asc" }, { createdAt: "desc" }],
       select: {
         id: true,
@@ -42,6 +79,8 @@ export async function getProjectDetail(slug: string) {
         stage: true,
         format: true,
         publishAt: true,
+        brandId: true,
+        projectId: true,
         series: { select: { name: true } },
         brand: { select: { name: true, color: true } },
       },
@@ -65,10 +104,19 @@ export async function getProjectDetail(slug: string) {
   const open = tasks.filter((task) => task.status !== "done");
   const idle = daysSince(project.lastTouchedAt);
 
+  // The two sections partition `items` exactly — every row matched one arm of
+  // the OR above, and a row that matched both (this project, posted from its
+  // own account) belongs to `own`, so nothing is listed twice.
+  const owned = new Set(brandIds);
+  const own = items.filter((item) => owned.has(item.brandId));
+  const elsewhere = items.filter((item) => !owned.has(item.brandId));
+
   return {
     project,
     tasks,
     items,
+    own,
+    elsewhere,
     docs,
     series,
     events,
@@ -80,8 +128,16 @@ export async function getProjectDetail(slug: string) {
           task.dueDate !== null &&
           task.dueDate.toISOString().slice(0, 10) < today,
       ).length,
+      // Counted over the union, not over `projectId` alone — the Coding Mom
+      // project's real workload is the 31 items going out of its account, not
+      // the 3 that happen to be *about* audience-building.
       scheduled: items.filter((item) => item.stage !== "published").length,
       published: items.filter((item) => item.stage === "published").length,
+      channels: project.brands.reduce((n, b) => n + b.channels.length, 0),
+      channelsLive: project.brands.reduce(
+        (n, b) => n + b.channels.filter((c) => c.state === "live").length,
+        0,
+      ),
       docs: docs.length,
       idle,
       // Same rule as the roster and Today: only an `active` project can drift,

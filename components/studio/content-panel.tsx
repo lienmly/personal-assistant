@@ -43,9 +43,31 @@ export function ContentPanel({
   onClose: () => void;
 }) {
   const [pending, startTransition] = useTransition();
-  const [brandId, setBrandId] = useState(
-    item?.brand.id ?? defaultBrandId ?? brands[0]?.id ?? "",
+  const initialBrandId = item?.brand.id ?? defaultBrandId ?? brands[0]?.id ?? "";
+  const [brandId, setBrandId] = useState(initialBrandId);
+
+  // The project follows the brand until you say otherwise. Three of four
+  // projects run an account, so under @sleepycatgame the answer is Sleepy Cat
+  // essentially always — and leaving the field empty by default is what left 20
+  // items filed under nothing and made a project page look emptier than it is.
+  //
+  // It is only ever a *default*: pick a project yourself and the field stops
+  // following, and an existing item never moves on its own, because whatever it
+  // says now is a decision somebody already made. That is what keeps "should
+  // Sleepy Cat post from Coding Mom?" an item-by-item question.
+  const [projectId, setProjectId] = useState(
+    item
+      ? (item.project?.id ?? "")
+      : (brands.find((b) => b.id === initialBrandId)?.projectId ?? ""),
   );
+  const [projectPinned, setProjectPinned] = useState(item != null);
+
+  function pickBrand(nextBrandId: string) {
+    setBrandId(nextBrandId);
+    if (!projectPinned) {
+      setProjectId(brands.find((b) => b.id === nextBrandId)?.projectId ?? "");
+    }
+  }
   const [error, setError] = useState<string | null>(null);
   // The panel unmounts itself only once its exit animation has finished, so
   // closing slides out instead of vanishing. Every dismissal goes through
@@ -149,7 +171,7 @@ export function ContentPanel({
                   id="item-brand"
                   name="brandId"
                   value={brandId}
-                  onChange={(event) => setBrandId(event.target.value)}
+                  onChange={(event) => pickBrand(event.target.value)}
                   className={field}
                 >
                   {brands.map((option) => (
@@ -166,7 +188,11 @@ export function ContentPanel({
                 <select
                   id="item-project"
                   name="projectId"
-                  defaultValue={item?.project?.id ?? ""}
+                  value={projectId}
+                  onChange={(event) => {
+                    setProjectPinned(true);
+                    setProjectId(event.target.value);
+                  }}
                   className={field}
                 >
                   <option value="">None — brand building</option>
