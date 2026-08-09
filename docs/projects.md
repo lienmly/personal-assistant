@@ -1,7 +1,8 @@
 # Project pages
 
 _Written 2 August 2026, the day docs stopped living in a folder.
-Updated 5 August 2026, when the roster went._
+Updated 5 August 2026, when the roster went, and 9 August 2026, when a project got a
+journal._
 
 ## Every project has a page now
 
@@ -22,7 +23,7 @@ three jobs moved onto those cards rather than going with it:
   card proper because a paused project is parked, not owed — but this is the only way back
   to one, so un-archiving means opening it from there and changing its status.
 
-## The four tabs
+## The five tabs
 
 **Overview** — Next up (the first five open tasks), your first doc rendered in full,
 what content is queued, and any standing series or calendar blocks. Four stat tiles across
@@ -36,7 +37,15 @@ and none of those mean anything once you've already decided which project you're
 two-axis model paying off: a Sleepy Cat devlog posted from Coding Mom's TikTok shows up
 here *and* under Coding Mom's brand filter in the Content Studio.
 
-**Docs** — see below.
+**Journal** — the devlog, added 9 August. Same thing the Baby area has: entries land on
+today, grouped into one thread per day, with photos and the in-app camera. It points
+*backwards* — what changed, what finally worked, what broke — which is what makes it a
+different tab from the four around it, all of which are things still owed. You can only
+write into today, and you can edit what you wrote but never move its date. Full notes are
+in `areas.md`.
+
+**Docs** — see below. Different from the Journal on purpose: a doc is a page you keep
+rewriting, a journal entry is a dated record you add to and leave alone.
 
 ## Docs
 

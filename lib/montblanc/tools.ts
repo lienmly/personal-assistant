@@ -527,13 +527,18 @@ const createJournalEntry: Tool = {
     function: {
       name: "create_journal_entry",
       description:
-        "Record something that ALREADY HAPPENED, in an area's journal — a milestone, a memory, how a day went. It always lands on today; there is no back-dating. Never use this for anything owed.",
+        "Record something that ALREADY HAPPENED — a milestone, a memory, how a day went, or what changed on a project (a devlog). It always lands on today; there is no back-dating. Never use this for anything owed. Give EITHER areaSlug OR projectSlug, never both: a project's journal is its devlog, an area's is everything else.",
       parameters: {
         type: "object",
         properties: {
           areaSlug: {
             type: "string",
-            description: "Usually 'baby'.",
+            description: "Usually 'baby'. Omit if projectSlug is given.",
+          },
+          projectSlug: {
+            type: "string",
+            description:
+              "The project this is a devlog entry for. Omit if areaSlug is given.",
           },
           body: {
             type: "string",
@@ -544,30 +549,59 @@ const createJournalEntry: Tool = {
             description: "A short headline. Optional.",
           },
         },
-        required: ["areaSlug", "body"],
+        required: ["body"],
       },
     },
   },
   async run(args) {
     const areaSlug = text(args, "areaSlug");
-    const area = await findArea(areaSlug);
-    if (!area) return unknown("area", areaSlug);
+    const projectSlug = text(args, "projectSlug");
+
+    if (areaSlug && projectSlug)
+      return {
+        summary:
+          "FAILED: an entry belongs to an area or a project, not both. Ask the user which one.",
+        events: [],
+      };
+    if (!areaSlug && !projectSlug)
+      return {
+        summary:
+          "FAILED: needs an area or a project to file this under. Ask which.",
+        events: [],
+      };
+
+    // Resolved to whichever the model named, then handed to the same server
+    // action the composer submits to — which is where the exactly-one-of rule
+    // actually lives, so this cannot get past it by asking nicely.
+    const owner = projectSlug
+      ? await findProject(projectSlug)
+      : await findArea(areaSlug);
+    if (!owner)
+      return unknown(projectSlug ? "project" : "area", projectSlug ?? areaSlug);
 
     const body = text(args, "body");
     if (!body) return { summary: "FAILED: needs something to say.", events: [] };
 
     const id = await saveJournalEntry(
-      form({ areaId: area.id, body, title: text(args, "title") }),
+      form({
+        ...(projectSlug ? { projectId: owner.id } : { areaId: owner.id }),
+        body,
+        title: text(args, "title"),
+      }),
     );
 
+    const href = projectSlug
+      ? `/projects/${owner.slug}?tab=journal`
+      : `/areas/${owner.slug}`;
+
     return {
-      summary: `Wrote a journal entry (id ${id}) in the ${area.name} area, dated today.`,
+      summary: `Wrote a journal entry (id ${id}) on ${owner.name}, dated today.`,
       events: receiptEvent({
         kind: "journalEntry",
         id,
         label: text(args, "title") ?? body.slice(0, 60),
-        where: `${area.name} · ${todayKey()}`,
-        href: `/areas/${area.slug}`,
+        where: `${owner.name} · ${todayKey()}`,
+        href,
       }),
     };
   },

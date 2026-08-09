@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, CalendarDays, Radio, Repeat } from "lucide-react";
 
+import { Journal } from "@/components/areas/journal";
 import type { AreaView, BoardProjectView, TaskView } from "@/components/board/types";
 import { DocsTab, type DocView } from "@/components/docs/docs-tab";
 import { NextUp } from "@/components/projects/next-up";
@@ -10,6 +11,7 @@ import { TaskList } from "@/components/tasks/task-list";
 import { Card, CardHeader, StatTile } from "@/components/ui/card";
 import { Markdown } from "@/components/ui/markdown";
 import { db } from "@/lib/db";
+import { getJournal } from "@/lib/journal";
 import { getProjectDetail } from "@/lib/project-detail";
 import { toTaskView } from "@/lib/task-view";
 import { cn, todayKey } from "@/lib/utils";
@@ -27,7 +29,7 @@ const stampFormat = new Intl.DateTimeFormat("en-GB", {
   minute: "2-digit",
 });
 
-const TABS = ["overview", "tasks", "content", "docs"] as const;
+const TABS = ["overview", "tasks", "content", "journal", "docs"] as const;
 type Tab = (typeof TABS)[number];
 
 /** The tab's label, where it differs from its slug. The slug stays "content"
@@ -37,6 +39,7 @@ const TAB_LABELS: Record<Tab, string> = {
   overview: "Overview",
   tasks: "Tasks",
   content: "Social media",
+  journal: "Journal",
   docs: "Docs",
 };
 
@@ -139,6 +142,15 @@ export default async function ProjectPage({
     detail;
   const tab: Tab = TABS.includes(query.tab as Tab) ? (query.tab as Tab) : "overview";
   const today = todayKey();
+
+  // Only the active tab's heavy read runs, the same rule the area page follows.
+  // The journal pulls every entry and its media metadata for this project, which
+  // is the one query here that grows without bound — no reason to run it to
+  // render Overview. It waits on `detail` because it needs the project's id, so
+  // it is a second round trip rather than a fifth parallel one; that costs one
+  // query's latency on one tab, and nothing at all on the other four.
+  const days =
+    tab === "journal" ? await getJournal({ projectId: project.id }, today) : [];
 
   const taskViews: TaskView[] = tasks.map((task) => toTaskView(task, today));
 
@@ -545,6 +557,20 @@ export default async function ProjectPage({
             Open Social Media →
           </Link>
         </div>
+      )}
+
+      {/* The devlog. Same component as the Baby area's journal, and the same
+          noun: something that already happened, as opposed to the four tabs
+          around it, which are all things that are owed or going out. A project
+          keeps one for the reason an area does — "the level order finally
+          reads" is worth having written down on the day it became true, and it
+          is not a task, an event or a post. */}
+      {tab === "journal" && (
+        <Journal
+          owner={{ projectId: project.id }}
+          ownerName={project.name}
+          days={days}
+        />
       )}
 
       {tab === "docs" && (

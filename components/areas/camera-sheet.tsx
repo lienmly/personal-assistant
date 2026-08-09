@@ -7,7 +7,8 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import { Camera, RefreshCw, Video, X } from "lucide-react";
+import { createPortal } from "react-dom";
+import { RefreshCw, Sparkles, X } from "lucide-react";
 
 import {
   DEFAULT_FILTER,
@@ -58,6 +59,9 @@ export type CapturedMedia = {
   durationMs: number | null;
 };
 
+/** The rectangle of the camera's frame that is actually on screen. */
+type Crop = { sx: number; sy: number; sw: number; sh: number };
+
 let recorderTypeCache: string | null | undefined;
 
 function pickRecorderType(): string | null {
@@ -97,9 +101,47 @@ function now(): number {
   return Date.now();
 }
 
+/** The shutter ring's geometry. One place, because the SVG and the arithmetic
+ *  that fills it have to agree. */
+const RING_RADIUS = 34;
+const RING_LENGTH = 2 * Math.PI * RING_RADIUS;
+
 /**
- * The in-app camera: a live preview, a filter row, a shutter and a ten-second
- * clip button.
+ * The in-app camera: a viewfinder that fills the screen, with everything else
+ * floating over it.
+ *
+ * **The preview *is* the screen** (2026-08-09, modelled on TikTok's capture
+ * layout). It used to be a stacked card — a header row, a 4:3 tile, a filter
+ * row, two buttons — which spent well over half a phone's height on chrome
+ * around a picture you are holding the phone up to take. Every native camera
+ * puts the frame edge to edge and the controls on top of it, for the good reason
+ * that the only thing you are looking at is the frame. So: a full-bleed preview,
+ * a close and a flip floating in the corners, a mode strip and one big shutter
+ * at the bottom, and the colour grades tucked behind a toggle so the default
+ * state is just the picture.
+ *
+ * **The chrome is white-on-dark in both themes, deliberately.** This is the same
+ * argument `--color-viewer` makes (CLAUDE.md §6, "A thumbnail is a promise"): a
+ * viewfinder is dark everywhere, and a light-theme camera would put a pale bar
+ * over live video. The one accent on the surface is the shutter, which is §9's
+ * one-accent-per-region budget spent on the thing you came here to press.
+ *
+ * **What you see is what gets stored.** The preview covers its box, so a 16:9
+ * camera in a portrait frame has its sides off screen — and the capture crops to
+ * exactly the same rectangle rather than quietly storing the whole sensor frame.
+ * That is the rule the filters already follow (one CSS string, two consumers, so
+ * a preview cannot lie about the result), applied to geometry.
+ *
+ * **It is portalled to `<body>`, and that is load-bearing rather than tidy.**
+ * `animate-rise` finishes on `transform: translateY(0)` under
+ * `animation-fill-mode: both`, so every day section in the journal permanently
+ * carries a transform — and a transformed ancestor is the containing block for
+ * `position: fixed`. Rendered in place, a "full screen" camera is pinned inside
+ * the day it was opened from: on a desktop the section is nearly the width of
+ * the page and it looks almost right, and on a phone the viewfinder starts below
+ * the tab strip and ends above the tab bar. Same mechanism the media viewer
+ * portals around (CLAUDE.md §6, "A thumbnail is a promise"), found the same way
+ * — by looking at it at 390px rather than by reading it.
  *
  * **What this cannot do, and says so on screen: save to the phone's camera
  * roll.** There is no web API that writes to the photo library, and a photo
@@ -109,10 +151,10 @@ function now(): number {
  * (`SaveToPhotos` in `journal.tsx`) rather than here, because it is worth having
  * for photos that arrived from the library too.
  *
- * Everything is torn down in one place — `stop()` — and it is called on close,
- * on unmount and before every camera flip. A `getUserMedia` stream that is not
- * explicitly stopped leaves the camera light on, which on a phone reads as the
- * app watching you.
+ * Everything is torn down in one place — `stopStream()` — and it is called on
+ * close, on unmount and before every camera flip. A `getUserMedia` stream that is
+ * not explicitly stopped leaves the camera light on, which on a phone reads as
+ * the app watching you.
  */
 export function CameraSheet({
   onCapture,
@@ -122,6 +164,7 @@ export function CameraSheet({
   onClose: () => void;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const frameRef = useRef<HTMLDivElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const drawRef = useRef<number | null>(null);
@@ -129,6 +172,8 @@ export function CameraSheet({
 
   const [facing, setFacing] = useState<"user" | "environment">("environment");
   const [filterId, setFilterId] = useState(DEFAULT_FILTER.id);
+  const [mode, setMode] = useState<"photo" | "clip">("photo");
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [recording, setRecording] = useState(false);
@@ -219,27 +264,78 @@ export function CameraSheet({
     };
   }, [facing, stopStream]);
 
-  /** The frame the video is currently showing, scaled to fit `maxEdge`. */
-  function frameSize(maxEdge: number) {
+  /**
+   * The part of the camera's frame the preview is actually showing.
+   *
+   * The `<video>` is `object-cover` inside a frame that is rarely the camera's
+   * own shape — a 16:9 webcam in a portrait window loses its sides. Capturing
+   * the whole sensor frame would store a picture nobody composed, wider than the
+   * one on screen, which is the same failure the filters go to some trouble to
+   * avoid: **the preview must not lie about the result.**
+   *
+   * Read once per capture rather than per frame — `clientWidth` forces layout,
+   * and a clip repainting through a canvas would ask thirty times a second.
+   */
+  function cropOf(): Crop {
     const video = videoRef.current;
-    const width = video?.videoWidth || 1280;
-    const height = video?.videoHeight || 720;
-    const scale = Math.min(1, maxEdge / Math.max(width, height));
+    const sw = video?.videoWidth || 1280;
+    const sh = video?.videoHeight || 720;
+
+    const box = frameRef.current;
+    if (!box?.clientWidth || !box.clientHeight) return { sx: 0, sy: 0, sw, sh };
+
+    const shown = box.clientWidth / box.clientHeight;
+    const source = sw / sh;
+    // A hair of tolerance, so a frame that already matches takes the cheap path
+    // rather than a 1px crop.
+    if (Math.abs(source - shown) < 0.01) return { sx: 0, sy: 0, sw, sh };
+
+    if (source > shown) {
+      const width = Math.round(sh * shown);
+      return { sx: Math.round((sw - width) / 2), sy: 0, sw: width, sh };
+    }
+    const height = Math.round(sw / shown);
+    return { sx: 0, sy: Math.round((sh - height) / 2), sw, sh: height };
+  }
+
+  function isCropped(crop: Crop): boolean {
+    const video = videoRef.current;
+    return (
+      crop.sw !== (video?.videoWidth || 1280) ||
+      crop.sh !== (video?.videoHeight || 720)
+    );
+  }
+
+  /** The stored size: the visible rectangle, scaled to fit `maxEdge`. Even, so
+   *  no encoder has to round it. */
+  function outputSize(crop: Crop, maxEdge: number) {
+    const scale = Math.min(1, maxEdge / Math.max(crop.sw, crop.sh));
     return {
-      width: Math.max(2, Math.round((width * scale) / 2) * 2),
-      height: Math.max(2, Math.round((height * scale) / 2) * 2),
+      width: Math.max(2, Math.round((crop.sw * scale) / 2) * 2),
+      height: Math.max(2, Math.round((crop.sh * scale) / 2) * 2),
     };
   }
 
   function paint(
     context: CanvasRenderingContext2D,
+    crop: Crop,
     width: number,
     height: number,
   ) {
     const video = videoRef.current;
     if (!video) return;
     context.filter = canFilter ? filter.css : "none";
-    context.drawImage(video, 0, 0, width, height);
+    context.drawImage(
+      video,
+      crop.sx,
+      crop.sy,
+      crop.sw,
+      crop.sh,
+      0,
+      0,
+      width,
+      height,
+    );
     if (canFilter) drawVignette(context, width, height, filter.vignette);
   }
 
@@ -247,7 +343,8 @@ export function CameraSheet({
     if (!ready || busy) return;
     setBusy(true);
 
-    const { width, height } = frameSize(PHOTO_MAX_EDGE);
+    const crop = cropOf();
+    const { width, height } = outputSize(crop, PHOTO_MAX_EDGE);
     const canvas = document.createElement("canvas");
     canvas.width = width;
     canvas.height = height;
@@ -258,7 +355,7 @@ export function CameraSheet({
       return;
     }
 
-    paint(context, width, height);
+    paint(context, crop, width, height);
 
     const blob = await new Promise<Blob | null>((resolve) =>
       canvas.toBlob(resolve, "image/jpeg", 0.85),
@@ -284,16 +381,20 @@ export function CameraSheet({
     const type = pickRecorderType();
     if (!ready || busy || recording || !stream || !type) return;
 
-    const { width, height } = frameSize(VIDEO_MAX_EDGE);
+    const crop = cropOf();
+    const { width, height } = outputSize(crop, VIDEO_MAX_EDGE);
 
-    // With no filter there is nothing to bake, so the camera's own track is
-    // recorded directly — better quality and far less work than repainting every
-    // frame through a canvas on a phone. With a filter, the canvas *is* the
-    // picture, so it becomes the source and the microphone is added back.
+    // The camera's own track is recorded directly whenever it is already the
+    // picture on screen — better quality, and far less work than repainting
+    // every frame through a canvas on a phone. A filter or a crop makes the
+    // canvas the picture instead, so it becomes the source and the microphone is
+    // added back. On a phone the preview usually matches the camera's shape, so
+    // the cheap path is the common one.
+    const filtered = canFilter && filter.id !== DEFAULT_FILTER.id;
     let source: MediaStream;
     let canvas: HTMLCanvasElement | null = null;
 
-    if (!canFilter || filter.id === DEFAULT_FILTER.id) {
+    if (!filtered && !isCropped(crop)) {
       source = stream;
     } else {
       canvas = document.createElement("canvas");
@@ -306,7 +407,7 @@ export function CameraSheet({
       }
 
       const draw = () => {
-        paint(context, width, height);
+        paint(context, crop, width, height);
         drawRef.current = requestAnimationFrame(draw);
       };
       draw();
@@ -386,6 +487,15 @@ export function CameraSheet({
     }
   }
 
+  function press() {
+    if (mode === "photo") {
+      takePhoto();
+      return;
+    }
+    if (recording) stopClip();
+    else startClip();
+  }
+
   // The countdown ring. A recording that stops by itself at ten seconds needs to
   // say so before it happens, or the cut reads as a failure.
   useEffect(() => {
@@ -398,6 +508,17 @@ export function CameraSheet({
     return () => clearInterval(timer);
   }, [recording]);
 
+  // The page behind must not scroll under a full-screen viewfinder — the same
+  // rule the media viewer follows, and for the same reason: on a phone a drag
+  // meant for the camera would otherwise scroll the journal underneath it.
+  useEffect(() => {
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, []);
+
   // Escape closes, which is the one keyboard affordance a full-screen overlay
   // genuinely owes.
   useEffect(() => {
@@ -409,154 +530,306 @@ export function CameraSheet({
   }, [onClose, recording]);
 
   const remaining = Math.ceil((MAX_CLIP_MS - elapsed) / 1000);
+  const modes: { id: "photo" | "clip"; label: string }[] = canRecord
+    ? [
+        { id: "photo", label: "Photo" },
+        { id: "clip", label: "10s clip" },
+      ]
+    : [{ id: "photo", label: "Photo" }];
 
-  return (
-    /* Full screen on a phone, a dialog on a pointer device.
-     *
-     * A camera in a window is a camera you are holding a phone up to and
-     * looking at a third of. This is the one surface in the app where the
-     * content genuinely wants the whole viewport: the preview *is* the screen,
-     * and every native camera behaves this way. Above `sm` there is a pointer,
-     * a large display and other things worth still seeing, so it stays the
-     * centred card it was. */
+  /* Full screen on a phone, a phone-shaped window on a pointer device.
+   *
+   * A camera in a small landscape card is a camera you are looking at a third
+   * of. Above `sm` there is a pointer, a large display and other things worth
+   * still seeing, so it stays a window — but the *shape* is the same at both
+   * sizes now, which is what lets one set of overlaid controls serve both.
+   *
+   * Portalled — see the note on the component. `CameraSheet` is only ever
+   * rendered while open, so there is no `document` touched on the server. */
+  return createPortal(
     <div
-      className="animate-scrim-in fixed inset-0 z-50 bg-scrim sm:flex sm:items-center sm:justify-center sm:p-3"
+      className="animate-scrim-in fixed inset-0 z-50 bg-scrim sm:grid sm:place-items-center sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-label="Camera"
     >
-      <div className="animate-panel-in flex h-full w-full flex-col overflow-hidden bg-card sm:h-auto sm:max-w-lg sm:rounded-tile sm:shadow-card">
-        <div className="flex items-center justify-between gap-2 px-4 py-3">
-          <span className="text-[13px] font-medium text-ink">
-            {recording ? `Recording · ${remaining}s` : "Camera"}
-          </span>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
+      <div
+        ref={frameRef}
+        /* `animate-rise`, not `animate-panel-in`: this arrives, it does not
+           slide in from the edge. The panel animation is the side panel's, and
+           on a centred dialog it reads as the wrong thing coming from the wrong
+           place (§10 — `animate-rise` is what cards and surfaces arrive with). */
+        className="animate-rise relative h-full w-full overflow-hidden bg-black sm:h-[min(78vh,44rem)] sm:w-[min(26rem,92vw)] sm:rounded-card sm:shadow-float"
+      >
+        <video
+          ref={videoRef}
+          playsInline
+          muted
+          className="absolute inset-0 size-full object-cover"
+          style={{ filter: canFilter ? filter.css : undefined }}
+        />
+        {canFilter && filter.vignette > 0 && (
+          <div
+            className="pointer-events-none absolute inset-0"
+            style={{ background: vignetteCss(filter.vignette) }}
+          />
+        )}
+
+        {/* Two gradients, and they are not decoration: white chrome over live
+            video is legible against a face and invisible against a window. A
+            scrim at each end costs nothing and makes every control readable
+            whatever is being filmed. */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/55 to-transparent" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-black/85 via-black/45 to-transparent" />
+
+        {!ready && !error && (
+          <p className="absolute inset-0 grid place-items-center text-[13px] text-white/70">
+            Opening the camera…
+          </p>
+        )}
+        {error && (
+          <p className="absolute inset-0 grid place-items-center px-8 text-center text-[13px] leading-relaxed text-white/80">
+            {error}
+          </p>
+        )}
+
+        {/* ── Top: close, and the recording clock ──────────────────────────── */}
+        <div
+          className="absolute inset-x-0 top-0 flex items-start justify-between p-3"
+          style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}
+        >
+          <GlassButton
+            onClick={onClose}
+            disabled={recording}
+            label="Close camera"
+          >
+            <X className="size-5" strokeWidth={2} />
+          </GlassButton>
+
+          {recording && (
+            <span className="mt-1 flex items-center gap-1.5 rounded-full bg-accent px-2.5 py-1 text-[11px] font-medium text-white">
+              <span className="size-1.5 animate-pulse rounded-full bg-white" />
+              {`${remaining}s`}
+            </span>
+          )}
+
+          {/* The rail. Flip, and the grades — both are things you do *to* the
+              shot, which is why they sit together and away from the shutter. */}
+          <div className="flex flex-col gap-2">
+            <GlassButton
               onClick={() =>
-                setFacing((value) =>
-                  value === "user" ? "environment" : "user",
-                )
+                setFacing((value) => (value === "user" ? "environment" : "user"))
               }
               disabled={recording || !ready}
-              aria-label="Switch camera"
-              className="grid size-8 place-items-center rounded-full text-faint transition-colors duration-(--duration-quick) hover:bg-inset hover:text-ink active:scale-90 disabled:opacity-40"
+              label="Switch camera"
             >
-              <RefreshCw className="size-4" strokeWidth={2} />
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={recording}
-              aria-label="Close camera"
-              className="grid size-8 place-items-center rounded-full text-faint transition-[background-color,color,transform] duration-(--duration-base) ease-soft hover:rotate-90 hover:bg-inset hover:text-ink disabled:opacity-40"
-            >
-              <X className="size-4" strokeWidth={2} />
-            </button>
+              <RefreshCw className="size-4.5" strokeWidth={2} />
+            </GlassButton>
+            {canFilter && (
+              <GlassButton
+                onClick={() => setFiltersOpen((open) => !open)}
+                disabled={recording}
+                label={filtersOpen ? "Hide filters" : "Show filters"}
+                active={filtersOpen || filter.id !== DEFAULT_FILTER.id}
+              >
+                <Sparkles className="size-4.5" strokeWidth={2} />
+              </GlassButton>
+            )}
           </div>
         </div>
 
-        {/* `flex-1` with `min-h-0` so the preview takes whatever the header and
-            controls leave; a fixed 4:3 tile only once there is room for one. */}
-        <div className="relative w-full min-h-0 flex-1 overflow-hidden bg-inset sm:aspect-[4/3] sm:flex-none">
-          <video
-            ref={videoRef}
-            playsInline
-            muted
-            className="size-full object-cover"
-            style={{ filter: canFilter ? filter.css : undefined }}
-          />
-          {canFilter && filter.vignette > 0 && (
-            <div
-              className="pointer-events-none absolute inset-0"
-              style={{ background: vignetteCss(filter.vignette) }}
-            />
-          )}
-
-          {recording && (
-            <div className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-accent px-2.5 py-1 text-[11px] font-medium text-white">
-              <span className="size-1.5 animate-pulse rounded-full bg-white" />
-              {`${remaining}s`}
+        {/* ── Bottom: grades, mode, shutter ────────────────────────────────── */}
+        <div
+          className="absolute inset-x-0 bottom-0 flex flex-col items-center gap-3 px-4 pt-4"
+          style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+        >
+          {canFilter && filtersOpen && (
+            <div className="no-scrollbar -mx-4 flex max-w-full gap-1.5 overflow-x-auto px-4">
+              {JOURNAL_FILTERS.map((entry) => (
+                <button
+                  key={entry.id}
+                  type="button"
+                  onClick={() => setFilterId(entry.id)}
+                  className={cn(
+                    "shrink-0 rounded-chip px-3 py-1.5 text-[12px] transition-[background-color,color] duration-(--duration-base) ease-soft active:scale-[0.97]",
+                    entry.id === filterId
+                      ? "bg-white font-medium text-black"
+                      : "bg-white/15 text-white/85 backdrop-blur-sm hover:bg-white/25",
+                  )}
+                >
+                  {entry.label}
+                </button>
+              ))}
             </div>
           )}
 
-          {!ready && !error && (
-            <div className="absolute inset-0 grid place-items-center text-[13px] text-muted">
-              Opening the camera…
-            </div>
-          )}
-          {error && (
-            <div className="absolute inset-0 grid place-items-center px-6 text-center text-[13px] leading-relaxed text-muted">
-              {error}
-            </div>
-          )}
-        </div>
-
-        {canFilter && (
-          <div className="flex gap-1.5 overflow-x-auto px-4 py-3">
-            {JOURNAL_FILTERS.map((entry) => (
+          {/* The mode strip, and it replaces two buttons that both looked like
+              the primary action. Naming the mode first and then pressing one
+              shutter is how every camera works, and it is what makes room for a
+              shutter big enough to hit one-handed. Hidden while recording: the
+              answer is already committed and a live control that cannot be used
+              is just noise. */}
+          <div
+            className={cn(
+              "flex items-center gap-1 transition-opacity duration-(--duration-base) ease-soft",
+              recording && "pointer-events-none opacity-0",
+            )}
+          >
+            {modes.map((entry) => (
               <button
                 key={entry.id}
                 type="button"
-                onClick={() => setFilterId(entry.id)}
+                onClick={() => setMode(entry.id)}
+                aria-pressed={mode === entry.id}
                 className={cn(
-                  "shrink-0 rounded-chip px-3 py-1.5 text-[12px] transition-[background-color,color] duration-(--duration-base) ease-soft active:scale-[0.97]",
-                  entry.id === filterId
-                    ? "bg-obsidian font-medium text-white"
-                    : "bg-inset text-muted hover:text-ink",
+                  "rounded-chip px-3.5 py-1.5 text-[12.5px] transition-[background-color,color] duration-(--duration-base) ease-soft active:scale-[0.97]",
+                  mode === entry.id
+                    ? "bg-white font-semibold text-black"
+                    : "text-white/80 hover:text-white",
                 )}
               >
                 {entry.label}
               </button>
             ))}
           </div>
-        )}
 
-        <div className="flex items-center justify-center gap-3 px-4 pb-4 pt-1">
-          <button
-            type="button"
-            onClick={takePhoto}
-            disabled={!ready || busy || recording}
-            className="flex items-center gap-2 rounded-chip bg-accent px-5 py-2.5 text-[13px] font-medium text-white transition-[background-color,transform] duration-(--duration-base) ease-soft hover:bg-accent-hover active:scale-[0.97] disabled:opacity-40"
-          >
-            <Camera className="size-4" strokeWidth={2} />
-            Photo
-          </button>
+          <Shutter
+            mode={mode}
+            recording={recording}
+            elapsed={elapsed}
+            disabled={!ready || busy}
+            onPress={press}
+          />
 
-          {canRecord && (
-            <button
-              type="button"
-              onClick={recording ? stopClip : startClip}
-              disabled={!ready || busy}
-              className={cn(
-                "flex items-center gap-2 rounded-chip px-5 py-2.5 text-[13px] font-medium transition-[background-color,color,transform] duration-(--duration-base) ease-soft active:scale-[0.97] disabled:opacity-40",
-                recording
-                  ? "bg-obsidian text-white"
-                  : "bg-inset text-muted hover:text-ink",
-              )}
-            >
-              <Video className="size-4" strokeWidth={2} />
-              {recording ? "Stop" : "10s clip"}
-            </button>
-          )}
-        </div>
-
-        {/* `env(safe-area-inset-bottom)` because full screen on a phone means
-            the home indicator is genuinely over the bottom of this element. */}
-        <p
-          style={{
-            paddingBottom: "max(1rem, env(safe-area-inset-bottom))",
-          }}
-          className="px-4 text-center text-[11.5px] leading-relaxed text-faint"
-        >
           {/* Said plainly, because the alternative is finding out later. A web
               page cannot write to the photo library; the entry's "Save to
               photos" button is the nearest thing and it is one extra tap. */}
-          Saved to the journal. Use <strong>Save to photos</strong> on the entry
-          to put a copy in your camera roll.
-        </p>
+          <p className="max-w-xs text-center text-[11px] leading-relaxed text-white/65">
+            Saved to the journal — use <strong>Save to photos</strong> on the
+            entry for your camera roll.
+          </p>
+        </div>
       </div>
-    </div>
+    </div>,
+    document.body,
+  );
+}
+
+/**
+ * The one big round control, ringed.
+ *
+ * In clip mode the ring is also the countdown: a recording that cuts itself off
+ * at ten seconds has to say so *before* it happens, or the stop reads as a
+ * failure. The inner shape morphs circle → rounded square, which is the one
+ * piece of universal camera vocabulary for "this is now a stop button" and needs
+ * no label.
+ */
+function Shutter({
+  mode,
+  recording,
+  elapsed,
+  disabled,
+  onPress,
+}: {
+  mode: "photo" | "clip";
+  recording: boolean;
+  elapsed: number;
+  disabled: boolean;
+  onPress: () => void;
+}) {
+  const progress = recording ? Math.min(1, elapsed / MAX_CLIP_MS) : 0;
+
+  return (
+    <button
+      type="button"
+      onClick={onPress}
+      disabled={disabled}
+      aria-label={
+        mode === "photo"
+          ? "Take a photo"
+          : recording
+            ? "Stop recording"
+            : "Record a ten-second clip"
+      }
+      className="relative grid size-[76px] shrink-0 place-items-center transition-transform duration-(--duration-base) ease-soft active:scale-[0.94] disabled:opacity-40"
+    >
+      <svg
+        viewBox="0 0 76 76"
+        className="absolute inset-0 size-full -rotate-90"
+        aria-hidden
+      >
+        <circle
+          cx="38"
+          cy="38"
+          r={RING_RADIUS}
+          fill="none"
+          stroke="rgba(255,255,255,0.35)"
+          strokeWidth="4"
+        />
+        {recording && (
+          <circle
+            cx="38"
+            cy="38"
+            r={RING_RADIUS}
+            fill="none"
+            stroke="#ffffff"
+            strokeWidth="4"
+            strokeLinecap="round"
+            strokeDasharray={RING_LENGTH}
+            strokeDashoffset={RING_LENGTH * (1 - progress)}
+          />
+        )}
+        {!recording && (
+          <circle
+            cx="38"
+            cy="38"
+            r={RING_RADIUS}
+            fill="none"
+            stroke="#ffffff"
+            strokeWidth="4"
+          />
+        )}
+      </svg>
+
+      <span
+        className={cn(
+          "bg-accent transition-[width,height,border-radius] duration-(--duration-base) ease-soft",
+          recording ? "size-[26px] rounded-[9px]" : "size-[58px] rounded-full",
+        )}
+      />
+    </button>
+  );
+}
+
+/** A floating icon button: legible over live video without putting a bar across
+ *  it. Deliberately not one of the app's chip styles — those are tuned for a
+ *  card, and this sits on whatever is in front of the lens. */
+function GlassButton({
+  onClick,
+  disabled,
+  label,
+  active,
+  children,
+}: {
+  onClick: () => void;
+  disabled?: boolean;
+  label: string;
+  active?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      className={cn(
+        "grid size-10 place-items-center rounded-full backdrop-blur-sm transition-[background-color,color,transform] duration-(--duration-base) ease-soft active:scale-90 disabled:opacity-40",
+        active ? "bg-white text-black" : "bg-black/35 text-white hover:bg-black/55",
+      )}
+    >
+      {children}
+    </button>
   );
 }
 

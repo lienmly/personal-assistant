@@ -81,7 +81,9 @@ export default async function AreaPage({
   // its photo metadata for this area, which is the one query here that grows
   // without bound — no reason to run it to render the Docs tab.
   const [days, areas, allProjects] = await Promise.all([
-    tab === "journal" ? getJournal(area.id, today) : Promise.resolve([]),
+    tab === "journal"
+      ? getJournal({ areaId: area.id }, today)
+      : Promise.resolve([]),
     tab === "tasks"
       ? db.area.findMany({
           orderBy: { sortOrder: "asc" },
@@ -179,7 +181,11 @@ export default async function AreaPage({
       </nav>
 
       {tab === "journal" && (
-        <Journal areaId={area.id} areaName={area.name} days={days} />
+        <Journal
+          owner={{ areaId: area.id }}
+          ownerName={area.name}
+          days={days}
+        />
       )}
 
       {tab === "docs" && (

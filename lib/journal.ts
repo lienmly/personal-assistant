@@ -42,6 +42,15 @@ const writtenFormat = new Intl.DateTimeFormat("en-GB", {
   month: "short",
 });
 
+/**
+ * Whose journal this is — an Area **or** a Project, exactly one.
+ *
+ * A union rather than two optional fields, so "both" and "neither" are
+ * unspellable rather than merely rejected. Same shape as `DocOwner`, and it
+ * spreads straight into a Prisma `where` because each arm is already a column.
+ */
+export type JournalOwner = { areaId: string } | { projectId: string };
+
 export type JournalMediaView = {
   id: string;
   kind: "photo" | "video";
@@ -112,11 +121,11 @@ const MEDIA_SELECT = {
 } as const;
 
 export async function getJournal(
-  areaId: string,
+  owner: JournalOwner,
   today = todayKey(),
 ): Promise<JournalDayView[]> {
   const entries = await db.journalEntry.findMany({
-    where: { areaId },
+    where: owner,
     // **Newest day first, but oldest-written first *within* a day** — the two
     // directions are deliberate and they are not in conflict. The list of days
     // is a list, and a list of days is read newest-first like everything else

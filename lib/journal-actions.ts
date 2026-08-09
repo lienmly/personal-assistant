@@ -38,16 +38,44 @@ function todayAsDate(): Date {
   return new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
 }
 
-function refresh(areaSlug: string) {
-  revalidatePath(`/areas/${areaSlug}`);
+/**
+ * An entry belongs to an Area **or** a Project, exactly one of the two — the
+ * invariant the schema comment on `JournalEntry` describes and cannot express.
+ * This file is the only writer, so this type is where it is actually enforced:
+ * there is no way to spell "both" or "neither". Same shape, and the same
+ * argument, as `DocOwner` in `lib/doc-actions.ts`.
+ */
+type JournalOwner = { areaId: string } | { projectId: string };
+
+function ownerOf(form: FormData): JournalOwner {
+  const areaId = str(form, "areaId");
+  const projectId = str(form, "projectId");
+
+  if (areaId && projectId)
+    throw new Error("An entry belongs to an area or a project, not both");
+  if (projectId) return { projectId };
+  if (areaId) return { areaId };
+  throw new Error("An entry needs an area or a project");
 }
 
-async function areaSlugFor(areaId: string): Promise<string> {
-  const area = await db.area.findUniqueOrThrow({
-    where: { id: areaId },
-    select: { slug: true },
-  });
-  return area.slug;
+/** Enough of the row to know which page shows it. */
+const OWNER_SELECT = {
+  area: { select: { slug: true } },
+  project: { select: { slug: true } },
+} as const;
+
+/** The page to revalidate after a write — whichever surface shows this entry. */
+function pathFor(entry: {
+  area: { slug: string } | null;
+  project: { slug: string } | null;
+}): string {
+  if (entry.project) return `/projects/${entry.project.slug}`;
+  if (entry.area) return `/areas/${entry.area.slug}`;
+  throw new Error("An orphaned journal entry — this should be unreachable");
+}
+
+function refresh(path: string) {
+  revalidatePath(path);
 }
 
 /**
@@ -79,8 +107,11 @@ export async function saveJournalEntry(form: FormData) {
   await requireSession();
 
   const id = str(form, "id");
-  const areaId = str(form, "areaId");
-  if (!areaId) throw new Error("An entry needs an area");
+  // Read even when updating, because the owner is what says which page to
+  // revalidate — but never *written* on an update, for the same reason
+  // `saveDoc` refuses to re-own a doc: a stray field posted alongside an `id`
+  // should be inert rather than silently move the row.
+  const owner = ownerOf(form);
 
   const title = str(form, "title");
   // Not `str` — an emptied body is a legitimate save on an entry that has
@@ -116,13 +147,14 @@ export async function saveJournalEntry(form: FormData) {
     ? await db.journalEntry.update({
         where: { id },
         // `happenedOn` is deliberately absent: an edit fixes what an entry says,
-        // never when it happened.
+        // never when it happened. So is the owner — an entry does not move
+        // between an area and a project on a save.
         data: { title, body },
-        select: { id: true },
+        select: { id: true, ...OWNER_SELECT },
       })
     : await db.journalEntry.create({
-        data: { areaId, title, body, happenedOn: todayAsDate() },
-        select: { id: true },
+        data: { ...owner, title, body, happenedOn: todayAsDate() },
+        select: { id: true, ...OWNER_SELECT },
       });
 
   for (const file of files) {
@@ -138,7 +170,7 @@ export async function saveJournalEntry(form: FormData) {
     });
   }
 
-  refresh(await areaSlugFor(areaId));
+  refresh(pathFor(entry));
   return entry.id;
 }
 
@@ -191,17 +223,17 @@ export async function deleteJournalEntry(id: string) {
   // outlive it. Same argument as a Doc cascading with its owner.
   const entry = await db.journalEntry.delete({
     where: { id },
-    select: { area: { select: { slug: true } } },
+    select: OWNER_SELECT,
   });
-  refresh(entry.area.slug);
+  refresh(pathFor(entry));
 }
 
 export async function deleteJournalMedia(id: string) {
   await requireSession();
   const item = await db.journalMedia.findUniqueOrThrow({
     where: { id },
-    select: { entry: { select: { area: { select: { slug: true } } } } },
+    select: { entry: { select: OWNER_SELECT } },
   });
   await deleteMedia(id);
-  refresh(item.entry.area.slug);
+  refresh(pathFor(item.entry));
 }

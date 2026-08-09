@@ -11,7 +11,11 @@ import {
   deleteJournalMedia,
   saveJournalEntry,
 } from "@/lib/journal-actions";
-import type { JournalDayView, JournalEntryView } from "@/lib/journal";
+import type {
+  JournalDayView,
+  JournalEntryView,
+  JournalOwner,
+} from "@/lib/journal";
 import { cn } from "@/lib/utils";
 
 /** Without a width, so a field can take its own. `field` used to bake in
@@ -55,14 +59,19 @@ const field = `w-full ${fieldBase}`;
  *
  * Nothing here can be overdue, ticked, or counted against a target. That is the
  * point of the noun (CLAUDE.md §6, "The Baby area is a journal, not a backlog").
+ *
+ * **`owner` is an area or a project**, and the component does not care which —
+ * it hands the pair straight to the action, the same way `DocsTab` does. A
+ * project's journal is its devlog; an area's is the Baby area's. Same noun, same
+ * screen, one component.
  */
 export function Journal({
-  areaId,
-  areaName,
+  owner,
+  ownerName,
   days,
 }: {
-  areaId: string;
-  areaName: string;
+  owner: JournalOwner;
+  ownerName: string;
   days: JournalDayView[];
 }) {
   const [editing, setEditing] = useState<string | null>(null);
@@ -105,7 +114,7 @@ export function Journal({
               >
                 {editing === entry.id ? (
                   <Composer
-                    areaId={areaId}
+                    owner={owner}
                     entry={entry}
                     onDone={() => setEditing(null)}
                   />
@@ -116,7 +125,7 @@ export function Journal({
             ))}
 
             {day.isToday && (
-              <AddNode areaId={areaId} startOpen={day.entries.length === 0} />
+              <AddNode owner={owner} startOpen={day.entries.length === 0} />
             )}
           </ol>
         </section>
@@ -132,7 +141,7 @@ export function Journal({
               copy about what she did last week reads as a bug on the Work
               area. What is true everywhere is the *shape* of the noun. */}
           <p className="mt-1 max-w-sm text-[13px] leading-relaxed text-muted">
-            {`What happened, what changed, what you want to remember about ${areaName}. Nothing here can be overdue or ticked off — it is a record, not a list.`}
+            {`What happened, what changed, what you want to remember about ${ownerName}. Nothing here can be overdue or ticked off — it is a record, not a list.`}
           </p>
         </div>
       )}
@@ -267,10 +276,10 @@ function Entry({
  * middle of it is a form you have to scroll past.
  */
 function AddNode({
-  areaId,
+  owner,
   startOpen,
 }: {
-  areaId: string;
+  owner: JournalOwner;
   startOpen: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -279,7 +288,7 @@ function AddNode({
     return (
       <Node connected={false} accent>
         <Composer
-          areaId={areaId}
+          owner={owner}
           // No cancel and no collapse on the always-open one: there is nothing
           // to go back to on a day with nothing in it.
           onDone={open ? () => setOpen(false) : undefined}
@@ -303,11 +312,11 @@ function AddNode({
 }
 
 function Composer({
-  areaId,
+  owner,
   entry,
   onDone,
 }: {
-  areaId: string;
+  owner: JournalOwner;
   entry?: JournalEntryView;
   onDone?: () => void;
 }) {
@@ -351,7 +360,13 @@ function Composer({
       onSubmit={submit}
       className={cn(pending && "pointer-events-none opacity-45")}
     >
-      <input type="hidden" name="areaId" value={areaId} />
+      {/* Whichever half of the owner this journal has. The action reads the
+          pair as a union, so exactly one of these ever exists. */}
+      {"areaId" in owner ? (
+        <input type="hidden" name="areaId" value={owner.areaId} />
+      ) : (
+        <input type="hidden" name="projectId" value={owner.projectId} />
+      )}
       {entry && <input type="hidden" name="id" value={entry.id} />}
 
       {/* No date field. A new entry lands on today, from the server's clock, and

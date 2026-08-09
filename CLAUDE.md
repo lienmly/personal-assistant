@@ -803,6 +803,46 @@ bar**, not a chatbot. See §6, "Montblanc is a command bar"._
       to reproduce the sprint's failure: a thing that speaks unbidden about what you have
       not done
 
+### Phase 5.1 — The camera is the screen, and a project keeps a journal
+_Built 2026-08-09. Two asks and they are unrelated: make the journal's camera look like
+TikTok's, and put the journal on a project page too. The first is a layout with one
+correctness bug behind it; the second is the `Doc` change of 2026-08-05 applied one noun over._
+- [x] **The controls float on the viewfinder** — close top left, flip and grades on a rail
+      top right, a mode strip and one shutter at the bottom, at every width. §6, "The controls
+      go on the glass"
+- [x] **One shutter instead of two buttons**, with `Photo · 10s clip` naming the mode first.
+      Big enough to hit one-handed, which is the whole operating context
+- [x] **The ring is the countdown**, and the inner shape morphs circle → rounded square rather
+      than the surface growing a word that says "Stop"
+- [x] **The grades hide behind a rail toggle**, which stays lit while one is applied
+- [x] **White-on-dark chrome in both themes** — the `--color-viewer` argument: a viewfinder is
+      dark everywhere. Two gradient scrims so white controls read over bright footage
+- [x] **What you see is what gets stored.** The capture crops to the previewed rectangle
+      instead of drawing the whole sensor frame — verified at 740×720 out of a 1280×720 camera
+      in a 416×405 frame, matching the shown aspect to four decimals. Photo and clip both
+- [x] **The sheet is portalled to `<body>`** — a pre-existing bug, and the one the phone check
+      found: `animate-rise`'s transform on every day section was the containing block for the
+      "full screen" overlay, so on a phone the viewfinder began below the tab strip. §6
+- [x] **Body scroll locks** under it, matching the media viewer
+- [x] **`animate-rise`, not `animate-panel-in`** — a centred dialog does not slide in from the
+      edge (§10)
+- [x] **`JournalEntry.projectId`** (`20260809140000_journal_on_projects`) — nullable beside a
+      now-nullable `areaId`, exactly one set, enforced as a union type in the actions file.
+      Hand-written, every statement additive or a `DROP NOT NULL`. §6
+- [x] **A Journal tab on `/projects/[slug]`**, fourth of five, same component as the area's
+- [x] **`deleteProject` counts journal entries** among what blocks a delete — the journal
+      cascades, and it is the one thing on a project that cannot be written again
+- [x] **Montblanc files into either**, `areaSlug` and `projectSlug` mutually exclusive, a
+      refusal rather than a guess when both or neither arrive
+- [x] **Verified at a real 390×844 viewport** (§9's iframe technique) as well as on a desktop,
+      with a synthetic camera feed standing in for a permission grant
+- [ ] **No frame has still ever been captured from a real camera.** Granting Chrome's camera
+      permission is the user's call — unchanged since Phase 4.16. Everything around it is
+      exercised, including a real `MediaRecorder` round trip against a canvas stream
+- [ ] **Nothing links a project's journal to its Docs tab**, and a devlog and a doc will
+      eventually want to point at each other. Deliberately not designed
+- [ ] **Captions still have no UI**, now on a third surface
+
 ### Phase 6 — Ledger (money)
 - [ ] Bank account connections
 - [ ] Property management statement ingestion + audit
@@ -1424,9 +1464,12 @@ Built ones are in `prisma/schema.prisma`, which is the source of truth; this is 
   `lib/doc-actions.ts`), slug (minted once, never follows a rename), title, body
   (Markdown), sortOrder. Cascades with its owner — the only relation that does.
   Was `ProjectDoc` until 2026-08-05 ✅
-- **JournalEntry** — areaId, happenedOn (`@db.Date` — **set once from the server's clock and
-  never editable**, §6, "The date is not a field"), title (nullable), body (Markdown).
-  Points **backwards**: no due date, no status, nothing to tick. See §6, "The journal" ✅
+- **JournalEntry** — areaId **or** projectId (both nullable, exactly one set — enforced in
+  `lib/journal-actions.ts`, and **create-only**, so an entry never moves owner on a save),
+  happenedOn (`@db.Date` — **set once from the server's clock and never editable**, §6, "The
+  date is not a field"), title (nullable), body (Markdown). Cascades with its owner, like a
+  Doc. Points **backwards**: no due date, no status, nothing to tick. See §6, "The journal"
+  and "A journal belongs to whatever it is a record of" ✅
 - **JournalMedia** — entryId, data (`BYTEA` — in Postgres on purpose, §6), mimeType, width,
   height, byteSize, **kind** (`photo` | `video`), **durationMs** (nullable, video only),
   caption, sortOrder. Cascades with its entry. **Nothing but `lib/media-store.ts` selects
@@ -1972,6 +2015,11 @@ It hangs off an **Area**, not a Project — the Baby area should not need to inv
 in order to be written about, and Area is the coarse ~5-ever noun, which is the right grain
 for "a journal".
 
+> **A project keeps one too, since 2026-08-09** — see "A journal belongs to whatever it is a
+> record of" below. The sentence above is still the reason it began area-only, and the reason
+> an area can have one *without* a project; it stopped being a reason for the Project side to
+> be refused the moment a devlog was asked for.
+
 Four things fell out:
 
 1. **The composer sits open, not behind a button.** Every other write goes through a panel,
@@ -1992,6 +2040,54 @@ Four things fell out:
 **Sending them to her one day** is not built and is deliberately not designed. The data is
 the right shape for it — every entry has a date and a body, and photos are addressable by
 URL — so it is a job that reads rows rather than a schema change.
+
+### A journal belongs to whatever it is a record of — decided 2026-08-09
+
+`JournalEntry` gained a nullable `projectId` beside its now-nullable `areaId`, exactly one
+set. **This is the `Doc` change of 2026-08-05, one noun over**, and the argument transfers
+without modification — including the enforcement: exactly-one-of is a union type in
+`lib/journal-actions.ts` (`{areaId} | {projectId}`), so "both" and "neither" are unspellable
+rather than merely rejected, because Prisma cannot express a check constraint and that file
+is the only writer.
+
+**The noun did not change; only what it can point at.** A devlog — "the level order finally
+reads, here is what changed" — is something that already happened, and the four tabs beside it
+on a project page are all things that are owed or going out. A Task is binary and
+forward-looking, an Event asserts a time, a ContentItem goes to an audience, and a Doc is a
+page you maintain rather than a dated record you add to. That is the same gap the Baby area
+had, arrived at from the opposite direction: the area had no project to hang a record off, and
+a project had no area of its own to hang one off either — Sleepy Cat's devlog is not the Work
+area's journal.
+
+Three things follow, each over an obvious alternative:
+
+1. **One model, not a `ProjectJournal`.** Two parallel systems is how one of them silently
+   rots while the other gets the improvements — the exact sentence the `AreaDoc` alternative
+   was refused with. The whole `Journal` component moved across unchanged except in what it is
+   handed, which is the argument for having generalised rather than duplicated, made for the
+   second time.
+2. **The owner is create-only.** `saveJournalEntry` reads it to know which page to revalidate
+   and never writes it on an update, so a stray field posted alongside an `id` is inert rather
+   than a silent move. Same shape as `saveDoc` refusing to re-own a doc — and here it matters
+   more, because the entry's *date* is already immutable on the same principle (§6, "The date
+   is not a field") and an owner you could move would be the one remaining way to rewrite a
+   record after the fact.
+3. **`deleteProject` counts journal entries among what blocks a delete.** The journal cascades
+   with its owner, like a doc, so deleting would not orphan it — it would *erase* it. And it
+   is the one thing on a project that cannot be written again: a task can be retyped, a photo
+   of the day something first worked cannot.
+
+**Where the tab sits says what it is for.** An area page opens on Journal, because the reason
+to open an area is almost always to write something down. A project page still opens on
+Overview and the journal is fourth of five, because "where does this stand" is the question
+there and the record is what you come back to afterwards. Only the active tab's heavy read
+runs, the same rule the area page follows — the journal is the one query on either page that
+grows without bound.
+
+**Montblanc can file into either**, with `areaSlug` and `projectSlug` mutually exclusive on
+`create_journal_entry` and a refusal rather than a guess when both or neither arrive. A tool
+that knew about only one half of a two-owner noun would file every devlog into an area, which
+is the assistant committing the filing error the whole prompt is written to prevent.
 
 ### A day is the unit you add to — decided 2026-08-06
 
@@ -2261,11 +2357,76 @@ on a phone means the home indicator is genuinely over the bottom of this element
 there is a pointer, a large display and other things worth still seeing, so it stays the card
 it was.
 
+> **The half of this that stopped at the breakpoint was the wrong half** — see "The controls
+> go on the glass" below, 2026-08-09. Going full-bleed on a phone was right and it left the
+> *stacked* layout in place, so the phone still spent a header row and a controls block on
+> chrome around the picture. And the desktop card kept a shape no camera has.
+
 **The two media buttons became one dropdown** at the same time, and for a smaller reason:
 "Add photos", "Camera" and the counter were three controls across the top of a composer whose
 whole justification is that it is quiet enough to type into without deciding anything first
 (§6, "The journal"). The choice between library and camera is real — it is the one §6 sets
 out under `MediaInput` — but it is not one you make often enough to spend a permanent row on.
+
+### The controls go on the glass — decided 2026-08-09
+
+Modelled on TikTok's capture screen, which is the reference for this: **a viewfinder with
+nothing beside it, and every control floating over it.**
+
+Two days earlier the sheet went full-bleed on a phone (above) and that fixed the *frame* while
+leaving the *stack* — a header row, then the preview, then a filter row, then two buttons.
+Chrome above and below a picture is chrome you are not looking at, and on a phone it was still
+most of the height. So the preview fills the surface at every width and the controls sit on top
+of it: close at the top left, flip and the colour grades on a rail at the top right, a mode
+strip and one shutter at the bottom.
+
+Six decisions, each chosen over the obvious alternative:
+
+1. **One shutter, and the mode is named first.** "Photo" and "10s clip" were two buttons side
+   by side and both looked like the primary action, so the screen had no answer to "which one
+   do I press". A `Photo · 10s clip` strip and a single large round button is how every camera
+   works, and it is what buys room for a target you can hit one-handed while holding a baby
+   with the other — which is the entire operating context of this feature.
+2. **The ring is the countdown.** A recording that cuts itself off at ten seconds has to say
+   so *before* it happens, or the stop reads as a failure. The inner shape morphs circle →
+   rounded square, which is universal camera vocabulary for "this is now a stop button" and
+   needs no label — the word "Stop" it replaces was the only English on the surface.
+3. **The chrome is white-on-dark in both themes.** Same argument `--color-viewer` makes: a
+   viewfinder is dark everywhere, and §11's elevation ladder is about the *page*, not about
+   something laid over live video. The one accent on the surface is the shutter, which is §9's
+   one-accent-per-region budget spent on the thing you came here to press.
+4. **Two gradients, and they are not decoration.** White chrome is legible against a face and
+   invisible against a window. A scrim at each end costs nothing and makes every control
+   readable whatever is in front of the lens — this was found by pointing a bright synthetic
+   feed at it, not by reasoning, and the first values were too weak.
+5. **The grades are behind a toggle.** Five pills permanently across the bottom is a row you
+   read past every time to reach the shutter, and the answer is "None" almost always. The rail
+   button stays lit while a grade is applied, so a filtered camera never looks like a plain one.
+6. **`animate-rise`, not `animate-panel-in`.** The panel animation is the *side panel's* slide,
+   and on a centred dialog it reads as the wrong thing arriving from the wrong place (§10).
+
+**What you see is now what gets stored, and that was a real bug.** The preview is
+`object-cover` in a frame that is rarely the camera's own shape — a 16:9 webcam in a portrait
+window has its sides off screen — and the capture drew the *whole* sensor frame. So the stored
+photo was wider than the one composed, silently. It now crops to exactly the rectangle on
+screen, which is the rule the filters already follow ("one CSS string, two consumers, so a
+preview cannot lie about the result"), applied to geometry. Verified: a 416×405 frame on a
+1280×720 camera stores 740×720, matching the shown aspect to four decimal places.
+
+The crop is read **once per capture**, not per frame — `clientWidth` forces layout, and a clip
+repainting through a canvas would ask thirty times a second. And a clip only goes through the
+canvas when there is something to bake: a filter, or a crop. On a phone the preview usually
+matches the camera's own shape, so the cheap path — recording the camera's track directly — is
+still the common one.
+
+**And the whole sheet is portalled to `<body>`.** This was the find of the change and it was
+pre-existing: `animate-rise` ends on `transform: translateY(0)` under `fill-mode: both`, so
+every day section in the journal permanently carries a transform, and a transformed ancestor is
+the containing block for `position: fixed`. The camera was therefore pinned inside the day it
+was opened from — on a desktop the section is nearly the width of the page and it looked
+plausible, and **on a phone the viewfinder began below the tab strip and ended above the tab
+bar.** Exactly the mechanism the media viewer portals around, exactly the mechanism §9 records
+for the media dropdown, and found the same way both times: by looking at it at 390px.
 
 ### A thumbnail is a promise that the whole photo is there — decided 2026-08-06
 
@@ -2813,6 +2974,16 @@ originally — shifts every publish time by the machine's offset.
   a two-item menu does not — **opening upward keeps it inside its own section**, and costs
   no portal and no position maths. Found 2026-08-07.
 
+  **Anything `fixed` rendered from inside one must be portalled, and "it looks fine on a
+  desktop" is not evidence.** A transformed ancestor is the containing block for
+  `position: fixed`, so `fixed inset-0` quietly becomes "the size of that day's card". The
+  camera sheet had this from the day it was written and it went unnoticed for two days,
+  because a day section is nearly the width of a desktop page — at 390px the viewfinder began
+  below the tab strip and ended above the tab bar. Three surfaces have now hit it (the media
+  viewer, this dropdown, the camera), so the standing rule is that an overlay meant to cover
+  the window is `createPortal(…, document.body)`. The cheap check is
+  `overlay.clientWidth === window.innerWidth`. Found 2026-08-09.
+
 - **A shared class string must not bake in a width, because you cannot override it later.**
   Two Tailwind utilities for the same property have equal specificity, so the winner is
   whichever one the compiled stylesheet defines *last* — not the one written last in your
@@ -3154,7 +3325,79 @@ Three rules inside it:
 
 ---
 
-_Last updated: 2026-08-09 · Status: **Phase 5 — Montblanc is in the drawer.**_
+_Last updated: 2026-08-09 · Status: **Phase 5.1 — the camera is the screen, and a project
+keeps a journal.**_
+
+_**2026-08-09 — "look at the TikTok camera layout, can you make the camera in journal have a
+similar layout."** The reference is a viewfinder with nothing beside it and every control
+floating over it, and holding it up against what was there names the problem: the sheet went
+full-bleed on a phone two days ago, and that fixed the *frame* while leaving the *stack* — a
+header row, the preview, a filter row, two buttons. So the preview fills the surface at every
+width now and the chrome sits on the glass: close top left, flip and the grades on a rail top
+right, a mode strip and one shutter at the bottom._
+
+_**The two buttons becoming one shutter is the substantive part.** "Photo" and "10s clip" sat
+side by side and both looked like the primary action, so the screen had no answer to which one
+you press. Naming the mode first and pressing one big round button is how every camera works,
+and it is what buys a target you can hit one-handed — which is the entire operating context of
+a camera you open while holding a baby. **The ring is the countdown**, because a recording that
+cuts itself off at ten seconds has to say so before it happens or the stop reads as a failure,
+and the inner shape morphs to a rounded square rather than the surface growing a word._
+
+_**One real bug was behind the layout.** The preview is `object-cover` in a frame that is rarely
+the camera's own shape, and the capture drew the **whole sensor frame** — so the stored photo
+was wider than the one composed, silently, and had been since the camera was written. It now
+crops to exactly the rectangle on screen: 740×720 out of a 1280×720 camera in a 416×405 frame,
+matching the previewed aspect to four decimals, for clips as well as photos. That is the rule
+the filters already follow — one CSS string, two consumers, so a preview cannot lie about the
+result — applied to geometry rather than colour._
+
+_**And the phone check found the bigger one.** At a genuine 390×844 viewport the "full screen"
+camera began below the tab strip and ended above the tab bar, because `animate-rise` leaves a
+transform on every day section and a transformed ancestor is the containing block for
+`position: fixed`. It is the third time this exact mechanism has bitten — the media viewer
+portals around it, §9 records it for the media dropdown — and the third time it was found by
+looking at the page rather than reading the code. Portalled to `<body>`, and the scrim now
+measures 390×844 with the frame filling it exactly and square corners below `sm`._
+
+_**The second ask needed no new noun, only a second owner.** `JournalEntry` gained a nullable
+`projectId` beside a now-nullable `areaId`, exactly one set — the `ProjectDoc → Doc` change of
+2026-08-05, one noun over, with the same union-type enforcement in the one file that writes.
+A devlog is something that already happened, which is exactly what the four tabs beside it on a
+project page are not: a Task is binary and forward-looking, an Event asserts a time, a
+ContentItem goes to an audience, and a Doc is a page you maintain rather than a dated record
+you add to. **The whole `Journal` component moved across unchanged except in what it is
+handed**, which is the argument for generalising rather than duplicating, made for the second
+time. The owner is **create-only** — it says which page to revalidate and is never written on
+an update — because the entry's date is already immutable on the same principle, and an owner
+you could move would be the one remaining way to rewrite a record after the fact._
+
+_Verified on a production build in a signed-in browser, and at a real 390×844 viewport via §9's
+iframe technique. Wrote an entry on Sleepy Cat's new Journal tab and watched it land on today's
+thread at 15:27 with the composer collapsing to "+ Add to today"; deleted it afterwards and
+confirmed the project journal back at 0 while the Baby area's **17 entries and their photos are
+untouched** and still serving from `/api/journal/media/[id]`. Exercised the camera against a
+synthetic `getUserMedia` feed: a photo and a real `MediaRecorder` clip both came back at the
+cropped 740×720, the ten-second auto-stop fired, and the composer counter read "2 of 10". At
+390px the scrim is the viewport, radius 0, `body` overflow hidden, zero horizontal overflow.
+`npx next build`, `tsc --noEmit` and `eslint` all pass._
+
+_**One harness lesson re-learned, already in §9:** an occluded Chrome window reports
+`visibilityState: "hidden"` and does not advance animations, so `animate-panel-in` left the
+frame parked at its `translateX(100%)` start and the dialog measured 416px off-centre. That is
+the harness, not the layout — but it is what prompted looking at the entrance at all, and
+`animate-panel-in` was genuinely the wrong one: it is the **side panel's** slide, and a centred
+dialog should arrive with `animate-rise` (§10)._
+
+_Outstanding from this change: **no frame has still ever been captured from a real camera** —
+granting Chrome's camera permission is the user's call, unchanged since Phase 4.16, so
+everything around the capture is exercised and the lens itself is not. **Nothing links a
+project's journal to its Docs tab**, and a devlog and a doc will eventually want to point at
+each other. **Captions still have no UI**, now on a third surface._
+
+---
+
+_Previously: **Phase 5 — Montblanc is in the drawer.**_
 
 _**2026-08-09 — "sometimes I want a quick: add this bug to this app, add this idea to social
 media — and I have to navigate around the board and sometimes forget where things are."**

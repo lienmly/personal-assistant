@@ -1,6 +1,7 @@
 # Areas, and the journal
 
-_Written 5 August 2026._
+_Written 5 August 2026. Updated 9 August 2026 — projects have a journal too now, and
+the camera fills the screen._
 
 An area used to be a colour and a heading. It is now something you can **open** —
 click its name in the sidebar and you get a page with three tabs: **Journal ·
@@ -26,6 +27,13 @@ Everything else here points forwards. A task is owed. An event is scheduled. A
 content item is going out. None of those is "she rolled over on the 3rd" — and
 when the only nouns available point forwards, recording the past means filing it
 as something you owe, which is how the Baby area turned into a chore list.
+
+**A project has one too**, since 9 August — the Journal tab on any project page,
+working identically. There it is a devlog: what changed, what finally worked, what
+broke. Same reasoning, opposite direction — an area had no project to hang a
+record off, and a project's record doesn't belong in its area's journal either
+(Sleepy Cat's devlog is not the Work area's diary). An entry belongs to one or the
+other, never both, and it never moves between them.
 
 So an entry:
 
@@ -98,8 +106,19 @@ Two ways in:
 - **Add photos** picks from your library — anything you shot with the phone's own
   camera app, which is also the only way a picture ends up in your camera roll
   without a second step.
-- **Camera** opens a camera inside the journal: a live preview, a filter, a
-  shutter, and a **10s clip** button.
+- **Camera** opens a camera inside the journal, and it fills the screen — the
+  preview *is* the page, with the controls floating on top of it, the way the
+  phone's own camera works.
+
+  Close is the × at the top left. The top right has the camera flip and the
+  sparkle that shows the colour grades. At the bottom you pick **Photo** or
+  **10s clip** first, then press the one big round button. In clip mode the ring
+  around it fills up as the ten seconds run out, and the button turns into a
+  square — press it again to stop early.
+
+  What you see through the frame is exactly what gets saved. If the camera is a
+  wider shape than the window, the parts you can't see aren't in the picture
+  either.
 
 **Filters** are colour grades — Warm, Faded, Mono, Dreamy — chosen *before* you
 shoot and baked into what gets saved, so what you saw is what you keep. They are

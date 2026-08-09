@@ -215,6 +215,10 @@ model Project {
   tasks  Task[]
   events Event[]
   docs   Doc[]
+  /// Added 2026-08-09. A project's devlog — what already happened, as opposed
+  /// to everything else on this model, which is what is owed. See
+  /// `JournalEntry`.
+  journal JournalEntry[]
 
   @@index([areaId, sortOrder])
   @@index([status, lastTouchedAt])
@@ -284,9 +288,20 @@ model Doc {
 /// opposite shape: it cannot be overdue, it has no status, and there is nothing
 /// to tick.
 ///
-/// It hangs off an **Area**, not a Project, and that is deliberate: the Baby
-/// area has no project and should not need one to be written about. Areas are
-/// the coarse, ~5-ever noun, which is the right grain for "a journal".
+/// **It hangs off an Area *or* a Project, exactly one of the two** — the same
+/// shape `Doc` took on 2026-08-05, for the same reason and enforced the same
+/// way. It began area-only because the Baby area has no project and should not
+/// need one to be written about; a project turned out to want the identical
+/// noun for the opposite reason. A devlog — "the level order finally reads,
+/// here is what changed" — is something that already happened, which is not a
+/// Task (nothing to tick), not an Event (it asserts no time) and not a
+/// ContentItem (it goes to nobody). The alternative was a parallel
+/// `ProjectJournal`, which is how one of two identical systems silently rots.
+///
+/// Both columns are nullable and exactly one is set. That invariant is enforced
+/// in `lib/journal-actions.ts` as a union type — so "both" and "neither" are
+/// unspellable rather than merely rejected — because Prisma cannot express a
+/// check constraint and that file is the only writer.
 model JournalEntry {
   /// The day this is about. **Set once, on create, to the day you wrote it, and
   /// never editable** — decided 2026-08-06. It used to be a field you could
@@ -307,12 +322,16 @@ model JournalEntry {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  areaId String
-  area   Area   @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  areaId String?
+  area   Area?   @relation(fields: [areaId], references: [id], onDelete: Cascade)
+
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   media JournalMedia[]
 
   @@index([areaId, happenedOn])
+  @@index([projectId, happenedOn])
 }
 
 /// A photo **or a short video** on a journal entry, stored in Postgres as bytes.
