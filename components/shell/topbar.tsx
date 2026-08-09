@@ -5,15 +5,26 @@ import { Bell, LogOut, Menu, Search } from "lucide-react";
 
 import { signOutAction } from "@/lib/actions";
 import { ThemeToggle } from "@/components/shell/theme-toggle";
+import { cn } from "@/lib/utils";
 import type { ShellUser } from "@/components/shell/app-shell";
 
+/**
+ * On a phone this is an overlay pinned to the top of the viewport, not a row
+ * above the stage — so `AppShell` can slide it away on scroll without the
+ * document reflowing under your thumb. That costs it a fixed 64px height (the
+ * stage's `pt` is the other half of the deal) and an opaque background, since
+ * content now passes underneath it. From `md` up it is a flex row again and
+ * never hides: there is no shortage of screen there.
+ */
 export function Topbar({
   user,
   todayLabel,
+  hidden,
   onOpenMenu,
 }: {
   user: ShellUser;
   todayLabel: string;
+  hidden: boolean;
   onOpenMenu: () => void;
 }) {
   const initials = (user.name ?? user.email ?? "?")
@@ -24,7 +35,13 @@ export function Topbar({
     .toUpperCase();
 
   return (
-    <header className="flex items-center gap-3 px-4 py-4 md:px-6">
+    <header
+      className={cn(
+        "fixed inset-x-0 top-0 z-20 flex h-16 items-center gap-3 bg-shell/95 px-4 backdrop-blur transition-transform duration-(--duration-base)",
+        "md:static md:h-auto md:translate-y-0 md:bg-transparent md:px-6 md:py-4 md:backdrop-blur-none",
+        hidden ? "-translate-y-full ease-exit" : "translate-y-0 ease-soft",
+      )}
+    >
       <button
         type="button"
         onClick={onOpenMenu}

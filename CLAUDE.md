@@ -680,6 +680,37 @@ showed 3 items and Studio showed 31 under the same name._
 - [ ] **The phone layout still has not been looked at on a real device.** The account row is
       `flex-wrap` and the two sections stack, both of which are judgements, not checks
 
+### Phase 4.20 — The phone's chrome gets out of the way
+_Built 2026-08-08. The first change since 4.13 that is purely about how the app looks, and
+the first one aimed **only** at the phone — which is the device every phase since 4.8 has
+recorded as unchecked. No schema change, no migration, and nothing outside
+`components/shell/`._
+- [x] **The topbar and the tab bar hide on a downward scroll** and return on **any** upward
+      one. Together they are ~124px of an 844px viewport and ~19% of a small phone's. §6,
+      "A phone's chrome is mostly ornament"
+- [x] **Both are overlays now, not rows in the flow** — the topbar is `fixed` below `md`,
+      the tab bar always was. Hiding a row in flow would reflow the document under your
+      thumb; hiding an overlay reclaims viewport, which is the whole point
+- [x] **A fixed 64px mobile topbar**, down from an intrinsic 76px, which is what lets the
+      stage's `pt` be an exact number instead of a measurement in state
+- [x] **A 12px travel threshold that banks rather than discards** — under it the last
+      reading is *kept*, so a slow drag accumulates toward it instead of never arriving
+- [x] **Nothing hides in the first 72px**, where the header still overlaps the first card
+      and hiding reads as a flinch
+- [x] **Arriving on a new surface always shows the chrome**, reset during render rather
+      than in an effect. Without it a link followed from halfway down Today lands on a page
+      that may not scroll, with the only navigation a phone has stuck off-screen
+- [x] **Opening the drawer shows it too** — it is the menu button you just pressed
+- [x] **Desktop is untouched**, verified rather than assumed: at 1280px the header is
+      `static`, `translate: 0px`, 76px tall, stage top at 92px, with the hide class present
+      and the `md:` override beating it
+- [ ] **Still not seen on a real device.** It was verified at a true 390×844 viewport — a
+      same-origin iframe, which answers media queries from its own box — which is a great
+      deal closer than reasoning but is still a desktop Chrome. §9
+- [ ] **No `inert` on the hidden chrome.** Its links stay focusable while off-screen;
+      tabbing to one scrolls it into view, which fires the handler and brings it back, so
+      the failure mode self-corrects. Revisit if it ever reads wrong with a screen reader
+
 ### Phase 5 — Montblanc (AI assistant)
 - [ ] Chat drawer with streaming (Claude via AI SDK), available on every surface
 - [ ] Montblanc persona/prompt
@@ -995,6 +1026,46 @@ row. Left icon rail on desktop, bottom tab bar on mobile — same IA, no redesig
 
 Future **Ledger** (bank + property audit, §5 Phase 6) slots in as one more surface without
 disturbing anything. That's the test the IA is built to pass.
+
+### A phone's chrome is mostly ornament — decided 2026-08-08
+
+On a phone the topbar and the tab bar are **~124px of an 844px viewport**, and nearer a
+fifth of a small one. That is a fixed tax on every screen, and the topbar in particular is
+paying it with a **disabled** search field, a date that is hidden below `lg` and a
+notifications button that is hidden below `md` — so most of the widest element on the screen
+is a control that does nothing yet. So both slide away on a downward scroll and come back on
+**any** upward one.
+
+The second half is the load-bearing one. The tab bar is the **only** navigation a phone
+has — the sidebar is a drawer opened from the topbar, so hiding both hides the way to
+everything — and it is only safe because getting them back is a flick in the direction you
+were already going to read what you just scrolled past. Nothing needs to be found; you
+already know how.
+
+Five things fell out, each chosen over an obvious alternative that fails:
+
+1. **They are overlays, not rows that collapse.** Collapsing a flex row changes the
+   document's height while your thumb is on it, so the content jumps as you read. An
+   overlay slides over a page that never moves, and the space it vacates is filled by what
+   was already scrolling up into it — which is the space actually being reclaimed. The
+   stage's top padding is only ever seen at scroll-top, where the header is showing anyway.
+2. **A fixed 64px mobile topbar.** The height had been intrinsic (76px, set by the search
+   pill), and an overlay's height has to be known by the thing padding around it. The
+   alternative is measuring it into state, which means a `setState` in an effect — the
+   thing §9 already records the React Compiler correctly refusing. Pinning the height is
+   both simpler and 12px cheaper.
+3. **The travel threshold banks, it does not discard.** A reading under 12px leaves `last`
+   alone rather than updating it, so a slow drag accumulates toward the threshold instead
+   of resetting under it forever. Discarding is the version that feels broken only on the
+   gesture that needs it most.
+4. **Arriving on a surface always shows them**, adjusted during render rather than in an
+   effect. Without it, a project card tapped from halfway down Today lands you on a page
+   that might not scroll at all, with no navigation on screen and no gesture that summons
+   it — a dead end reachable in two taps.
+5. **Only below `md`.** A desktop has no shortage of screen, and chrome that moved while
+   you scrolled would be motion for nothing. The hidden class is still applied at every
+   width and a `md:` override beats it, which is one media-query rule rather than a second
+   branch to keep in step.
 
 ### The Today screen — rebuilt project-first 2026-08-04
 
@@ -2371,6 +2442,41 @@ originally — shifts every publish time by the machine's offset.
   If a new surface needs a pattern the reference doesn't show, extend it in the reference's
   spirit and note the new pattern in §8 so the next feature inherits it.
 
+- **A same-origin iframe is a real phone viewport, and it is how the mobile layout finally
+  got looked at.** `resize_window` has reported success while leaving the renderer at
+  2560px for a week, which is why every phase since 4.8 carries "not seen on a real
+  device". **Media queries inside an iframe answer to the iframe's own box**, so a 390×844
+  iframe pointed at the app is genuinely below `md` — `matchMedia("(min-width:48rem)")`
+  comes back `false` inside it while the window is still 2560px wide. Same origin, so the
+  session cookie applies and `frames[0].document` is readable. Build the harness by
+  `document.write`-ing over a page already on the app's origin:
+
+  ```js
+  document.open();
+  document.write('<style>html,body{margin:0;height:100%;overflow:hidden}' +
+    'iframe{position:fixed;top:0;left:0;width:390px;height:844px;border:0}</style>' +
+    '<iframe id="ph" src="/today"></iframe>');
+  document.close();
+  ```
+
+  Pin the outer page `overflow:hidden` and the iframe to the top-left, or the wheel scrolls
+  the *outer* document and the phone slides off screen. To see it at a glance, wrap it in a
+  clipping box and `transform: scale(.55)` the iframe — a transform does not change the
+  iframe's internal viewport, so the layout under test is unaffected. Found 2026-08-08.
+
+- **An occluded Chrome window dispatches no scroll events, so scroll behaviour cannot be
+  driven through it.** This is the same harness state §6 records for `animationend` — the
+  window here reports `visibilityState: "hidden"`, so the browser skips its rendering
+  steps: `requestAnimationFrame` never fires, CSS transitions never advance (an element
+  keeps its *start* transform however long you wait, while its className is already
+  correct), and **setting `scrollTop` fires no `scroll` event at all**. A handler that
+  reads `element.scrollTop` can still be exercised honestly by dispatching the event
+  yourself — `main.scrollTop = y; main.dispatchEvent(new Event("scroll"))` — which tests
+  the logic against real scroll positions and leaves only Chrome's event delivery
+  unverified, which was never in doubt. To *measure* a transformed element in this state,
+  inject `*{transition:none !important}` first so the target value applies immediately.
+  Read the className, not the rect, if you can. Found 2026-08-08.
+
 - **Hover is not an affordance on a phone.** A control revealed by `group-hover` doesn't
   exist on touch. Write it `sm:opacity-0 sm:group-hover:opacity-100` — visible outright on
   small screens, revealed on hover on a pointer device. The add-to-sprint buttons on the
@@ -2765,7 +2871,70 @@ Three rules inside it:
 
 ---
 
-_Last updated: 2026-08-07 · Status: **Phase 4.19 — a brand can be the work of a project.**_
+_Last updated: 2026-08-08 · Status: **Phase 4.20 — the phone's chrome gets out of the way.**_
+
+_**2026-08-08 — on a phone, a fifth of the screen was permanently spent on chrome.** The
+topbar and the tab bar are ~124px of an 844px viewport, and the topbar is paying most of
+that with a **disabled** search field, a date hidden below `lg` and a bell hidden below
+`md`. So both slide away on a downward scroll and come back on **any** upward one. Nothing
+outside `components/shell/`, no schema change, and the first change in twelve phases aimed
+only at the device every one of them has recorded as unchecked._
+
+_**The second half is the load-bearing half.** The tab bar is the only navigation a phone
+has — the sidebar is a drawer opened from the topbar, so hiding both hides the way to
+everything — and it is safe only because getting them back is a flick in the direction you
+were already going to re-read what you just passed. Nothing has to be found._
+
+_**They had to become overlays to be worth hiding.** Collapsing a row in the flow changes
+the document's height while your thumb is on it, so the page jumps as you read; an overlay
+slides over a page that never moves, and the vacated space is filled by content already
+scrolling up into it. That cost the mobile topbar a **fixed 64px height** — an overlay's
+height has to be known by whatever pads around it, and the alternative is measuring it into
+state, which is the `setState` in an effect §9 already records the React Compiler correctly
+refusing. Pinning it is simpler and 12px cheaper than the intrinsic 76px._
+
+_Two smaller rules, each the version that survives the gesture that needs it most. **The
+12px travel threshold banks rather than discards** — a reading under it leaves the mark
+alone, so a slow drag accumulates toward it instead of resetting under it forever. And
+**arriving on a surface always shows the chrome**, adjusted during render rather than in an
+effect: without it, tapping a project card from halfway down Today lands you on a page that
+may not scroll at all, with no navigation on screen and no gesture that summons it — a dead
+end two taps away._
+
+_**Verified at a genuine 390×844 viewport, which is the part worth keeping.** `resize_window`
+has reported success while leaving the renderer at 2560px for a week, which is why every
+phase since 4.8 says "not seen on a real device" — but **media queries inside an iframe
+answer to the iframe's own box**, so a same-origin 390×844 iframe pointed at `/today` is
+really below `md` (`matchMedia` says so) with the session cookie still applying. All nine
+scroll cases behave: shown through the first 72px, hidden past it, a 6px upward twitch does
+nothing, the next 6px brings it back (the banking rule), any real flick reveals immediately,
+and the top always shows. Off-screen positions confirmed exactly — header bottom at 0, tab
+bar top at 844. **Desktop confirmed untouched rather than assumed**: at 1280px the header is
+`static`, `translate: 0px`, 76px tall with the stage at 92px, with the hide class present and
+the `md:` override winning. Navigation reset confirmed by hiding the chrome on Today and
+clicking through to a project page. `npx next build`, `tsc --noEmit` and `eslint` all pass,
+and the four new utilities were grepped out of the emitted CSS with `-F` per §9._
+
+_**Two harness findings, both now in §9.** The iframe technique itself, which is the standing
+answer to a gap this file has carried for a week. And: **an occluded Chrome window dispatches
+no scroll events at all** — same family as the `animationend` note in 4.17. `requestAnimationFrame`
+never fires, transitions never advance (an element keeps its start transform while its
+className is already correct), and `scrollTop = y` fires nothing. That was diagnosed by
+attaching a probe listener and seeing zero events for a scroll that had demonstrably
+happened; the handler was then exercised by dispatching the event by hand. **It also cost the
+implementation an rAF wrapper, correctly** — the coalescing was guarding against nothing,
+since Chrome already dispatches at most one scroll per frame and React bails out of an
+unchanged boolean before rendering._
+
+_Outstanding from this change: **it still has not been seen on a real phone** — a 390px
+iframe in desktop Chrome is much closer than reasoning and is not a device, and it has no
+touch inertia, no rubber-banding and no address bar of its own. **The hidden chrome is not
+`inert`**, so its links stay focusable off-screen; tabbing to one scrolls it into view, which
+fires the handler and brings the chrome back, so the failure mode self-corrects._
+
+---
+
+_Previously: **Phase 4.19 — a brand can be the work of a project.**_
 
 _**2026-08-07 — "there are 3 items under Coding Mom and a bunch more in Studio, I'm
 confused."** Both numbers were right. Studio filters by **brand** and a project page filtered
