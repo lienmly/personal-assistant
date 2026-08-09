@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 
+import { MontblancDrawer } from "@/components/montblanc/montblanc-drawer";
 import { IconRail } from "@/components/shell/icon-rail";
 import { MobileTabBar } from "@/components/shell/mobile-tab-bar";
 import { Sidebar, type SidebarArea } from "@/components/shell/sidebar";
@@ -57,9 +58,24 @@ export function AppShell({
   children: React.ReactNode;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [montblancOpen, setMontblancOpen] = useState(false);
   const [chromeHidden, setChromeHidden] = useState(false);
   const stageRef = useRef<HTMLElement>(null);
   const pathname = usePathname();
+
+  // Ctrl/⌘+K from anywhere, which is what makes Montblanc quicker than walking
+  // to the screen you wanted. Registered here rather than in the drawer for the
+  // obvious reason: the drawer does not exist until this fires.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() !== "k") return;
+      if (!event.metaKey && !event.ctrlKey) return;
+      event.preventDefault();
+      setMontblancOpen(true);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   // Arriving on a new surface always shows the chrome again. Without this a
   // link followed from halfway down Today lands you on a page that may not
@@ -107,7 +123,7 @@ export function AppShell({
   return (
     <div className="h-dvh bg-canvas md:p-4">
       <div className="flex h-full overflow-hidden bg-shell md:rounded-[2rem] md:shadow-float">
-        <IconRail />
+        <IconRail onOpenMontblanc={() => setMontblancOpen(true)} />
         <Sidebar
           areas={areas}
           open={menuOpen}
@@ -120,6 +136,7 @@ export function AppShell({
             todayLabel={todayLabel}
             hidden={hidden}
             onOpenMenu={() => setMenuOpen(true)}
+            onOpenMontblanc={() => setMontblancOpen(true)}
           />
           <main
             ref={stageRef}
@@ -131,6 +148,13 @@ export function AppShell({
       </div>
 
       <MobileTabBar hidden={hidden} />
+
+      {/* Outside the frame, like every other panel: it is `fixed`, and the frame
+          is `overflow-hidden`. Unmounted when closed, so each open is a fresh
+          sheet rather than yesterday's conversation. */}
+      {montblancOpen && (
+        <MontblancDrawer onClose={() => setMontblancOpen(false)} />
+      )}
     </div>
   );
 }

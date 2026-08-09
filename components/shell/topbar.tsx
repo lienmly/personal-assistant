@@ -1,8 +1,9 @@
 "use client";
 
 import Image from "next/image";
-import { Bell, LogOut, Menu, Search } from "lucide-react";
+import { Bell, LogOut, Menu } from "lucide-react";
 
+import { MoogleMark } from "@/components/brand/moogle-mark";
 import { signOutAction } from "@/lib/actions";
 import { ThemeToggle } from "@/components/shell/theme-toggle";
 import { cn } from "@/lib/utils";
@@ -21,11 +22,13 @@ export function Topbar({
   todayLabel,
   hidden,
   onOpenMenu,
+  onOpenMontblanc,
 }: {
   user: ShellUser;
   todayLabel: string;
   hidden: boolean;
   onOpenMenu: () => void;
+  onOpenMontblanc: () => void;
 }) {
   const initials = (user.name ?? user.email ?? "?")
     .split(" ")
@@ -51,16 +54,23 @@ export function Topbar({
         <Menu className="size-5" strokeWidth={1.8} />
       </button>
 
+      {/* Montblanc took the search pill's place, and that is the point rather
+          than a convenience. This was the widest element on a phone and it was
+          *disabled* — a control doing nothing, occupying the room every other
+          control was competing for. Asking for something in a sentence is also
+          strictly more than searching for it: "what's overdue" is a search, and
+          "add a bug to Sleepy Cat" is not one anybody could have typed here. */}
       <button
         type="button"
-        disabled
-        title="Search arrives in Phase 2"
-        className="flex min-w-0 flex-1 items-center gap-3 rounded-full bg-card px-5 py-3 text-left shadow-card md:max-w-xl"
+        onClick={onOpenMontblanc}
+        title="Ask Montblanc  ·  Ctrl+K"
+        className="group flex min-w-0 flex-1 items-center gap-3 rounded-full bg-card px-5 py-3 text-left shadow-card transition-[background-color] duration-(--duration-quick) ease-soft hover:bg-inset md:max-w-xl"
       >
-        <Search className="size-4 shrink-0 text-faint" strokeWidth={2} />
-        <span className="truncate text-sm text-faint">
-          Try searching &ldquo;tasks&rdquo;
-        </span>
+        <MoogleMark className="size-4 shrink-0 text-muted" />
+        <span className="truncate text-sm text-faint">Ask Montblanc…</span>
+        <kbd className="ml-auto hidden shrink-0 rounded-chip bg-inset px-1.5 py-0.5 text-[10px] font-medium text-faint transition-colors duration-(--duration-quick) group-hover:bg-line md:block">
+          Ctrl K
+        </kbd>
       </button>
 
       <span className="ml-auto hidden text-sm text-muted lg:block">

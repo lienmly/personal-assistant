@@ -81,7 +81,7 @@ dashboard/UI ecosystem, easy Google auth, and a clean path to embedding an AI as
 | **Database** | **PostgreSQL** (Railway managed) | Relational fits calendars, tasks, projects, relations. Railway provisions it in a click. |
 | **ORM** | **Prisma** | Type-safe DB access, easy migrations, gentle learning curve. (Drizzle is the lighter-weight alternative if we prefer.) |
 | **Auth** | **Auth.js (NextAuth) with Google provider** | Free, self-hosted, "Login with Google" out of the box. Restrict to my own Google account(s) via an allowlist. |
-| **AI assistant (Montblanc)** | **Qwen API** + **Vercel AI SDK** | Decided 2026-07-30. Qwen exposes an OpenAI-compatible endpoint, so the AI SDK's `openai-compatible` provider talks to it directly and tool-calling still works. Swapping providers later is a one-file change. |
+| **AI assistant (Montblanc)** | **DeepSeek API**, hand-rolled | Decided 2026-08-09, replacing the pencilled-in Qwen (I already hold a DeepSeek key). Still an OpenAI-compatible endpoint, so "swapping providers is a one-file change" held — it *was* one file. **The Vercel AI SDK went with it**: what Montblanc needs from a provider library is a tool-calling loop, which is thirty lines in `route.ts`, and nothing here streams tokens (§6, "Montblanc is a command bar"). Same trade §8 made against a calendar library and shadcn. |
 | **Calendar UI** | **Hand-built** (CSS grid + day arithmetic) | Decided 2026-08-01. Neither Schedule-X nor FullCalendar survived contact with the design: both ship their own DOM and stylesheet, and this look — borderless, very round, tiles on a tinted ground — gets fought rather than configured. Month/week/day came to ~600 lines with zero new dependencies. See §8. |
 | **Data fetching / state** | **TanStack Query** (where needed) + React Server Components | Server components for most reads; Query for interactive client bits. |
 | **Hosting** | **Railway** | App + Postgres in one project. Env vars, deploys from GitHub. |
@@ -157,7 +157,12 @@ dashboard/UI ecosystem, easy Google auth, and a clean path to embedding an AI as
 /lib/doc-actions.ts → server actions for project docs
 /lib/project-detail.ts → everything one project is, for /projects/[slug]
 /lib/task-view.ts  → the one Task row → TaskView mapper, shared by board and project page
-/lib/montblanc     → AI assistant logic (prompts, tools) — Phase 5
+/lib/montblanc     → the assistant: `deepseek.ts` (the only file that knows the
+                     provider), `prompt.ts`, `context.ts` (what exists, as text),
+                     `tools.ts` (writes go through the UI's own server actions),
+                     `undo.ts`, `types.ts` (client-safe: no Prisma)
+/app/api/montblanc → the tool loop, streaming NDJSON. Auth-gated
+/components/montblanc → the drawer
 /prisma            → schema.prisma, migrations, seed.ts
 /proxy.ts          → route protection (Next 16's renamed Middleware)
 /app/manifest.ts   → the web app manifest, served at /manifest.webmanifest
@@ -170,7 +175,7 @@ dashboard/UI ecosystem, easy Google auth, and a clean path to embedding an AI as
 /assets            → styling reference screenshots — consult before building UI (§9)
 /docs              → guides written for me to read, not for agents (§9)
 ```
-_(Everything above exists except `/lib/montblanc`, which arrives with Phase 5.)_
+_(Everything above exists.)_
 
 ---
 
@@ -762,12 +767,41 @@ is one icon on a home screen. No schema change and no migration._
       iOS it requires the app to have been installed first — which it now can be
 
 ### Phase 5 — Montblanc (AI assistant)
-- [ ] Chat drawer with streaming (Claude via AI SDK), available on every surface
-- [ ] Montblanc persona/prompt
-- [ ] Surface-aware context: Montblanc knows what you're currently looking at
-- [ ] Tool-calling: let Montblanc read my Projects, Tasks, Content items & calendar
-- [ ] Then: let Montblanc create/modify them on request
-- [ ] Proactive help (daily briefing, drift nudges) — later
+_Built 2026-08-09. The complaint was navigational, not conversational: "sometimes I want a
+quick — add this bug to this app, add this idea to social media — and I have to navigate
+around the board and sometimes forget where things are." So Montblanc shipped as a **command
+bar**, not a chatbot. See §6, "Montblanc is a command bar"._
+- [x] **A drawer on every surface**, opened with `Ctrl/⌘+K` or from the topbar
+- [x] **It took the dead search pill's place** — the widest control on a phone, disabled
+      since Phase 1. §6
+- [x] **DeepSeek, hand-rolled** — `lib/montblanc/deepseek.ts` is one `fetch`; no AI SDK. §3
+- [x] **Eight tools**: `create_task`, `create_content_item`, `create_project`,
+      `create_event`, `create_journal_entry`, `find_tasks`, `complete_task`, `navigate`
+- [x] **Every write goes through the UI's own server action**, so an invariant enforced in
+      `saveTask` cannot be bypassed by asking nicely. §6
+- [x] **What exists is in the prompt, not behind a tool** — ~2,000 characters of areas,
+      projects, brands, accounts and tracks, which removes a whole round trip from *every*
+      request. §6
+- [x] **The prompt encodes §6's rules**: never invent a due date, never guess between two
+      projects, make exactly what was asked for once, a thing you owe is a task
+- [x] **A receipt with an Undo on every write**, which is what buys the right to write
+      without a confirmation step. §6, "A receipt is what a confirmation step would have
+      cost you"
+- [x] **NDJSON event stream**, so the four seconds a tool round takes shows *which tool*
+      rather than nothing. Deliberately not token streaming. §6
+- [x] **Verified end to end against the live model** in a signed-in browser, six sentences,
+      every row deleted afterwards and the board confirmed back at 196 open tasks
+- [x] **The icon rail's disabled "Montblanc — arrives in Phase 5" button is now the way in**,
+      alongside the topbar pill. Found by reading the accessibility tree rather than by
+      looking — it is at the foot of the rail, below the fold on a short window
+- [ ] **Surface-aware context** — Montblanc does not know which screen you are on. Cheap to
+      add (one field on the request) and deliberately not guessed at before use
+- [ ] **It cannot edit or delete**, other than ticking a task off and undoing its own
+      writes. A way in, not a way to rearrange. §6
+- [ ] **The transcript is not kept between opens.** Each open is a fresh sheet
+- [ ] Proactive help (daily briefing, drift nudges) — later, and it is the half most likely
+      to reproduce the sprint's failure: a thing that speaks unbidden about what you have
+      not done
 
 ### Phase 6 — Ledger (money)
 - [ ] Bank account connections
@@ -1166,6 +1200,106 @@ reached.
 **A custom domain is the other half and is not code.** It is a Railway setting and a DNS
 record. The install is what makes the URL stop mattering day to day; the domain is what
 makes it cheap to re-install, or to open on a device that has not got the icon yet.
+
+### Montblanc is a command bar, not a chatbot — decided 2026-08-09
+
+The ask names the problem precisely: _"sometimes I want a quick — add this bug to this app,
+add this idea to social media, add this app idea — and I have to navigate around the board
+and sometimes forget where things are."_ That is **a filing problem and a wayfinding
+problem**, and neither is solved by conversation. So Montblanc is a thing you say one
+sentence to.
+
+The distinction is not cosmetic; it decided most of what follows:
+
+1. **The transcript is not kept between opens.** Each open is a blank sheet. A chat you have
+   to scroll past to start the next thought is a chat, and the whole premise is that this is
+   faster than walking to the screen.
+2. **It streams *events*, not tokens.** `MontblancEvent` carries "Writing it down…", then a
+   receipt, then one sentence — because the useful thing to watch during the four seconds a
+   tool round takes is **which tool is running**, not prose being assembled. Token streaming
+   is also the one part of a provider SDK that is genuinely hard to write, so not needing it
+   is what made hand-rolling the client obviously right rather than merely defensible (§3).
+3. **The reply is one sentence.** "Added it to Sleepy Cat under Build." A dashboard assistant
+   that writes paragraphs is one you stop reading, and the row it made is the actual output.
+4. **It cannot edit or delete**, beyond ticking a task off and undoing its own writes. It is
+   a way *in*. Changing something means opening it, where you can see what you are changing —
+   the same argument §6 already makes about the calendar not being an editor for tasks.
+
+**It took the search pill's place, and that is the point rather than a convenience.** That
+control was the widest element on a phone and it was **disabled** — §6's own "A phone's
+chrome is mostly ornament" complains about it by name. Asking for something in a sentence
+also strictly contains searching for it: "what's overdue" is a search, and "add a bug to
+Sleepy Cat" is not a query anybody could have typed there.
+
+### Every write goes through the UI's own action — decided 2026-08-09
+
+`lib/montblanc/tools.ts` builds `FormData` and calls `saveTask`, `saveContentItem`,
+`saveProject`, `saveEvent`, `saveJournalEntry` — the same functions the forms submit to. It
+reads oddly for a machine-to-machine call and it is the cheaper half of the trade, because
+**the invariants live in those actions and nowhere else**:
+
+- a task's area is taken from its project, so the two can never disagree;
+- a recurring task with no due date gets its first occurrence inferred, rather than becoming
+  a rule that never fires;
+- a project's slug is minted once and never follows a rename;
+- a journal entry's day comes from the server's clock and cannot be supplied.
+
+Talking to Prisma directly is shorter and would mean the app has two ways to create a task
+with only one of them right — and worse, that a rule added to `saveTask` next month silently
+does not apply to the assistant. Undo goes through `deleteTask` / `deleteProject` / … for the
+same reason: `deleteProject` refuses one that holds anything, and that refusal should not
+have a second door.
+
+**Nothing that fails is retried somewhere near.** A project name that doesn't resolve returns
+`FAILED: no project called "…"` with an instruction *not* to retry with a different one. The
+model's own instinct is to be helpful and file it under the nearest match, which is exactly
+the failure this whole file is about — and it is worse from an assistant than from a seed
+script, because a seeded row at least came from a file you can read.
+
+### What exists is in the prompt, not behind a tool — decided 2026-08-09
+
+The obvious build gives Montblanc a `list_projects` and lets it go and look. That costs a
+whole extra model round trip — three or four seconds, on a phone, on **every** request — to
+fetch about two thousand characters that change roughly once a fortnight. Four areas, four
+projects, three brands with their twenty accounts, and the track list are simply handed over
+up front, so "add a bug to Sleepy Cat" needs one model call instead of two.
+
+It is also what makes the slugs reliable: the model is **choosing from a list it can see**
+rather than guessing an identifier, which is the difference between the write landing on
+`sleepy-cat` and it inventing `sleepycat`. The resolver still accepts a display name
+case-insensitively, because a model reaches for the label it was just shown, and failing a
+write over that would be a bad reason to fail a write.
+
+### A receipt is what a confirmation step would have cost you — decided 2026-08-09
+
+Montblanc writes straight through. It does not show a draft and wait for approval, and this
+is the one decision here that runs *against* the grain of everything in §6 — so it is worth
+being exact about why.
+
+The rule this file keeps arriving at is **the app must not assert things nobody told it**,
+and an assistant that can write rows is the first thing in the app capable of committing that
+error at speed. The reflex fix is a confirm step. It fails on the ask: "quick — add this bug",
+one-handed, and a confirmation turns one tap into two on *every* row, including the
+ninety-five in a hundred that were right. A command bar you have to approve is a form.
+
+§6 already priced the alternative, under "Nothing but you creates a task": _"a row you wrote
+and no longer want costs one tap to delete. A row **you did not write** costs you a stop, a
+re-read, and a decision about whether it was yours."_ Montblanc's rows sit between the two —
+you asked for the thing, but the *filing* was its idea. **The receipt is what moves them into
+the first category.** You see exactly what was made and where it landed without going to
+look, and undoing is one tap in the same place.
+
+Three details it needed:
+
+1. **The card stays after being undone**, greyed and struck through, saying "Removed". A card
+   that vanishes when pressed leaves you unsure whether it deleted the row or just the card.
+2. **The prompt does most of the work anyway.** No invented due dates, no guessing between
+   projects, exactly one row per thing asked for, no notes that were not dictated. The
+   receipt catches what the prompt misses; it is not the only line of defence.
+3. **A write has to `router.refresh()`.** This came through a route handler rather than a
+   server action, so `revalidatePath` marks the server cache and nothing tells the client
+   router to re-render. Without it you close the drawer onto a Today that does not have the
+   task you just watched it make.
 
 ### The service worker caches nothing that changes — decided 2026-08-09
 
@@ -2481,7 +2615,9 @@ originally — shifts every publish time by the machine's offset.
   - `AUTH_URL` — production only, the public Railway URL
   - `DATABASE_URL` — on Railway use the reference `${{Postgres.DATABASE_URL}}`;
     locally use Railway's `DATABASE_PUBLIC_URL` (`*.proxy.rlwy.net`)
-  - `QWEN_API_KEY`, `QWEN_BASE_URL` — Phase 5 (Montblanc)
+  - `DEEPSEEK_API_KEY` — Montblanc. **Without it the drawer opens and says so**;
+    nothing else in the app breaks. `DEEPSEEK_BASE_URL` and `DEEPSEEK_MODEL` are
+    optional and default to `https://api.deepseek.com/v1` and `deepseek-chat`
 - `.env.local` for local dev, `.env.example` committed as a template.
 
 > Auth.js v5 reads `AUTH_*` names natively, so the older `NEXTAUTH_*` / `GOOGLE_*`
@@ -2513,8 +2649,12 @@ originally — shifts every publish time by the machine's offset.
 - [x] **Prisma vs Drizzle** — resolved: **Prisma**, pinned to `6.x`. Prisma 7 requires Node
       20.19+ and this machine is on 20.15.1; 6.x supports 18.18+. Bump both once Node is
       upgraded — the schema is fresh, so the 6→7 move is a non-event.
-- [x] **Montblanc's model provider** — resolved 2026-07-30: **Qwen**, via its
-      OpenAI-compatible endpoint. See §3.
+- [x] **Montblanc's model provider** — ~~resolved 2026-07-30: **Qwen**~~ →
+      **re-resolved 2026-08-09: DeepSeek**, because I already hold a key for it.
+      Still an OpenAI-compatible endpoint, which is what made the swap the
+      one-file change §3 promised it would be — and **the Vercel AI SDK went with
+      Qwen**, since a tool-calling loop is thirty lines and nothing here streams
+      tokens. See §3 and §6, "Montblanc is a command bar".
 - [x] **Calendar library** — resolved 2026-08-01: **neither. Hand-built.** Month is a
       7-column CSS grid of tiles; week and day are an hour grid with absolutely positioned
       blocks and a first-fit lane packer for overlaps. Both libraries bring their own DOM
@@ -2733,6 +2873,8 @@ originally — shifts every publish time by the machine's offset.
     and why the Baby area has no projects. Written 2026-08-05.
   - `docs/theme.md` — the Light · Auto · Dark control, why the browser asks for your
     location, and why it doesn't follow the OS setting. Written 2026-08-06.
+  - `docs/montblanc.md` — what to say to the assistant, the rules it follows and
+    why, Undo, and what it deliberately can't do. Written 2026-08-09.
   - `docs/install.md` — putting it on a phone's home screen, per platform; what changes
     once it's installed and what deliberately doesn't; and the custom-domain steps,
     including the `AUTH_URL` change that is easy to forget and takes sign-in down.
@@ -3012,7 +3154,100 @@ Three rules inside it:
 
 ---
 
-_Last updated: 2026-08-09 · Status: **Phase 4.21 — it installs.**_
+_Last updated: 2026-08-09 · Status: **Phase 5 — Montblanc is in the drawer.**_
+
+_**2026-08-09 — "sometimes I want a quick: add this bug to this app, add this idea to social
+media — and I have to navigate around the board and sometimes forget where things are."**
+That is a filing problem and a wayfinding problem, and neither is solved by conversation. So
+Montblanc shipped as a **command bar**: `Ctrl+K` from anywhere, one sentence, and the row
+exists. No schema change and no migration — Phase 5 turned out to need no new nouns at all,
+because everything it files already had one._
+
+_**It took the search pill's place, and that is the point rather than a convenience.** That
+control was the widest element on a phone and it was **disabled** — §6's own "A phone's
+chrome is mostly ornament" complains about it by name, three phases ago. Asking in a sentence
+also strictly contains searching: "what's overdue" is a search, and "add a bug to Sleepy Cat"
+is not a query anybody could have typed there._
+
+_**DeepSeek, and the AI SDK went with Qwen.** The provider changed because I already hold a
+DeepSeek key, and §3's promise that this would be a one-file change held — it was one file.
+What was not planned is that the Vercel AI SDK went too: what Montblanc needs from a provider
+library is a tool-calling loop, which is thirty lines sitting in `route.ts` where it can be
+read, and **nothing here streams tokens**. It streams *events* — "Writing it down…", then a
+receipt, then one sentence — because the useful thing to watch during the four seconds a tool
+round takes is which tool is running, not prose being assembled. Same trade §8 made twice
+before, against a calendar library and against shadcn._
+
+_**Every write goes through the UI's own server action.** `tools.ts` builds `FormData` and
+calls `saveTask`, `saveContentItem`, `saveProject`, `saveEvent`, `saveJournalEntry`. It reads
+oddly for a machine-to-machine call and it is the cheaper half of the trade, because the
+invariants live in those actions and nowhere else — a task's area taken from its project so
+the two cannot disagree, a recurring task's first occurrence inferred rather than becoming a
+rule that never fires, a slug minted once, a journal day that comes from the clock and cannot
+be supplied. Talking to Prisma directly is shorter and means a rule added to `saveTask` next
+month silently does not apply to the assistant._
+
+_**What exists is in the prompt, not behind a tool.** The obvious build gives it a
+`list_projects` and lets it go and look, which costs a whole extra round trip on **every**
+request to fetch ~2,000 characters that change once a fortnight. Handing them over up front
+makes "add a bug to Sleepy Cat" one model call instead of two, and it is also what makes the
+slugs reliable — the model is choosing from a list it can see rather than guessing an
+identifier._
+
+_**The one decision that runs against the grain of this whole file: it writes without asking
+first.** The rule here has always been that the app must not assert things nobody told it,
+and an assistant that can write rows is the first thing in the app able to commit that error
+at speed. The reflex fix is a confirmation step, and it fails on the ask — "quick, add this
+bug", one-handed — by turning one tap into two on every row including the ninety-five in a
+hundred that were right. **A receipt with an Undo is what buys the right instead.** §6 already
+priced it: a row you wrote costs one tap to delete, a row you did not write costs a stop and a
+re-read. Montblanc's rows sit between the two, and seeing exactly what was made and where,
+without going to look, is what moves them into the first category. The prompt carries the rest
+— never invent a due date, never guess between two projects, exactly one row per thing asked
+for, no notes that were not dictated, and a thing you owe is a task even when it has a date._
+
+_**Verified end to end in a signed-in browser against the live model**, and the checks that
+matter are the ones about what it did **not** do. "Add a bug to Sleepy Cat: the cat clips
+through the sofa" produced one task with `dueDate: null`, `notes: null`, track `Build`,
+project Sleepy Cat and area Work inherited from it — nothing invented in the two columns most
+available to invent in. "Remind me to renew the domain before the 20th" **did** get a date,
+stored as `2026-08-20T00:00:00.000Z`, UTC midnight as a `@db.Date` must be — and **no
+project**, filed to One-offs rather than guessed at among four. "Coding mom idea: a devlog
+about the sleepy cat difficulty curve" came back brand **Coding Mom**, project **Sleepy Cat**,
+which is §6's two-axis case arriving unprompted from one sentence._
+
+_The best of the six was **"paediatrician appointment on thursday at 2pm, and remind me to
+pack her red book for it"**, which produced **two rows of different kinds**: an Event at
+`2026-08-13T21:00:00Z` — 14:00 Pacific, end defaulted to +1h, filed under **Baby** — and a
+Task for the red book. That is the §6 distinction the calendar exists on ("a thing you owe is
+a task, even when it has a date") drawn correctly inside a single sentence, which is the thing
+most likely to have gone wrong. "What's overdue on sleepy cat?" came back **12**, matching
+Today's badge exactly, each row a link. "Where do I add a new tiktok account?" landed on
+`/studio/channels` — and ignored the "no thanks" prefixed to it, so the previous turn's offer
+was correctly dropped._
+
+_Undo was exercised on a task and on an event; both cards went to **REMOVED**, struck through,
+and the rows were gone. Every test row was deleted afterwards and the board confirmed back at
+**196 open tasks**, where it started. `npx next build`, `tsc --noEmit` and `eslint` all pass._
+
+_**One real gap was found, and by reading the accessibility tree rather than by looking**: the
+icon rail still carried a **disabled "Montblanc — arrives in Phase 5"** button at its foot,
+which is below the fold on a short window and never appeared in a screenshot. It is the moogle
+mark and a second way in now. It sits apart from the four surfaces above it rather than
+joining them, because it is not one — §6's rule against a fifth nav item is unaffected._
+
+_Outstanding from this change: **it does not know which screen you are on** — one field on the
+request, deliberately not guessed at before use. **It cannot edit or delete**, beyond ticking a
+task off and undoing its own writes. **The transcript is not kept between opens**, which is
+deliberate and may prove wrong. **`Ctrl+K` is Chrome's own omnibox shortcut**, so it only
+reaches the page when focus is already in the document — the pill and the rail button are the
+reliable routes and the shortcut is the fast one. And **the proactive half — a daily briefing,
+drift nudges — is not built and is the part most likely to reproduce the sprint's failure**: a
+thing that speaks unbidden about what you have not done._
+
+---
+
+_Previously: **Phase 4.21 — it installs.**_
 
 _**2026-08-09 — "it's such a hassle having to go to the website; sometimes I don't remember
 the URL because it's on Railway and it's too long."** That is not a complaint about a

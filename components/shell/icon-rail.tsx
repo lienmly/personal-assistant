@@ -2,13 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sparkles } from "lucide-react";
 
 import { MoogleMark } from "@/components/brand/moogle-mark";
 import { SURFACES } from "@/lib/nav";
 import { cn } from "@/lib/utils";
 
-export function IconRail() {
+export function IconRail({
+  onOpenMontblanc,
+}: {
+  onOpenMontblanc: () => void;
+}) {
   const pathname = usePathname();
 
   return (
@@ -48,14 +51,18 @@ export function IconRail() {
         );
       })}
 
+      {/* Not a surface, which is why it sits apart at the foot rather than in
+          the list above: the rail is the four fixed surfaces (§6), and Montblanc
+          is a drawer over whichever one you are on. The mark rather than an icon,
+          because it is the only control here that is a *who*. */}
       <button
         type="button"
-        disabled
-        title="Montblanc — arrives in Phase 5"
-        aria-label="Montblanc — arrives in Phase 5"
-        className="mt-auto grid size-11 place-items-center rounded-full bg-card text-faint shadow-card ring-1 ring-accent/20"
+        onClick={onOpenMontblanc}
+        title="Ask Montblanc  ·  Ctrl+K"
+        aria-label="Ask Montblanc"
+        className="mt-auto grid size-11 place-items-center rounded-full bg-card text-muted shadow-card ring-1 ring-accent/20 transition-[background-color,color] duration-(--duration-quick) ease-soft hover:bg-inset hover:text-ink"
       >
-        <Sparkles className="size-5" />
+        <MoogleMark className="size-5" />
       </button>
     </nav>
   );
