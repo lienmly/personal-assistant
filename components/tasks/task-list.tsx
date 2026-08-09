@@ -196,7 +196,7 @@ export function TaskList({
             "Nothing open on this project. Add the next thing before you forget it."}
         </p>
       ) : view === "stages" ? (
-        <div className="grid gap-3 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
           {STAGES.map((stage, index) => {
             const all = columns[stage.id];
             const open = expanded[stage.id] ?? false;

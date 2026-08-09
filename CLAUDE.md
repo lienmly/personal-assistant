@@ -160,6 +160,12 @@ dashboard/UI ecosystem, easy Google auth, and a clean path to embedding an AI as
 /lib/montblanc     → AI assistant logic (prompts, tools) — Phase 5
 /prisma            → schema.prisma, migrations, seed.ts
 /proxy.ts          → route protection (Next 16's renamed Middleware)
+/app/manifest.ts   → the web app manifest, served at /manifest.webmanifest
+/public/sw.js      → the service worker: installability + an offline page, nothing else
+/public/offline.html → what a failed page load shows. Entirely self-contained (§6)
+/public/icons      → home-screen icons, generated — never hand-edited
+/scripts/generate-icons.mjs → draws them from the moogle mark. No dependency (§6)
+/components/shell/service-worker.tsx → registers it; renders nothing
 /public            → static assets, icons, branding
 /assets            → styling reference screenshots — consult before building UI (§9)
 /docs              → guides written for me to read, not for agents (§9)
@@ -711,6 +717,50 @@ recorded as unchecked. No schema change, no migration, and nothing outside
       tabbing to one scrolls it into view, which fires the handler and brings it back, so
       the failure mode self-corrects. Revisit if it ever reads wrong with a screen reader
 
+### Phase 4.21 — It installs
+_Built 2026-08-09. The complaint was not about a feature: "it's such a hassle having to go to
+the website — sometimes I don't remember the URL because it's on Railway and it's too long."
+That is a **distribution** problem, and no amount of work inside the app fixes it. The answer
+is one icon on a home screen. No schema change and no migration._
+- [x] **`app/manifest.ts`** — name, icons, `display: standalone`, `start_url: /today`, and
+      three long-press shortcuts. §6, "An app you install"
+- [x] **Four real PNG icons, drawn from the moogle mark** by `scripts/generate-icons.mjs` —
+      a ~150-line rasteriser with no dependency, because `apple-touch-icon` has never
+      supported SVG and a manifest icon that fails to decode is a blank square
+- [x] **A maskable copy**, drawn smaller, so Android's launcher mask does not shave the
+      pom off the top of the mark
+- [x] **`public/sw.js`** — installability and an offline page, and **deliberately no app
+      caching**. §6, "The service worker caches nothing that changes"
+- [x] **`public/offline.html`** — self-contained, theme-aware, reads the theme the app
+      left in localStorage
+- [x] **`viewport-fit: cover`** so `env(safe-area-inset-bottom)` reports real values; the
+      tab bar already had the padding and had never been able to use it
+- [x] **`apple-mobile-web-app-capable`** written by hand — Next emits only the standardised
+      `mobile-web-app-capable`, which Safari ignores before iOS 17, and an installed icon
+      that opens *in Safari with the address bar* is the exact complaint
+- [x] **The theme-color meta follows the theme.** Installed there is no browser chrome, so
+      the OS paints the status bar with it — the one part of the window §11 did not reach
+- [x] **`proxy.ts` lets the install files through.** The browser fetches the manifest, the
+      icons and the worker *before* anyone signs in; gated, each 302s to /login and the
+      install prompt silently never appears
+- [x] **Four grid containers were one long word away from scrolling sideways** — §9's
+      `minmax(0, 1fr)` rule, in its `grid-cols-1` form. The project page's Overview was
+      already doing it: 126px of horizontal scroll at 390px wide
+- [x] **The calendar's area filter** stopped overflowing and wrapping "Home & Money" onto
+      three lines; it is a scrolling strip now, with a `no-scrollbar` utility because §9
+      does not have scrollbars
+- [x] **Every page checked at a genuine 390×844 viewport** — all sixteen surface/tab
+      combinations, plus the task, event and drawer overlays. Desktop confirmed untouched
+- [ ] **Still not installed on a real phone.** Everything is verified in desktop Chrome:
+      the manifest parses, the worker is active and intercepts navigations, and killing the
+      server really does produce the offline page. What that cannot show is the iOS install
+      flow, the standalone status bar, or the home indicator against the tab bar
+- [ ] **The Railway URL is still the Railway URL.** A custom domain is the other half of
+      this and it is a Railway setting plus a DNS record, not code — worth doing once,
+      because the install is where the URL stops mattering but a re-install still needs it
+- [ ] **No push notifications.** The worker has no `push` handler; that is Phase 7, and on
+      iOS it requires the app to have been installed first — which it now can be
+
 ### Phase 5 — Montblanc (AI assistant)
 - [ ] Chat drawer with streaming (Claude via AI SDK), available on every surface
 - [ ] Montblanc persona/prompt
@@ -1066,6 +1116,82 @@ Five things fell out, each chosen over an obvious alternative that fails:
    you scrolled would be motion for nothing. The hidden class is still applied at every
    width and a `md:` override beats it, which is one media-query rule rather than a second
    branch to keep in step.
+
+### An app you install, not a URL you remember — decided 2026-08-09
+
+Every phase since 4.8 has recorded the phone as the device this is really for, and every
+one of them worked on what happens **after** the app is open. The thing actually costing
+the most was one step earlier: opening Safari, remembering that the address is a Railway
+subdomain, and typing enough of it to find it in history.
+
+**No change inside the app can fix that**, which is why this is the first phase that is not
+about a surface. What fixes it is the web app manifest plus a service worker — Add to Home
+Screen, and thereafter an icon beside every other app, opening straight to Today with no
+address bar.
+
+Five decisions, each chosen over an obvious alternative that fails:
+
+1. **`start_url` is `/today`, not `/`.** Opening the app should land on the screen it
+   exists for. `/` only ever redirects there, so this is a round trip removed from the
+   slowest moment there is — a cold launch on a phone.
+2. **`display: "standalone"`, not `fullscreen`.** The OS status bar stays. Going fullscreen
+   would hide the clock and the battery on an app whose entire subject is what time it is
+   and what is left of the day.
+3. **The icons are generated PNGs, not the SVG the app already has.** `apple-touch-icon`
+   has never supported SVG and Chrome's support for SVG manifest icons is patchy — and the
+   failure mode is a blank square on the one screen this whole change exists to improve.
+   `scripts/generate-icons.mjs` redraws the mark from three primitives and encodes the PNG
+   itself, because pulling in an image library to produce four files that change once a
+   year is the larger cost. A **maskable** copy exists separately and is drawn smaller:
+   Android masks a home-screen icon to the launcher's shape, and an "any" icon fed through
+   that mask loses the pom off the top.
+4. **The install files are exempt from the proxy.** The browser fetches the manifest, the
+   icons and the worker *before* anyone has signed in. Gated, each one 302s to /login — a
+   manifest that fails to parse costs the install prompt outright, silently, with no error
+   anywhere but a devtools line nobody is reading. None of them is private: a name, a
+   moogle, and a twenty-line cache policy.
+5. **`apple-mobile-web-app-capable` is written by hand.** Next's `appleWebApp.capable`
+   emits the standardised `mobile-web-app-capable`, which Safari only began honouring in
+   iOS 17. On anything older the installed icon opens **in Safari, with the address bar** —
+   which is precisely the complaint, arrived at by a longer route.
+
+Two smaller things fell out. **`viewport-fit: cover`**, because `env(safe-area-inset-*)`
+returns zero without it — the tab bar has carried `pb-[env(safe-area-inset-bottom)]` since
+it was written and had never once been able to use it, since in a browser tab the home
+indicator is Safari's problem. And **the theme-color meta now follows the theme**: installed
+there is no browser chrome, so the OS paints the status bar with that tag, and left static
+it is a light strip above a dark app all night — the one piece of the window §11 never
+reached.
+
+**A custom domain is the other half and is not code.** It is a Railway setting and a DNS
+record. The install is what makes the URL stop mattering day to day; the domain is what
+makes it cheap to re-install, or to open on a device that has not got the icon yet.
+
+### The service worker caches nothing that changes — decided 2026-08-09
+
+It has two jobs and refuses a third. It makes the app installable (a manifest gets you an
+icon; browsers ask for a worker with a fetch handler before they offer to *install*), and
+it replaces the browser's offline error with a page that looks like this app.
+
+**It very deliberately does not cache the app.** The reflex with a service worker is a
+cache-first shell, and here that is actively harmful: every surface is a server-rendered
+view of a database that changes as you use it, so a cached shell shows last Tuesday's tasks
+and lets you tick them. "Why is it showing me the wrong thing" is a far worse failure than
+"it needs signal" — it is the same objection this file has raised at every seeded task and
+invented event, one layer down. **The app must not assert things that are not true**, and a
+stale cache is that assertion made by machinery rather than by a seed script.
+
+So: navigations go to the network, and the cache is consulted only once the network has
+actually failed. Everything else — assets, server actions, the auth callback, the journal's
+media route — is passed through untouched, which is also what keeps auth out of it. Nothing
+in the worker touches a non-GET request, an `/api` route, or another origin, so no session
+and no upload can ever be served from a cache.
+
+The offline page is **self-contained**, and that is a requirement rather than tidiness: none
+of the app's CSS or fonts are cached, so anything it referenced would fail for exactly the
+reason the page is being shown. It reads the theme out of localStorage for the same reason
+`THEME_BOOT_SCRIPT` exists — arriving at a white card at midnight is the flash §11 already
+went to some trouble to prevent.
 
 ### The Today screen — rebuilt project-first 2026-08-04
 
@@ -2482,6 +2608,17 @@ originally — shifts every publish time by the machine's offset.
   small screens, revealed on hover on a pointer device. The add-to-sprint buttons on the
   Hunt Board and in "Next up" are the reference implementations.
 
+- **A `grid` with no base `grid-cols-*` is the same bug, and it hides until a phone.**
+  `className="grid gap-5 lg:grid-cols-3"` has *no column definition below `lg`*, so the
+  browser makes an **implicit** track sized `auto` — whose floor is min-content, not the
+  container. One long word, one wide card, and the track grows past its parent and takes
+  the whole page sideways with it. It is invisible on a desktop, because there the
+  `lg:` variant supplies real columns. Found 2026-08-09 with **126px of horizontal scroll**
+  on the project page's Overview at 390px, and latent in three more places. Tailwind's
+  `grid-cols-1` compiles to `repeat(1, minmax(0, 1fr))`, so the fix is to always write the
+  base case: `grid grid-cols-1 gap-5 lg:grid-cols-3`. Same root cause as the note below,
+  which is about the version you write by hand.
+
 - **A grid column that has to stay in its lane needs `minmax(0, 1fr)`, not `1fr`.**
   `1fr` is really `minmax(auto, 1fr)`, so a track whose content has a large min-content
   width simply grows past its share and shoves every other column along. The week view's
@@ -2596,6 +2733,10 @@ originally — shifts every publish time by the machine's offset.
     and why the Baby area has no projects. Written 2026-08-05.
   - `docs/theme.md` — the Light · Auto · Dark control, why the browser asks for your
     location, and why it doesn't follow the OS setting. Written 2026-08-06.
+  - `docs/install.md` — putting it on a phone's home screen, per platform; what changes
+    once it's installed and what deliberately doesn't; and the custom-domain steps,
+    including the `AUTH_URL` change that is easy to forget and takes sign-in down.
+    Written 2026-08-09.
   **Project docs are no longer here.** The Coding Mom brief, the Forge vision and the
   Utaitai pricing note live on their projects' **Docs tabs** in the app, and their
   source files sit in `prisma/docs/` as seed material only. See §6, "The docs moved onto
@@ -2871,7 +3012,92 @@ Three rules inside it:
 
 ---
 
-_Last updated: 2026-08-08 · Status: **Phase 4.20 — the phone's chrome gets out of the way.**_
+_Last updated: 2026-08-09 · Status: **Phase 4.21 — it installs.**_
+
+_**2026-08-09 — "it's such a hassle having to go to the website; sometimes I don't remember
+the URL because it's on Railway and it's too long."** That is not a complaint about a
+surface, and it is the first one in this file that **nothing inside the app could have
+fixed**. Twelve phases have worked on what happens after the app is open; the expensive step
+was one earlier — find Safari, remember that the address is a Railway subdomain, type enough
+of it to hit history. The fix is an icon on the home screen: a web app manifest, a service
+worker, four generated icons. No schema change, no migration._
+
+_**`start_url` is `/today`, not `/`.** Opening the app should land on the screen it exists
+for, and `/` only ever redirects there — a round trip removed from the slowest moment there
+is. `display: standalone` rather than `fullscreen`, because the OS status bar should stay:
+going fullscreen would hide the clock on an app whose whole subject is what time it is._
+
+_**The icons are generated PNGs and that is not laziness avoided, it is a failure avoided.**
+`apple-touch-icon` has never supported SVG and Chrome's support for SVG manifest icons is
+patchy, so pointing at the mark the app already has produces **a blank square** on the one
+screen this change exists to improve. `scripts/generate-icons.mjs` redraws the moogle from
+three primitives — a circle, a capsule, and a circle clipped by a rounded rectangle, which
+is what that one `c`-heavy path actually is — supersamples it 4×4 and encodes the PNG
+itself. No dependency for four files that change once a year. **A maskable copy is drawn
+smaller**, because Android masks a home-screen icon to the launcher's shape and an "any"
+icon fed through that mask loses the pom off the top of the mark._
+
+_**The service worker deliberately caches nothing that changes**, which is the whole design.
+The reflex is a cache-first shell, and here that is actively harmful: every surface is a
+server-rendered view of a database that moves as you use it, so a cached shell would show
+last Tuesday's tasks **and let you tick them**. That is this file's oldest objection — the
+app must not assert things that are not true — with the assertion made by machinery instead
+of by a seed script. Navigations go to the network; the cache is consulted only once the
+network has actually failed. Nothing touches a non-GET request, an `/api` route or another
+origin, so no session and no upload can ever come from a cache._
+
+_**Two things would have silently cost the whole feature.** `proxy.ts` gated the manifest,
+the icons and the worker — and the browser fetches all three **before** anyone signs in, so
+each 302'd to /login, the manifest failed to parse, and the install prompt would simply never
+have appeared, with no error anywhere but a devtools line. And Next's `appleWebApp.capable`
+emits only the standardised `mobile-web-app-capable`, which Safari ignores before iOS 17: on
+an older iPhone the installed icon opens **in Safari, with the address bar**, which is the
+original complaint arrived at by a longer route. The deprecated spelling is written by hand._
+
+_**Then every page was read at a genuine 390×844 viewport**, and the sweep found a real bug
+that had nothing to do with installing. **A `grid` with no base `grid-cols-*` has no column
+definition below its breakpoint** — the browser makes an implicit `auto` track floored at
+min-content, so one long word takes the page sideways. The project page's Overview was
+scrolling **126px horizontally** on a phone and had been since it was written; it is
+invisible on a desktop, where the `lg:` variant supplies real columns. Three more places
+were one long word from the same fault. This is §9's `minmax(0, 1fr)` rule in its Tailwind
+form, now written down. The calendar's area filter was the other one: six pills in a row
+that could not wrap, overflowing 10px and rendering "Home & Money" **on three lines, clipped**.
+It is a scrolling strip now, with a `no-scrollbar` utility, because a grey bar under a row of
+pills is the loudest thing on a screen whose entire vocabulary is near-invisible chrome._
+
+_Verified on a production build at 390×844 in a same-origin iframe (§9's technique). All
+sixteen surface/tab combinations report zero horizontal overflow — Today, Hunt Board, all
+three calendar views, Studio, batch, channels, four project pages and their four tabs, three
+area tabs — plus the task panel, the event panel and the sidebar drawer, each read as a
+screenshot rather than a number. **Desktop confirmed untouched rather than assumed**: at
+2560px the project Overview is still three equal columns with the main one spanning two, and
+the calendar toolbar is still a single 40px row whose pill strip does not scroll. The
+manifest parses (name, `/today`, standalone, 3 icons, 3 shortcuts), the worker is active,
+controlling, and genuinely intercepts navigations (`workerStart > 0`), and **the offline page
+was proved by killing the server**: /board came back as "No connection, kupo" instead of
+Chrome's error, and recovered on restart. The theme-color meta round-trips light → dark →
+light with the toggle. `npx next build`, `tsc --noEmit` and `eslint` all pass; console clean._
+
+_**One §9 trap re-encountered, exactly as written.** The `no-scrollbar` utility appeared not
+to work — the class was on the element and `scrollbar-width` computed as `auto`. That is the
+Turbopack stale-stylesheet symptom from Phase 4.18, not a broken utility: `npx next build`
+plus `grep -F` of the emitted CSS found `.no-scrollbar{scrollbar-width:none}` present, and a
+production `next start` on port 3100 is where the fix was actually seen. Costing this twice
+is what the note is for._
+
+_Outstanding from this change: **it has still not been installed on a real phone.** Desktop
+Chrome can prove the manifest, the worker and the offline page; it cannot show the iOS
+install flow, the standalone status bar, or the home indicator sitting against the tab bar.
+**The Railway URL is still the Railway URL** — a custom domain is the other half of this and
+is a Railway setting plus a DNS record, not code; the install is what makes the URL stop
+mattering day to day, but a re-install still needs it. **No push notifications**: the worker
+has no `push` handler, that is Phase 7 — and on iOS it requires the app to have been
+installed first, which it now can be._
+
+---
+
+_Previously: **Phase 4.20 — the phone's chrome gets out of the way.**_
 
 _**2026-08-08 — on a phone, a fifth of the screen was permanently spent on chrome.** The
 topbar and the tab bar are ~124px of an 844px viewport, and the topbar is paying most of

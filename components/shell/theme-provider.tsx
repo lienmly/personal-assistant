@@ -56,6 +56,17 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     // Native scrollbars, form controls and date pickers follow along. Without
     // it a dark page gets white scrollbars and a blinding picker.
     root.style.colorScheme = snapshot.theme;
+
+    // Installed on a home screen there is no browser chrome, so the OS paints
+    // the status bar (and Android's nav bar) with this tag. Left static it
+    // would be a light strip above a dark app all night — the one piece of the
+    // window the theme does not otherwise reach.
+    document
+      .querySelector('meta[name="theme-color"]')
+      ?.setAttribute(
+        "content",
+        snapshot.theme === "dark" ? "#1a1716" : "#f1efec",
+      );
   }, [snapshot.theme]);
 
   // Only `auto` has any use for a location, so only `auto` asks for one.

@@ -302,8 +302,14 @@ export default async function ProjectPage({
         ))}
       </nav>
 
+      {/* `grid-cols-1` below is load-bearing, not decoration. A bare `grid`
+          gets an *implicit* column sized `auto`, whose floor is the content's
+          min-content width — so one long word or a wide card pushes the track
+          past the container and the whole page scrolls sideways on a phone.
+          Tailwind's `grid-cols-1` is `repeat(1, minmax(0, 1fr))`, which is the
+          same `minmax(0, 1fr)` rule §9 records for hand-written templates. */}
       {tab === "overview" && (
-        <div className="grid gap-5 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
           <div className="flex flex-col gap-5 lg:col-span-2">
             <Card>
               <CardHeader title="Next up" count={`${stats.open} open`} />

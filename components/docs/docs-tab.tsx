@@ -65,7 +65,7 @@ export function DocsTab({
   const doc = docs.find((row) => row.id === selected) ?? null;
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
       <div className="flex flex-col gap-1.5">
         {docs.map((row) => (
           <button

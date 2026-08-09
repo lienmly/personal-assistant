@@ -154,37 +154,50 @@ export function CalendarSurface({
           ))}
         </div>
 
-        <div className="ml-auto flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1 rounded-full bg-inset p-1">
-            <Link
-              href={href({ area: null })}
-              className={cn(
-                "rounded-full px-3 py-1.5 text-[12.5px] transition-[background-color,color] duration-(--duration-quick)",
-                areaSlug === null
-                  ? "bg-card font-medium text-ink shadow-card"
-                  : "text-muted hover:text-ink",
-              )}
-            >
-              All areas
-            </Link>
-            {areas.map((area) => (
+        {/* `min-w-0` is what lets this shrink below its content on a phone.
+            Without it `ml-auto` on a flex item still refuses to go under its
+            min-content width, and six area pills push the row 10px past the
+            stage — where the last one wraps "Home & Money" onto three lines and
+            still gets clipped. */}
+        <div className="ml-auto flex min-w-0 max-w-full flex-wrap items-center gap-2">
+          {/* The pills stay one line and the strip scrolls instead. Same
+              treatment as the Studio board and the camera's filter row: on
+              touch there is no scrollbar to see, and wrapping a `rounded-full`
+              strip onto two rows turns a stadium into a blob. `-mx-1 px-1`
+              keeps the selected pill's shadow from being clipped by the
+              scroll box. */}
+          <div className="no-scrollbar -mx-1 max-w-full overflow-x-auto px-1">
+            <div className="flex w-max items-center gap-1 rounded-full bg-inset p-1">
               <Link
-                key={area.id}
-                href={href({ area: area.slug })}
+                href={href({ area: null })}
                 className={cn(
-                  "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] transition-[background-color,color] duration-(--duration-quick)",
-                  areaSlug === area.slug
+                  "shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-[12.5px] transition-[background-color,color] duration-(--duration-quick)",
+                  areaSlug === null
                     ? "bg-card font-medium text-ink shadow-card"
                     : "text-muted hover:text-ink",
                 )}
               >
-                <span
-                  className="size-1.5 rounded-full"
-                  style={{ background: area.color }}
-                />
-                {area.name}
+                All areas
               </Link>
-            ))}
+              {areas.map((area) => (
+                <Link
+                  key={area.id}
+                  href={href({ area: area.slug })}
+                  className={cn(
+                    "flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-[12.5px] transition-[background-color,color] duration-(--duration-quick)",
+                    areaSlug === area.slug
+                      ? "bg-card font-medium text-ink shadow-card"
+                      : "text-muted hover:text-ink",
+                  )}
+                >
+                  <span
+                    className="size-1.5 shrink-0 rounded-full"
+                    style={{ background: area.color }}
+                  />
+                  {area.name}
+                </Link>
+              ))}
+            </div>
           </div>
 
           <button

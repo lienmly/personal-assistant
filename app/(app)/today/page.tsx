@@ -216,7 +216,10 @@ export default async function TodayPage() {
         />
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-3">
+      {/* `grid-cols-1` below `lg` — see the note on the project page's copy of
+          this layout: an implicit `auto` track is floored at min-content and
+          takes the page sideways with it. */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <div className="flex flex-col gap-5 lg:col-span-2">
           <Card>
             <CardHeader

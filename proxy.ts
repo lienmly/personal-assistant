@@ -28,5 +28,15 @@ export default auth((req) => {
 
 export const config = {
   // Skip the auth API itself, static assets, and image optimisation.
-  matcher: ["/((?!api/auth|_next/static|_next/image|favicon.ico|.*\\.svg$).*)"],
+  //
+  // The install files have to be here too, and for a reason that is easy to
+  // miss: the browser fetches the manifest, the icons and the service worker
+  // *before* anyone has signed in. Gated, each one 302s to /login — a manifest
+  // that fails to parse costs the install prompt outright, and it does it
+  // silently, with no error anywhere except a line in devtools nobody is
+  // reading. None of them is private; they are a name, a moogle and a
+  // twenty-line cache policy.
+  matcher: [
+    "/((?!api/auth|_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|offline.html|.*\\.svg$|.*\\.png$).*)",
+  ],
 };

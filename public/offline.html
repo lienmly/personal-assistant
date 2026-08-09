@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Offline · Clan Centurio</title>
+    <!--
+      Served by the service worker when a page load fails. It has to be entirely
+      self-contained: none of the app's CSS or fonts are cached, so anything
+      referenced here would fail for exactly the same reason this page is being
+      shown. Hence the inline styles and the inline mark.
+    -->
+    <style>
+      :root {
+        --canvas: #e5e1de;
+        --card: #ffffff;
+        --ink: #14110f;
+        --muted: #8b847e;
+        --accent: #de1f4c;
+      }
+      :root[data-theme="dark"] {
+        --canvas: #100e0d;
+        --card: #292523;
+        --ink: #f4f1ee;
+        --muted: #a79e97;
+        --accent: #e8375d;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        display: grid;
+        place-items: center;
+        padding: 1.5rem;
+        background: var(--canvas);
+        color: var(--ink);
+        font-family:
+          ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      .card {
+        width: 100%;
+        max-width: 22rem;
+        background: var(--card);
+        border-radius: 1.5rem;
+        padding: 2rem 1.75rem;
+        text-align: center;
+      }
+      svg {
+        width: 2.5rem;
+        height: 2.5rem;
+        color: var(--ink);
+      }
+      h1 {
+        margin: 1rem 0 0.5rem;
+        font-size: 1.125rem;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      p {
+        margin: 0;
+        font-size: 0.875rem;
+        line-height: 1.5;
+        color: var(--muted);
+      }
+      button {
+        margin-top: 1.5rem;
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 0;
+        border-radius: 999px;
+        background: var(--accent);
+        color: #fff;
+        font: inherit;
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: transform 120ms cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      button:active {
+        transform: scale(0.97);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="12" cy="5" r="3" fill="var(--accent)" />
+        <path d="M12 8v3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+        <path
+          d="M12 11.2c3.6 0 6.4 2.9 6.4 6.5 0 .7-.6 1.3-1.3 1.3H6.9c-.7 0-1.3-.6-1.3-1.3 0-3.6 2.8-6.5 6.4-6.5Z"
+          fill="currentColor"
+        />
+      </svg>
+      <h1>No connection, kupo</h1>
+      <p>
+        Clan Centurio lives on the server, so it needs a moment of signal to tell
+        you what you&rsquo;ve got on. Try again once you&rsquo;re back.
+      </p>
+      <button type="button" onclick="location.reload()">Try again</button>
+    </div>
+
+    <script>
+      // The app's theme lives in localStorage (see lib/theme.ts). Read the
+      // resolved answer it left behind so this page doesn't flash white at
+      // midnight; fall back to the hour, same as the app's own boot script.
+      try {
+        var mode = localStorage.getItem("cc:theme-mode") || "auto";
+        var theme =
+          mode === "light" || mode === "dark"
+            ? mode
+            : localStorage.getItem("cc:theme") ||
+              (new Date().getHours() < 6 || new Date().getHours() >= 19 ? "dark" : "light");
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.style.colorScheme = theme;
+      } catch (e) {}
+    </script>
+  </body>
+</html>

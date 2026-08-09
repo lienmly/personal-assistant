@@ -258,6 +258,21 @@ body {
   border-left: 1px solid var(--color-line);
 }
 
+/* A strip that scrolls sideways without saying so.
+   §9's whole vocabulary is near-invisible chrome — no borders, shadows you have
+   to look for — and a grey bar under a row of pills is the loudest thing on the
+   screen. This is the same correction Phase 4.18 made to the Tasks tab columns,
+   and it is only allowed where the overflow is *visible* by other means: the
+   last item is cut off mid-pill, which is the affordance. On touch there is no
+   scrollbar to hide in the first place; this is for the narrow desktop window
+   that would otherwise grow one. */
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
