@@ -901,6 +901,45 @@ migration._
 - [ ] **Enter on a bulleted line does not continue the list.** You type the next `- `
       yourself, or press the button again
 
+### Phase 5.4 — The photo viewer swipes
+_Built 2026-08-09. One ask — "in mobile mode the journal photos can't be swiped" — and it is
+the same shape as the phone chrome and the full-screen camera before it: a surface built with
+a pointer's affordances, met on a touchscreen. No schema change and no migration; nothing
+outside `components/areas/media-grid.tsx`._
+- [x] **The current item and its two neighbours sit on one track that follows the finger** —
+      the next photo is visible while you drag toward it, which is what says the gesture is
+      working before you have committed to it. §6, "A photo viewer you cannot flick"
+- [x] **Committing is only `onIndex`** — the neighbour keeps its key, so React keeps the DOM
+      node and the transition carries it from ±100% to 0 by itself. The arrows and the arrow
+      keys take exactly the same route, so there is no second animation path to keep in step
+- [x] **Three slides, not ten** — opening a viewer fetches one photo and pre-warms the two
+      you might go to next
+- [x] **An axis lock**, so a vertical wobble does not slide the photo sideways by however far
+      the thumb wandered
+- [x] **Resistance at either end** (0.35×), so a swipe with nowhere to go says so by barely
+      moving rather than by doing nothing at all
+- [x] **A gesture that starts on a clip's controls or on the chrome belongs to them** —
+      scrubbing is a horizontal drag too, and it is the one the finger meant
+- [x] **`setPointerCapture` is taken at the axis lock, not on the press** — a captured pointer
+      sends its `click` to the capture element, so capturing every press would make a tap on
+      the photo read as a tap on the backdrop, which closes the viewer. §6
+- [x] **A flick that ends over the backdrop is not also a tap on it** — one ref, set when the
+      gesture becomes a swipe and cleared on the next press
+- [x] **The commit distance is read off the gesture, not off `drag` state** — otherwise it
+      depends on React having re-rendered between the last move and the release. Found by
+      dispatching a whole gesture in one synchronous burst, where it silently did not commit
+- [x] **A clip's `autoPlay` became an effect keyed on the index.** `autoPlay` only fires on
+      mount and a neighbour slide is mounted long before it is the one you are looking at —
+      and it is what stops the clip you just swiped away from playing on off screen
+- [ ] **No clip has been swiped past**, because there are none: the journal holds 52 photos
+      and zero videos. The guard that keeps a gesture starting on a `<video>` away from the
+      track was exercised against an injected one, which tests the selector and not a clip
+- [ ] **No pinch to zoom.** A photo opens fit-to-screen and that is all it does; zooming is a
+      second gesture on the same surface and was not asked for
+- [ ] **Still not swiped on a real phone.** It was driven at a genuine 390×844 viewport with
+      synthetic pointer events, which is §9's iframe technique plus dispatched input — closer
+      than reasoning, and not a thumb
+
 ### Phase 6 — Ledger (money)
 - [ ] Bank account connections
 - [ ] Property management statement ingestion + audit
@@ -2643,6 +2682,53 @@ Three notes on the viewer:
   an affordance on a phone), so seven photos meant seven buttons. One level in, it is still
   on every photo and clip.
 
+### A photo viewer you cannot flick is broken — decided 2026-08-09
+
+The viewer shipped with arrows, arrow keys and Escape, which is a **pointer device's**
+vocabulary — and on a phone it left a photo you could open and then only stare at. Every
+photo viewer on a phone swipes, so one that does not does not read as minimal, it reads as
+not finished loading. Same shape as the phone's chrome (4.20) and the full-screen camera
+(4.18): a surface built at 2560px and met with a thumb.
+
+So the current item and its two neighbours sit on **one track that follows the finger**. The
+alternative — snap to the next photo on a flick and animate it in — is less code and worse,
+because it gives you nothing until the gesture is over: the whole reason to drag the track is
+that **the next photo is visible while you are dragging toward it**, which is what tells you
+the gesture is working before you have committed to it, and what makes a half-swipe that
+springs back a decision rather than a dead press.
+
+Six things fell out, each chosen over an obvious alternative that fails:
+
+1. **Committing is only `onIndex`.** The neighbour keeps its key, so React keeps the same DOM
+   node and the transition carries it from ±100% to 0 by itself — the arrows and the arrow
+   keys go through exactly the same line. A separate "animate the slide" path would be a
+   second way to change photo, and the two would drift.
+2. **Three slides, not all ten.** Opening a viewer fetches the photo you asked for and
+   pre-warms the two you might go to next. Rendering the whole entry would pull ten
+   auth-gated images for a viewer most often opened to look at one.
+3. **`setPointerCapture` is taken at the axis lock, not on the press.** A captured pointer
+   sends its `click` to the capture element, so capturing every press would make a tap on the
+   photo arrive at the backdrop — which closes the viewer. A gesture that has already become
+   a swipe has no click left to protect and gains a finger that can slide off the element and
+   still deliver its `up`. It is still wrapped in a `try`, for the reason §6 already records
+   under "One button, and the gesture chooses".
+4. **The commit distance lives on the gesture, not in `drag` state.** Reading it back off
+   state makes committing depend on React having re-rendered between the last move and the
+   release — true of a real finger and not a thing to rest on. **Found by dispatching a whole
+   gesture in one synchronous burst**, where it silently did not commit.
+5. **A gesture that starts on a clip's controls or on the chrome belongs to them.** Scrubbing
+   is a horizontal drag too, and it is the one the finger meant.
+6. **An axis lock and edge resistance**, which are the two things that make it feel like a
+   photo viewer rather than a control that sometimes fires. A vertical wobble abandons the
+   gesture instead of sliding the photo by however far the thumb wandered; a pull at either
+   end moves 0.35× and springs back, so a swipe with nowhere to go says so by barely moving
+   rather than by doing nothing at all.
+
+**A clip's `autoPlay` had to become an effect**, keyed on the index. It only fires on mount,
+and a neighbour slide is mounted long before it is the one you are looking at — and the same
+effect is what pauses the clip you just swiped away from, which would otherwise carry on
+playing off screen.
+
 ### Ten photos an entry — decided 2026-08-06
 
 `MAX_MEDIA_PER_ENTRY = 10`, checked in the composer *and* in the action.
@@ -3499,7 +3585,71 @@ Three rules inside it:
 
 ---
 
-_Last updated: 2026-08-09 · Status: **Phase 5.3 — the journal composer can write.**_
+_Last updated: 2026-08-09 · Status: **Phase 5.4 — the photo viewer swipes.**_
+
+_**2026-08-09 — "in mobile mode, make it so the journal photos can be swiped to view. rn i
+can't swipe."** The viewer shipped with arrows, arrow keys and Escape, which is a pointer
+device's whole vocabulary — so on a phone you could open a photo and then only stare at it.
+Every photo viewer on a phone swipes, so one that doesn't doesn't read as minimal, it reads
+as not finished loading. Same shape as the phone's chrome in 4.20 and the full-screen camera
+in 4.18: a surface built at 2560px and met with a thumb. No schema change and no migration;
+nothing outside `media-grid.tsx`._
+
+_**The current item and its two neighbours sit on one track that follows the finger**, rather
+than the shorter build — detect a flick, animate the next one in. The shorter one gives you
+nothing until the gesture is over, and the entire reason to drag a track is that **the next
+photo is visible while you are dragging toward it**: that is what says the gesture is working
+before you have committed to it, and what turns a half-swipe that springs back into a
+decision rather than a dead press. **Committing is then only `onIndex`** — the neighbour
+keeps its key, so React keeps the DOM node and the transition carries it from ±100% to 0 by
+itself, and the arrows and arrow keys go down the same line. There is no second animation
+path to keep in step, which is the whole reason it is this small._
+
+_**Two things it needed that are not the gesture.** `setPointerCapture` is taken **at the axis
+lock, not on the press**: a captured pointer sends its `click` to the capture element, so
+capturing every press would make a tap on the photo arrive at the backdrop, which closes the
+viewer. And a **flick that ends over the backdrop must not also be a tap on it**, which is one
+ref set when the gesture becomes a swipe. Both are the kind of thing that works in every test
+you write and breaks the one interaction people actually do._
+
+_**One real bug in my own change, found by driving it rather than reading it.** Dispatching a
+whole gesture in one synchronous burst — every move and the release in a single task — the
+swipe silently did not commit, because the release read the distance off `drag` state and
+React had not re-rendered yet. A real finger always gives React that gap, which is exactly why
+it would never have shown up. The distance lives on the gesture ref now and the burst commits._
+
+_Verified on a production build at a genuine 390×844 viewport (§9's iframe technique,
+`matchMedia("(min-width: 48rem)")` false inside it) against the Baby area's real 52 photos.
+On a 7-photo entry: the track holds at −90/+316 mid-drag with transitions off, releasing past
+the 70px threshold goes 1/7 → 2/7 and settles at exactly −406 / 0 / +406, a 40px swipe does
+not commit and springs back, a 200px pull at index 0 moves 70px (0.35×) and commits nothing, a
+200px vertical drag moves the track not at all, and the far end renders two slides with no
+Next button. A drag starting on the Next arrow and one starting on an injected `<video>` both
+leave the track alone, while the same drag on the photo commits. **The pre-existing behaviour
+was re-checked rather than assumed**: tapping the photo keeps it open, tapping the backdrop
+closes, the arrows and arrow keys still step, and `body.overflow` is restored on unmount.
+Desktop confirmed untouched at 2560×1271 — the viewer fills the window, the photo sits at
+905×1207 inside its `p-8`, arrows and keys unchanged. `npx tsc --noEmit`, `eslint` and
+`npx next build` all pass, the five utilities were grepped out of the emitted CSS per §9, and
+the console is clean._
+
+_**§9's occluded-window limit showed up twice, both times exactly as written.** Transitions
+never advance, so the track reads its *start* values until `*{transition:none !important}` is
+injected — and `animationend` never fires, so the close leaves the dialog mounted. Dispatching
+the event by hand unmounted it and restored the scroll lock, which is what confirms the close
+path is intact and the harness is the thing that is stuck._
+
+_Outstanding from this change: **no clip has been swiped past**, because the journal holds 52
+photos and zero videos — the guard that keeps a gesture starting on a `<video>` away from the
+track was exercised against an injected one, which tests the selector and not a clip. **No
+pinch to zoom**: a photo opens fit-to-screen and that is all it does, and zooming is a second
+gesture on the same surface that was not asked for. **And it has still not been swiped with a
+thumb** — synthetic pointer events at a real phone viewport are much closer than reasoning and
+are not a finger._
+
+---
+
+_Previously: **Phase 5.3 — the journal composer can write.**_
 
 _**2026-08-09 — "give the journal text input some formatting option; and on the title, after
 I type and hit enter the cursor should go to the content, not post it."** Two asks about one

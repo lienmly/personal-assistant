@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight, Download, Play, X } from "lucide-react";
 
@@ -150,6 +150,30 @@ function Thumb({
   );
 }
 
+/** The finger currently on the glass. A ref rather than state: it changes on
+ *  every pointermove and nothing rendered reads it. */
+type Gesture = {
+  x: number;
+  y: number;
+  id: number;
+  /** Which way the finger committed. Until it has moved far enough to tell,
+   *  `null` — a vertical drag then abandons rather than sliding the photo
+   *  sideways by however much the thumb wandered. */
+  axis: "x" | "y" | null;
+  width: number;
+  /** How far the track has been pulled. It is on the gesture rather than read
+   *  back off the `drag` state when the finger lifts, because that would make
+   *  committing depend on React having re-rendered between the last move and
+   *  the release — true of a real finger, and not something to rest on. */
+  travel: number;
+};
+
+/** How far a swipe has to travel before it counts, and 48px is the floor so a
+ *  narrow phone doesn't make it trivially easy. */
+function commitThreshold(width: number) {
+  return Math.max(48, width * 0.18);
+}
+
 /**
  * One photo or clip, full size, on its own ground.
  *
@@ -159,6 +183,20 @@ function Thumb({
  * ancestor is a containing block for `position: fixed`, which would pin this to
  * the day it came from instead of the window. Rendering only when open keeps it
  * off the server, where there is no `document` to portal into.
+ *
+ * **It swipes, and the swipe is the only way through on a phone.** The arrows
+ * are a pointer device's affordance; on a touchscreen a photo viewer that
+ * cannot be flicked reads as broken, because every other one can. So the
+ * current item and its two neighbours sit on one track and the whole track
+ * follows the finger — the next photo is *visible* while you are dragging
+ * toward it, which is what tells you the gesture is working before you have
+ * committed to it. Committing just moves the index: the neighbour keeps its
+ * key, so React keeps the same DOM node and the transition carries it from
+ * ±100% to 0 by itself. There is no separate "animate the slide" path to keep
+ * in step with the arrows, which take exactly the same route.
+ *
+ * Only three slides are rendered rather than all ten, so opening a viewer
+ * fetches one photo and pre-warms the two you might go to next.
  */
 function Viewer({
   media,
@@ -172,6 +210,14 @@ function Viewer({
   onClose: () => void;
 }) {
   const [closing, setClosing] = useState(false);
+  const [drag, setDrag] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const gesture = useRef<Gesture | null>(null);
+  /** Set once a gesture becomes a swipe, and read by the background click that
+   *  closes the viewer — a flick that ends over the backdrop must not also be
+   *  a tap on it. */
+  const swiped = useRef(false);
+  const videos = useRef(new Map<string, HTMLVideoElement>());
   const item = media[index];
 
   useEffect(() => {
@@ -196,6 +242,31 @@ function Viewer({
     return () => window.removeEventListener("keydown", onKey);
   }, [index, media.length, onIndex]);
 
+  // A clip used to arrive with `autoPlay`, which only fires on mount — and a
+  // neighbour slide is mounted long before it becomes the one you are looking
+  // at. So the play is driven from the index instead, which also stops the clip
+  // you just swiped away from carrying on playing off screen.
+  useEffect(() => {
+    for (const [id, element] of videos.current) {
+      if (id === item.id) void element.play().catch(() => {});
+      else if (!element.paused) element.pause();
+    }
+  }, [item.id]);
+
+  function endGesture(commit: boolean) {
+    const current = gesture.current;
+    gesture.current = null;
+    setDragging(false);
+    setDrag(0);
+    if (!current || current.axis !== "x" || !commit) return;
+    const threshold = commitThreshold(current.width);
+    if (current.travel <= -threshold && index < media.length - 1) {
+      onIndex(index + 1);
+    } else if (current.travel >= threshold && index > 0) {
+      onIndex(index - 1);
+    }
+  }
+
   return createPortal(
     <div
       // §10: anything that closes animates out — hold `closing`, run the exit,
@@ -205,36 +276,121 @@ function Viewer({
       // `document`, so the portal container is inside the root container and
       // the delegated listener sees the event bubble.
       className={cn(
-        "fixed inset-0 z-50 flex items-center justify-center bg-viewer p-4 sm:p-8",
+        "fixed inset-0 z-50 overflow-hidden bg-viewer",
         closing ? "animate-scrim-out" : "animate-scrim-in",
       )}
-      onClick={() => setClosing(true)}
+      onClick={() => {
+        if (swiped.current) return;
+        setClosing(true);
+      }}
       onAnimationEnd={(event) => {
         if (event.target === event.currentTarget && closing) onClose();
       }}
+      onPointerDown={(event) => {
+        swiped.current = false;
+        if (event.button !== 0) return;
+        // A gesture that starts on the clip's own controls belongs to the clip:
+        // scrubbing is a horizontal drag too, and it is the one the finger
+        // meant. Same for the chrome, where a press is a press.
+        if ((event.target as HTMLElement).closest("video, button")) return;
+        gesture.current = {
+          x: event.clientX,
+          y: event.clientY,
+          id: event.pointerId,
+          axis: null,
+          width: event.currentTarget.clientWidth || window.innerWidth,
+          travel: 0,
+        };
+      }}
+      onPointerMove={(event) => {
+        const current = gesture.current;
+        if (!current || event.pointerId !== current.id) return;
+        const dx = event.clientX - current.x;
+        const dy = event.clientY - current.y;
+        if (current.axis === null) {
+          if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+          if (Math.abs(dy) >= Math.abs(dx)) {
+            gesture.current = null;
+            return;
+          }
+          current.axis = "x";
+          setDragging(true);
+          // Captured here rather than on `pointerdown`, and that ordering is
+          // the point: a captured pointer sends its `click` to the capture
+          // element, so capturing every press would make a tap on the photo
+          // read as a tap on the backdrop — which closes the viewer. A gesture
+          // that has already become a swipe has no click left to protect, and
+          // gains a finger that can slide off the element and still deliver its
+          // `up`. It throws `NotFoundError` on a pointer that is no longer
+          // active, and unguarded that would take the whole gesture with it
+          // (§6, "One button, and the gesture chooses").
+          try {
+            event.currentTarget.setPointerCapture(current.id);
+          } catch {
+            // The capture is a convenience; the swipe under it is the control.
+          }
+        }
+        swiped.current = true;
+        // Resistance at either end, so a swipe with nowhere to go says so by
+        // barely moving rather than by doing nothing at all.
+        const atEdge =
+          (dx > 0 && index === 0) || (dx < 0 && index === media.length - 1);
+        current.travel = atEdge ? dx * 0.35 : dx;
+        setDrag(current.travel);
+      }}
+      onPointerUp={() => endGesture(true)}
+      onPointerCancel={() => endGesture(false)}
       role="dialog"
       aria-modal="true"
     >
-      {item.kind === "video" ? (
-        <video
-          key={item.id}
-          src={`/api/journal/media/${item.id}`}
-          controls
-          autoPlay
-          playsInline
-          onClick={(event) => event.stopPropagation()}
-          className="max-h-full max-w-full rounded-tile"
-        />
-      ) : (
-        /* eslint-disable-next-line @next/next/no-img-element */
-        <img
-          key={item.id}
-          src={`/api/journal/media/${item.id}`}
-          alt={item.caption ?? ""}
-          onClick={(event) => event.stopPropagation()}
-          className="max-h-full max-w-full rounded-tile object-contain"
-        />
-      )}
+      {/* Only the current slide and its two neighbours. The offsets are
+          relative to the current index, so a missing neighbour at either end is
+          simply a slide that isn't rendered — no special case, and no track
+          whose alignment shifts at the ends. */}
+      {[-1, 0, 1].map((offset) => {
+        const slide = media[index + offset];
+        if (!slide) return null;
+        const current = offset === 0;
+        return (
+          <div
+            key={slide.id}
+            className={cn(
+              "absolute inset-0 flex touch-none select-none items-center justify-center p-4 sm:p-8",
+              dragging
+                ? "transition-none"
+                : "transition-transform duration-(--duration-base) ease-soft",
+              !current && "pointer-events-none",
+            )}
+            style={{
+              transform: `translate3d(calc(${offset * 100}% + ${offset * 16}px + ${drag}px), 0, 0)`,
+            }}
+          >
+            {slide.kind === "video" ? (
+              <video
+                ref={(element) => {
+                  if (element) videos.current.set(slide.id, element);
+                  else videos.current.delete(slide.id);
+                }}
+                src={`/api/journal/media/${slide.id}`}
+                controls={current}
+                playsInline
+                preload="metadata"
+                onClick={(event) => event.stopPropagation()}
+                className="max-h-full max-w-full touch-auto rounded-tile"
+              />
+            ) : (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                src={`/api/journal/media/${slide.id}`}
+                alt={slide.caption ?? ""}
+                draggable={false}
+                onClick={(event) => event.stopPropagation()}
+                className="max-h-full max-w-full rounded-tile object-contain"
+              />
+            )}
+          </div>
+        );
+      })}
 
       <ViewerButton
         label="Close"
