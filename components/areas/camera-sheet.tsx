@@ -9,6 +9,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { RefreshCw, Sparkles, X } from "lucide-react";
+import type { PointerEvent as ReactPointerEvent } from "react";
 
 import {
   DEFAULT_FILTER,
@@ -25,6 +26,18 @@ import { cn } from "@/lib/utils";
  *  ten seconds at the bitrate below lands around 1.5–2MB, against ~75KB for a
  *  photo. Long enough for her to do the thing; short enough to keep. */
 export const MAX_CLIP_MS = 10_000;
+
+/** How long the shutter has to be held before it starts recording rather than
+ *  taking a photo. Short enough that a deliberate hold never feels like waiting,
+ *  long enough that a firm tap is never mistaken for one. */
+const HOLD_MS = 350;
+
+/** The shortest clip that gets kept. A finger released just past `HOLD_MS`
+ *  would otherwise produce a 40ms recording — which `MediaRecorder` often hands
+ *  back with no frames at all, so the honest outcome would be the "that clip
+ *  came back empty" error for a gesture that worked. Releasing early simply
+ *  runs on to here instead. */
+const MIN_CLIP_MS = 1_000;
 
 /** Modest on purpose — see above. 720p at 1.5Mbps is well past what a phone
  *  screen resolves for a ten-second clip of a baby. */
@@ -120,6 +133,20 @@ const RING_LENGTH = 2 * Math.PI * RING_RADIUS;
  * at the bottom, and the colour grades tucked behind a toggle so the default
  * state is just the picture.
  *
+ * **One button, and the gesture chooses.** Tap it and you get a photo; hold it
+ * and it records for as long as you hold, up to ten seconds. There is no mode to
+ * set first — a mode strip is a decision the screen asks you to make *before* the
+ * thing you are pointing at has finished happening, and it was two controls
+ * spending a permanent row to answer a question the gesture already answers. This
+ * is how every phone camera behaves, so it is a gesture nobody has to be taught.
+ *
+ * **The front camera is un-mirrored, in the preview and in what is stored.**
+ * WebKit hands back a mirrored track for `facingMode: "user"`, so both the
+ * viewfinder and every `drawImage` of it came out flipped — text backwards, and
+ * a record of the day that disagrees with the day. The flip is undone once, on
+ * the video element and in the canvas, so the two cannot drift apart. The rear
+ * camera is never touched, because nothing mirrors it.
+ *
  * **The chrome is white-on-dark in both themes, deliberately.** This is the same
  * argument `--color-viewer` makes (CLAUDE.md §6, "A thumbnail is a promise"): a
  * viewfinder is dark everywhere, and a light-theme camera would put a pale bar
@@ -169,10 +196,14 @@ export function CameraSheet({
   const recorderRef = useRef<MediaRecorder | null>(null);
   const drawRef = useRef<number | null>(null);
   const stopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const armedRef = useRef(false);
+  const heldRef = useRef(false);
+  const startedAtRef = useRef(0);
 
   const [facing, setFacing] = useState<"user" | "environment">("environment");
   const [filterId, setFilterId] = useState(DEFAULT_FILTER.id);
-  const [mode, setMode] = useState<"photo" | "clip">("photo");
+  const [mirrored, setMirrored] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -196,6 +227,12 @@ export function CameraSheet({
       clearTimeout(stopTimerRef.current);
       stopTimerRef.current = null;
     }
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+    armedRef.current = false;
+    heldRef.current = false;
     if (recorderRef.current && recorderRef.current.state !== "inactive") {
       recorderRef.current.stop();
     }
@@ -246,6 +283,14 @@ export function CameraSheet({
       }
 
       streamRef.current = stream;
+
+      // Ask the track what it actually is rather than trusting what was asked
+      // for: a desktop has one camera and grants it whatever `facingMode` was
+      // requested, reporting nothing back. Anything that is not explicitly the
+      // rear camera is pointed at you, and is the case WebKit mirrors.
+      const settings = stream.getVideoTracks()[0]?.getSettings();
+      setMirrored(settings?.facingMode !== "environment");
+
       const video = videoRef.current;
       if (video) {
         video.srcObject = stream;
@@ -325,6 +370,12 @@ export function CameraSheet({
     const video = videoRef.current;
     if (!video) return;
     context.filter = canFilter ? filter.css : "none";
+    // The same flip the preview applies, so what was composed is what is stored.
+    context.save();
+    if (mirrored) {
+      context.translate(width, 0);
+      context.scale(-1, 1);
+    }
     context.drawImage(
       video,
       crop.sx,
@@ -336,6 +387,7 @@ export function CameraSheet({
       width,
       height,
     );
+    context.restore();
     if (canFilter) drawVignette(context, width, height, filter.vignette);
   }
 
@@ -386,15 +438,17 @@ export function CameraSheet({
 
     // The camera's own track is recorded directly whenever it is already the
     // picture on screen — better quality, and far less work than repainting
-    // every frame through a canvas on a phone. A filter or a crop makes the
-    // canvas the picture instead, so it becomes the source and the microphone is
-    // added back. On a phone the preview usually matches the camera's shape, so
-    // the cheap path is the common one.
+    // every frame through a canvas on a phone. A filter, a crop or a mirror
+    // makes the canvas the picture instead, so it becomes the source and the
+    // microphone is added back. On a phone's rear camera the preview usually
+    // matches the camera's shape, so the cheap path is still the common one —
+    // but a selfie clip always goes through the canvas, because that is where
+    // the flip is undone.
     const filtered = canFilter && filter.id !== DEFAULT_FILTER.id;
     let source: MediaStream;
     let canvas: HTMLCanvasElement | null = null;
 
-    if (!filtered && !isCropped(crop)) {
+    if (!filtered && !mirrored && !isCropped(crop)) {
       source = stream;
     } else {
       canvas = document.createElement("canvas");
@@ -431,6 +485,7 @@ export function CameraSheet({
 
     const chunks: BlobPart[] = [];
     const startedAt = now();
+    startedAtRef.current = startedAt;
 
     recorder.ondataavailable = (event) => {
       if (event.data.size > 0) chunks.push(event.data);
@@ -487,13 +542,76 @@ export function CameraSheet({
     }
   }
 
-  function press() {
-    if (mode === "photo") {
+  /**
+   * Tap for a photo, hold to record.
+   *
+   * The photo fires on *release* rather than on press, because until the finger
+   * comes up there is no way to tell the two gestures apart — and 350ms is well
+   * under the threshold where a shutter feels sluggish. The hold, by contrast,
+   * starts the moment it becomes a hold, so the recording covers the thing you
+   * were reacting to rather than starting after it.
+   */
+  function pressDown(event: ReactPointerEvent<HTMLButtonElement>) {
+    if (!ready || busy || recording) return;
+    armedRef.current = true;
+    heldRef.current = false;
+
+    // Captured, so a finger that slides off the button still ends the recording
+    // on release — otherwise letting go anywhere but exactly on target would
+    // leave it running to the full ten seconds.
+    //
+    // It throws `NotFoundError` if the pointer is no longer active by the time
+    // the handler runs, and that must not take the press down with it: the
+    // capture is a convenience, and the tap underneath it is the whole control.
+    // Armed first, for the same reason.
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // Nothing to do — release still lands on the button itself.
+    }
+
+    if (!canRecord) return;
+
+    holdTimerRef.current = setTimeout(() => {
+      holdTimerRef.current = null;
+      heldRef.current = true;
+      startClip();
+    }, HOLD_MS);
+  }
+
+  function pressUp() {
+    // A release the press was never accepted for — pressed while the camera was
+    // still opening, or while a clip was finishing — does nothing. Without it, a
+    // second press during a recording would fall through to the photo branch.
+    if (!armedRef.current) return;
+    armedRef.current = false;
+
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+    if (!heldRef.current) {
       takePhoto();
       return;
     }
-    if (recording) stopClip();
-    else startClip();
+    heldRef.current = false;
+    endClip();
+  }
+
+  /** Stop, but never before `MIN_CLIP_MS` — see the constant. The ten-second
+   *  timer is replaced rather than left alongside, since this one always fires
+   *  first and stopping is idempotent either way. */
+  function endClip() {
+    const recorder = recorderRef.current;
+    if (!recorder || recorder.state === "inactive") return;
+
+    const held = now() - startedAtRef.current;
+    if (held >= MIN_CLIP_MS) {
+      stopClip();
+      return;
+    }
+    if (stopTimerRef.current) clearTimeout(stopTimerRef.current);
+    stopTimerRef.current = setTimeout(stopClip, MIN_CLIP_MS - held);
   }
 
   // The countdown ring. A recording that stops by itself at ten seconds needs to
@@ -530,12 +648,6 @@ export function CameraSheet({
   }, [onClose, recording]);
 
   const remaining = Math.ceil((MAX_CLIP_MS - elapsed) / 1000);
-  const modes: { id: "photo" | "clip"; label: string }[] = canRecord
-    ? [
-        { id: "photo", label: "Photo" },
-        { id: "clip", label: "10s clip" },
-      ]
-    : [{ id: "photo", label: "Photo" }];
 
   /* Full screen on a phone, a phone-shaped window on a pointer device.
    *
@@ -565,7 +677,10 @@ export function CameraSheet({
           ref={videoRef}
           playsInline
           muted
-          className="absolute inset-0 size-full object-cover"
+          className={cn(
+            "absolute inset-0 size-full object-cover",
+            mirrored && "-scale-x-100",
+          )}
           style={{ filter: canFilter ? filter.css : undefined }}
         />
         {canFilter && filter.vignette > 0 && (
@@ -663,51 +778,37 @@ export function CameraSheet({
             </div>
           )}
 
-          {/* The mode strip, and it replaces two buttons that both looked like
-              the primary action. Naming the mode first and then pressing one
-              shutter is how every camera works, and it is what makes room for a
-              shutter big enough to hit one-handed. Hidden while recording: the
-              answer is already committed and a live control that cannot be used
-              is just noise. */}
-          <div
-            className={cn(
-              "flex items-center gap-1 transition-opacity duration-(--duration-base) ease-soft",
-              recording && "pointer-events-none opacity-0",
-            )}
-          >
-            {modes.map((entry) => (
-              <button
-                key={entry.id}
-                type="button"
-                onClick={() => setMode(entry.id)}
-                aria-pressed={mode === entry.id}
-                className={cn(
-                  "rounded-chip px-3.5 py-1.5 text-[12.5px] transition-[background-color,color] duration-(--duration-base) ease-soft active:scale-[0.97]",
-                  mode === entry.id
-                    ? "bg-white font-semibold text-black"
-                    : "text-white/80 hover:text-white",
-                )}
-              >
-                {entry.label}
-              </button>
-            ))}
-          </div>
-
           <Shutter
-            mode={mode}
             recording={recording}
             elapsed={elapsed}
             disabled={!ready || busy}
-            onPress={press}
+            canRecord={canRecord}
+            onPressDown={pressDown}
+            onPressUp={pressUp}
+            onKeyPress={takePhoto}
           />
 
-          {/* Said plainly, because the alternative is finding out later. A web
-              page cannot write to the photo library; the entry's "Save to
-              photos" button is the nearest thing and it is one extra tap. */}
-          <p className="max-w-xs text-center text-[11px] leading-relaxed text-white/65">
-            Saved to the journal — use <strong>Save to photos</strong> on the
-            entry for your camera roll.
-          </p>
+          {/* The gesture named once, where a mode strip used to sit. Hidden
+              while recording — the ring is saying everything at that point, and
+              an instruction for a choice already made is just noise.
+
+              The second line is said plainly because the alternative is finding
+              out later: a web page cannot write to the photo library, and the
+              entry's "Save to photos" button is the nearest thing. */}
+          <div
+            className={cn(
+              "flex flex-col items-center gap-1 text-center transition-opacity duration-(--duration-base) ease-soft",
+              recording && "opacity-0",
+            )}
+          >
+            <p className="text-[12px] font-medium text-white/90">
+              {canRecord ? "Tap for a photo · hold to record" : "Tap for a photo"}
+            </p>
+            <p className="max-w-xs text-[11px] leading-relaxed text-white/60">
+              Saved to the journal — use <strong>Save to photos</strong> on the
+              entry for your camera roll.
+            </p>
+          </div>
         </div>
       </div>
     </div>,
@@ -716,42 +817,60 @@ export function CameraSheet({
 }
 
 /**
- * The one big round control, ringed.
+ * The one big round control, ringed — and the only control the gesture needs.
  *
- * In clip mode the ring is also the countdown: a recording that cuts itself off
- * at ten seconds has to say so *before* it happens, or the stop reads as a
- * failure. The inner shape morphs circle → rounded square, which is the one
- * piece of universal camera vocabulary for "this is now a stop button" and needs
- * no label.
+ * While recording the ring is also the countdown: a recording that cuts itself
+ * off at ten seconds has to say so *before* it happens, or the stop reads as a
+ * failure. The inner shape shrinks to a rounded square, which is the one piece
+ * of universal camera vocabulary for "this is recording" and needs no label.
+ *
+ * It is driven by pointer events rather than `onClick`, because a click cannot
+ * tell a tap from a hold. That costs the keyboard its default activation, so
+ * Enter and Space are wired back to the photo — the hold has no keyboard
+ * equivalent worth inventing, and a photo is the gesture nine times in ten.
  */
 function Shutter({
-  mode,
   recording,
   elapsed,
   disabled,
-  onPress,
+  canRecord,
+  onPressDown,
+  onPressUp,
+  onKeyPress,
 }: {
-  mode: "photo" | "clip";
   recording: boolean;
   elapsed: number;
   disabled: boolean;
-  onPress: () => void;
+  canRecord: boolean;
+  onPressDown: (event: ReactPointerEvent<HTMLButtonElement>) => void;
+  onPressUp: () => void;
+  onKeyPress: () => void;
 }) {
   const progress = recording ? Math.min(1, elapsed / MAX_CLIP_MS) : 0;
 
   return (
     <button
       type="button"
-      onClick={onPress}
+      onPointerDown={onPressDown}
+      onPointerUp={onPressUp}
+      onPointerCancel={onPressUp}
+      // A long press on a touch screen otherwise raises the context menu and
+      // the text-selection handles, both over the viewfinder, mid-recording.
+      onContextMenu={(event) => event.preventDefault()}
+      onKeyDown={(event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        onKeyPress();
+      }}
       disabled={disabled}
       aria-label={
-        mode === "photo"
-          ? "Take a photo"
-          : recording
-            ? "Stop recording"
-            : "Record a ten-second clip"
+        recording
+          ? "Recording — release to stop"
+          : canRecord
+            ? "Tap to take a photo, hold to record a clip"
+            : "Take a photo"
       }
-      className="relative grid size-[76px] shrink-0 place-items-center transition-transform duration-(--duration-base) ease-soft active:scale-[0.94] disabled:opacity-40"
+      className="relative grid size-[76px] shrink-0 touch-none select-none place-items-center transition-transform duration-(--duration-base) ease-soft active:scale-[0.94] disabled:opacity-40"
     >
       <svg
         viewBox="0 0 76 76"

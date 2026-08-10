@@ -843,6 +843,32 @@ correctness bug behind it; the second is the `Doc` change of 2026-08-05 applied 
       eventually want to point at each other. Deliberately not designed
 - [ ] **Captions still have no UI**, now on a third surface
 
+### Phase 5.2 — One shutter, and the front camera the right way round
+_Built 2026-08-09, hours after 5.1 and correcting it. The mode strip that replaced two
+buttons was still one control too many, and the mirror had been wrong since the camera was
+written. No schema change and no migration; nothing outside `camera-sheet.tsx`._
+- [x] **Tap for a photo, hold to record** — the mode strip is gone and there is one
+      control. §6, "One button, and the gesture chooses"
+- [x] **The photo fires on release**, because until the finger lifts there is nothing to
+      tell the two gestures apart; the **hold starts recording at the threshold**, because
+      the clip has to cover what you were reacting to
+- [x] **`MIN_CLIP_MS`** — a release just past the threshold runs on to one second rather
+      than storing a 70ms recording with no frames in it
+- [x] **`setPointerCapture` cannot take the press down with it** — it throws
+      `NotFoundError` on an inactive pointer, and unguarded that meant no photo, no
+      recording and no error on screen
+- [x] **Enter and Space wired back to the photo**, which `onClick` was giving for free
+- [x] **The front camera is un-mirrored**, one flag driving the preview's `-scale-x-100`
+      and the canvas `drawImage` together. §6, "The front camera is un-mirrored"
+- [x] **The rear camera is untouched**, decided from `getSettings().facingMode` rather than
+      from what was requested — a desktop webcam reports nothing and resolves to self-facing
+- [ ] **The clip's real length has still never been exercised.** The verification window is
+      occluded (`visibilityState: "hidden"`), so `requestAnimationFrame` fires roughly once
+      a second and the canvas path records one frame — §9's standing harness limit, not a
+      fault in the code
+- [ ] **No frame has still ever been captured from a real camera**, unchanged since Phase
+      4.16 — granting Chrome's camera permission is the user's call
+
 ### Phase 6 — Ledger (money)
 - [ ] Bank account connections
 - [ ] Property management statement ingestion + audit
@@ -2428,6 +2454,65 @@ plausible, and **on a phone the viewfinder began below the tab strip and ended a
 bar.** Exactly the mechanism the media viewer portals around, exactly the mechanism §9 records
 for the media dropdown, and found the same way both times: by looking at it at 390px.
 
+### One button, and the gesture chooses — decided 2026-08-09
+
+The mode strip lasted a day. `Photo · 10s clip` was the fix for two buttons that both
+looked like the primary action, and it kept the underlying mistake: **it asks you to
+declare what you are about to do before the thing you are pointing at has finished
+happening.** A baby does the thing once. Deciding, then pressing, is two acts where the
+camera only ever needed one.
+
+So there is one control. **Tap it for a photo, hold it to record** — for as long as you
+hold, up to the same ten seconds. It is the gesture every phone camera already uses, so
+there is nothing to learn, and it is the gesture that removes a permanent row of chrome
+from a surface whose whole argument (above) is that the preview *is* the screen.
+
+Four things fell out, each chosen over an obvious alternative:
+
+1. **The photo fires on release, not on press.** Until the finger comes up there is no way
+   to tell the two gestures apart, and a 350ms threshold is well under where a shutter
+   starts to feel sluggish. The **hold**, by contrast, starts recording the moment it
+   becomes a hold rather than on release — the recording has to cover the thing you were
+   reacting to, not begin after it.
+2. **A release just past the threshold runs on to one second rather than stopping.** A
+   70ms recording is one `MediaRecorder` often hands back with no frames in it at all, so
+   the honest outcome of a gesture that *worked* would have been "that clip came back
+   empty". `MIN_CLIP_MS` is the whole fix.
+3. **`setPointerCapture` is wrapped in a `try`.** It throws `NotFoundError` when the
+   pointer is no longer active by the time the handler runs, and unguarded that takes the
+   entire press down with it — no photo, no recording, no error on screen. The capture is a
+   convenience (it lets a finger slide off the button and still stop the clip); the tap
+   underneath it is the control. The press is armed *before* the attempt for the same
+   reason. Found by driving the shutter with synthetic pointer events, which is exactly the
+   case that throws.
+4. **Pointer events, so the keyboard needs wiring back.** `onClick` cannot tell a tap from
+   a hold, and dropping it costs a button its default Enter/Space activation. Both are
+   bound to the photo; the hold has no keyboard equivalent worth inventing, and a photo is
+   the gesture nine times in ten.
+
+### The front camera is un-mirrored, and in both places at once — decided 2026-08-09
+
+WebKit hands back a **mirrored track** for `facingMode: "user"`, so the viewfinder showed a
+flipped world and every `drawImage` of it stored one — text backwards in a record whose
+entire value is being able to trust it later.
+
+The flip is undone once, as one `mirrored` flag driving both the video element's
+`-scale-x-100` and a `translate`/`scale` around the canvas `drawImage`. **Two consumers,
+one decision** — the rule the filters and the crop already follow, for the third time: a
+preview that cannot lie about the result.
+
+Two details:
+
+1. **The track is asked what it is, rather than the request being trusted.** A desktop has
+   one camera and grants it whatever `facingMode` was asked for while reporting nothing
+   back, so `facing` state would say "environment" for a webcam pointed at your face.
+   `getSettings().facingMode !== "environment"` is the test: anything not explicitly the
+   rear camera is pointed at you, and unknown resolves to the common case.
+2. **A selfie clip always goes through the canvas**, since that is where the flip is undone
+   — so `mirrored` joins a filter and a crop in the list of things that cost the cheap
+   record-the-track-directly path. On a rear camera, which is most of what this journal
+   films, the cheap path is untouched.
+
 ### A thumbnail is a promise that the whole photo is there — decided 2026-08-06
 
 The photos on an entry were "all over the place", and the diagnosis is exact: each one was
@@ -3325,8 +3410,62 @@ Three rules inside it:
 
 ---
 
-_Last updated: 2026-08-09 · Status: **Phase 5.1 — the camera is the screen, and a project
-keeps a journal.**_
+_Last updated: 2026-08-09 · Status: **Phase 5.2 — one shutter, and the front camera the
+right way round.**_
+
+_**2026-08-09 — "no need to have 2 buttons for 2 options, it's so against minimal UI."**
+Correct, and the mode strip shipped hours earlier was the same mistake wearing a better
+hat: it still asks you to declare what you are about to do **before the thing you are
+pointing at has finished happening**. A baby does the thing once. So there is one control —
+**tap for a photo, hold to record** — which is what every phone camera already does, and
+which takes a permanent row of chrome off a surface whose whole argument is that the preview
+is the screen._
+
+_The photo fires on **release**, because until the finger lifts there is nothing to tell the
+two gestures apart and 350ms is well under where a shutter feels slow; the hold starts
+recording **at** the threshold, because a clip has to cover what you were reacting to rather
+than begin after it. **A release just past the threshold runs on to a second** instead of
+stopping — a 70ms recording is one `MediaRecorder` hands back with no frames in it, so the
+honest outcome of a gesture that worked would have been "that clip came back empty"._
+
+_**The mirror had been wrong since the camera was written.** WebKit hands back a mirrored
+track for `facingMode: "user"`, so the viewfinder showed a flipped world and every
+`drawImage` stored one. It is undone once, as a single flag driving the video element's
+`-scale-x-100` and the canvas transform together — two consumers, one decision, which is the
+rule the filters and the crop already follow. **The rear camera is untouched**, and which
+one it is comes from `getSettings().facingMode` rather than from what was asked for: a
+desktop grants its only camera whatever was requested and reports nothing back, so trusting
+the request would have left a webcam pointed at your face on the "environment" branch._
+
+_**One real bug in my own change, found by driving the shutter rather than reading it.**
+`setPointerCapture` throws `NotFoundError` when the pointer is no longer active by the time
+the handler runs, and unguarded it took the **entire press** with it — no photo, no
+recording, nothing on screen. The capture is a convenience; the tap underneath it is the
+control, so it is wrapped and the press is armed before the attempt._
+
+_Verified on a production build in a signed-in browser against a synthetic front camera whose
+left half is blue and right half green. A tap closed the sheet and stored a **426×720** photo
+— the previewed rectangle, not the 1280×720 sensor frame — with **green on the left and blue
+on the right**, i.e. the flip baked in and agreeing with the preview. A hold read "Tap to
+take a photo" at 250ms and "Recording — release to stop" at 500ms with the countdown showing
+`10s`, and released at ~2.3s produced an `video/mp4` clip cropped and flipped the same way.
+A release 70ms into recording produced a clip and **no empty-clip error**. Reporting the
+track as `environment` gave `scale: none`, no flip class, and a stored photo matching the
+source exactly. Nothing was submitted, and the Baby area is back at its **19 entries**.
+`npx tsc --noEmit`, `eslint` and `npx next build` all pass, and the three new utilities were
+grepped out of the emitted CSS per §9 (`.-scale-x-100`, `.touch-none`, `.select-none`)._
+
+_Outstanding from this change: **the clip's real length has never been exercised**. The
+verification window is occluded, so `visibilityState` is `"hidden"` and
+`requestAnimationFrame` fires about once a second — the canvas path therefore records a
+single frame and every clip reports 0.03s. That is §9's documented harness limit rather than
+a fault, and it is unfixable from here: both the fake source and the component's own draw
+loop are rAF-driven. **And no frame has still ever been captured from a real camera**,
+unchanged since Phase 4.16._
+
+---
+
+_Previously: **Phase 5.1 — the camera is the screen, and a project keeps a journal.**_
 
 _**2026-08-09 — "look at the TikTok camera layout, can you make the camera in journal have a
 similar layout."** The reference is a viewfinder with nothing beside it and every control
