@@ -1,11 +1,15 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { BookHeart, Pencil, Play, Plus, Trash2, X } from "lucide-react";
 
 import { MediaGrid } from "@/components/areas/media-grid";
 import { MediaInput, type PreparedMedia } from "@/components/areas/media-input";
 import { Markdown } from "@/components/ui/markdown";
+import {
+  MarkdownToolbar,
+  handleMarkdownShortcut,
+} from "@/components/ui/markdown-toolbar";
 import {
   deleteJournalEntry,
   deleteJournalMedia,
@@ -326,6 +330,7 @@ function Composer({
   // Bumped on a successful save so React remounts the form and clears every
   // uncontrolled field — simpler and less fragile than resetting each by hand.
   const [round, setRound] = useState(0);
+  const body = useRef<HTMLTextAreaElement>(null);
 
   function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -377,6 +382,20 @@ function Composer({
           name="title"
           defaultValue={entry?.title ?? ""}
           placeholder="A headline, if it deserves one"
+          // Enter moves to the body, it does not post. A headline is the
+          // *start* of writing an entry, and the browser's default — a
+          // single-input form submits on Enter — files the thing before you
+          // have said what happened.
+          onKeyDown={(event) => {
+            if (event.key !== "Enter") return;
+            event.preventDefault();
+            const el = body.current;
+            if (!el) return;
+            el.focus();
+            // At the end of whatever is already there, so this is a
+            // continuation rather than a cursor dropped at position zero.
+            el.setSelectionRange(el.value.length, el.value.length);
+          }}
           className={`${fieldBase} min-w-0 flex-1`}
         />
         {onDone && (
@@ -391,12 +410,21 @@ function Composer({
         )}
       </div>
 
+      {/* Above the field rather than below it, and only ever on screen while
+          the composer is open — which is exactly when a formatting row is
+          something you are about to use rather than chrome to read past. */}
+      <MarkdownToolbar targetRef={body} className="mt-2" />
+
       <textarea
+        ref={body}
         name="body"
         defaultValue={entry?.body ?? ""}
         rows={entry ? 8 : 3}
         placeholder="What happened?"
-        className={`${field} mt-2 resize-y leading-relaxed`}
+        onKeyDown={(event) => {
+          handleMarkdownShortcut(event);
+        }}
+        className={`${field} mt-1 resize-y leading-relaxed`}
       />
 
       {entry && entry.media.length > 0 && <ExistingMedia media={entry.media} />}

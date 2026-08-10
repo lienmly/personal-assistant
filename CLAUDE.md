@@ -118,7 +118,8 @@ dashboard/UI ecosystem, easy Google auth, and a clean path to embedding an AI as
 /app/api/auth/…    → Auth.js route handler
 /components/shell  → icon rail, sidebar, topbar, mobile tab bar, the theme
                      provider and its Light · Auto · Dark toggle
-/components/ui     → card, empty state, surface header
+/components/ui     → card, empty state, surface header, the Markdown formatting
+                     row (writes into a textarea, never owns its value — §6)
 /components/brand  → the moogle task
 /lib               → auth config, nav config, server actions, utils
 /components/studio → the content item board, daily queue, batch composer, content item panel, channel manager
@@ -868,6 +869,37 @@ written. No schema change and no migration; nothing outside `camera-sheet.tsx`._
       fault in the code
 - [ ] **No frame has still ever been captured from a real camera**, unchanged since Phase
       4.16 — granting Chrome's camera permission is the user's call
+
+### Phase 5.3 — The journal composer can write
+_Built 2026-08-09. Two asks about the same box: give the body some formatting, and stop the
+headline field posting the entry when you hit Enter. The second is a bug rather than a
+feature — the browser's default, not a decision anybody made. No schema change and no
+migration._
+- [x] **A formatting row above the body** — bold, italic, link, bulleted, numbered, quote,
+      code. Exactly the seven things `lib/markdown.ts` renders and nothing else. §6, "The
+      toolbar offers what the renderer can render"
+- [x] **`components/ui/markdown-toolbar.tsx`** — it edits the textarea and never owns its
+      value, so the composer stays the uncontrolled form every other field in this app is
+- [x] **Edits go through `execCommand("insertText")`**, deprecated and correct: it is the
+      only way to change a textarea's value and keep the browser's native undo stack.
+      `setRangeText` is the fallback, not the default. §6
+- [x] **`Ctrl/⌘+B`, `+I`, `+K`** through the same functions the buttons call
+- [x] **The adjacency test counts asterisks rather than string-matching them** — `*` is a
+      prefix of `**`, so italic on an already-bold word read the bold pair as its own. Found
+      by driving the buttons: it produced `****stayed****`. §6
+- [x] **Enter in the headline moves to the body**, at the end of what is already there. A
+      headline is the *start* of writing an entry, and a one-input form submits on Enter.
+      §6, "Enter is not Post"
+- [x] **The project journal gets it too**, unchanged — same component, the third time the
+      2026-08-09 generalisation has paid for itself
+- [ ] **The Docs editor still has no toolbar**, and it is the more Markdown-heavy surface of
+      the two. The component is written to be handed any textarea ref; wiring it up is four
+      lines and was left out of scope rather than overlooked
+- [ ] **No preview.** The entry renders formatted the moment it is saved and editing is one
+      tap, so a live preview would double the composer's height to answer a question that
+      answers itself
+- [ ] **Enter on a bulleted line does not continue the list.** You type the next `- `
+      yourself, or press the button again
 
 ### Phase 6 — Ledger (money)
 - [ ] Bank account connections
@@ -2258,6 +2290,63 @@ different heights and it has to stop at the last dot. It is one of the few place
 "separation by contrast, not borders" gives way, and for the reason the rule allows: the line
 is not a divider between things, it is the statement that they are connected.
 
+### The toolbar offers what the renderer can render — decided 2026-08-09
+
+Seven buttons above the journal's body field — bold, italic, link, bulleted, numbered,
+quote, code — and the list is not a judgement about what is useful. It is **exactly the
+subset `lib/markdown.ts` parses**, because a button that inserts syntax the renderer prints
+as literal characters is worse than no button: it teaches you a thing the app then refuses
+to do. Headings are the one omission with a reason of its own — an entry already has a
+headline field above the body, and a second title inside it is the field being ignored.
+
+Four decisions, each over the obvious alternative:
+
+1. **It writes into the textarea; it does not own its value.** Every field in this app is
+   uncontrolled and read out of `FormData` on submit, and the reflex build — lift the body
+   into React state so the buttons can transform it — makes the composer a controlled form
+   for the sake of seven buttons, on the one surface whose whole argument is that it costs
+   nothing to type into. So the actions take the element and edit it in place. That is also
+   what lets `Ctrl+B` work without going through the component at all: the keyboard handler
+   and the button call the same function on the same element.
+2. **`execCommand("insertText")`, which is deprecated and which is correct.** It is the only
+   way to change a textarea's value and keep the browser's **native undo stack**.
+   `setRangeText` — the modern, non-deprecated call — silently discards it, so bolding a
+   word would make the next `Ctrl+Z` throw away everything typed before it. That is a real
+   loss in a box you write a paragraph into one-handed, and it is invisible until it costs
+   you the paragraph. `setRangeText` is the fallback for the browsers and the one case
+   (deleting to an empty string) where `insertText` refuses.
+3. **The adjacency test counts asterisks; it does not string-match them.** `*` is a prefix
+   of `**`, so "does this text already carry my markers" answered with `endsWith` gets
+   `***bold and italic***` wrong in both directions — italic reads the bold pair as its own
+   and eats one off each end, or declines to unwrap and adds a fourth. An odd run has an
+   italic marker in it; a run of two or more has a bold pair. **Found by driving the buttons
+   rather than by reading them**: bold-then-italic-then-italic produced `****stayed****`.
+4. **`onMouseDown` is prevented on every button.** A mousedown on a button takes the
+   selection out of the textarea, and the selection is the thing the button is about to act
+   on — so without it, every button applies to an empty range at the caret.
+
+**The Docs editor does not have it yet**, which is the odd half of this: that is the more
+Markdown-heavy of the two surfaces. The component takes any textarea ref, so it is four
+lines there whenever it is wanted; it was left alone because the ask was about the journal
+and widening it is a decision rather than a tidy-up.
+
+### Enter is not Post — decided 2026-08-09
+
+Pressing Enter in the journal's headline field filed the entry. That was never a decision:
+**a form with one text input submits on Enter, and that is the browser's default**, arrived
+at because the composer's other input is a `textarea`, where Enter means what it should.
+
+It is exactly the wrong default here. A headline is the *start* of writing an entry — you
+name the thing, then say what happened — so the most natural keystroke in the sequence
+posted a record with no body in it. On a journal, that is worse than a lost draft: the entry
+is dated from the server's clock and cannot be moved (§6, "The date is not a field"), so the
+recovery is editing a row that now exists at a time you did not choose to write at.
+
+So Enter moves the caret to the body, **at the end of whatever is already there** rather
+than at position zero — on an entry being edited the headline is a thing you tab back up to
+and fix, and dropping the caret in front of an existing paragraph would make the fix the
+start of a new sentence. Submitting is the button, which is where it already was.
+
 ### A task opens where you are reading it — decided 2026-08-07
 
 Today showed you a task's title, its track, its due date and its checklist, and the only
@@ -3410,8 +3499,72 @@ Three rules inside it:
 
 ---
 
-_Last updated: 2026-08-09 · Status: **Phase 5.2 — one shutter, and the front camera the
-right way round.**_
+_Last updated: 2026-08-09 · Status: **Phase 5.3 — the journal composer can write.**_
+
+_**2026-08-09 — "give the journal text input some formatting option; and on the title, after
+I type and hit enter the cursor should go to the content, not post it."** Two asks about one
+box, and the second is not a feature request — it is a bug nobody decided on. **A form with
+one text input submits on Enter**, which is the browser's default and which the composer
+inherited because its other field is a `textarea`, where Enter already means what it should.
+So the most natural keystroke in the sequence — name the thing, then say what happened —
+filed an entry with no body in it. On a journal that is worse than a lost draft: the row is
+dated from the server's clock and cannot be moved (§6, "The date is not a field"), so the
+recovery is editing something that now exists at a time you did not choose to write at.
+Enter moves to the body now, at the **end** of what is already there, because on an entry
+being edited the headline is a thing you go back up to fix and the caret should not land in
+front of an existing paragraph._
+
+_**The toolbar offers exactly the seven things `lib/markdown.ts` renders** — bold, italic,
+link, bulleted, numbered, quote, code. That list is not a judgement about what is useful; a
+button inserting syntax the renderer prints as literal characters is worse than no button,
+because it teaches you a thing the app then refuses to do. Headings are the one omission
+with its own reason: the entry has a headline field above the body, and a second title
+inside it is the field being ignored._
+
+_**It writes into the textarea and never owns its value**, so the composer stays the
+uncontrolled form every other field in this app is. The reflex build lifts the body into
+React state so the buttons can transform it, and that makes a controlled form out of the one
+surface whose whole argument is that it costs nothing to type into. Editing the element in
+place is also what lets `Ctrl+B` work without going through the component at all — the
+keyboard handler and the button call the same function on the same element._
+
+_**Edits go through `execCommand("insertText")`, which is deprecated and which is right.**
+It is the only way to change a textarea's value and keep the browser's **native undo
+stack**; `setRangeText`, the modern non-deprecated call, silently discards it, so bolding a
+word would make the next Ctrl+Z throw away everything typed before it. That is invisible
+until it costs you the paragraph. Verified rather than assumed: two toolbar edits, two
+Ctrl+Z, back to the plain sentence._
+
+_**One real bug in my own change, found by driving the buttons rather than reading them.**
+`*` is a prefix of `**`, so "does this already carry my markers", answered with `endsWith`,
+gets `***bold and italic***` wrong in both directions. Bold, then italic, then italic again
+produced `****stayed****` — it declined to unwrap and added a fourth pair. The test counts
+the asterisk run now: an odd run has an italic marker in it, a run of two or more has a bold
+pair. All six transitions between plain, bold, italic and both now round-trip._
+
+_Verified on a production build in a signed-in browser. Enter in the headline left the value
+intact, moved focus to the body and posted nothing. Bold wrapped, unwrapped and re-selected
+the inner word; bulleted → numbered **replaced** the marker rather than stacking it; quote
+toggled; link came back as `[happy](https://)` with the address pre-selected for typing. A
+real mouse click on a button kept the textarea's focus and selection, which is the
+`onMouseDown` guard doing its job. One entry was saved end to end — bold and a three-item
+list rendered correctly — and **deleted afterwards, with the Baby area confirmed back at its
+19 entries**. At a genuine 390×844 viewport (§9's iframe technique) all seven buttons sit on
+one row ending at x=264 of 390, zero horizontal overflow. Sleepy Cat's Journal tab gets the
+same toolbar unchanged — the third time the 2026-08-09 generalisation has paid for itself.
+`npx tsc --noEmit`, `eslint` and `npx next build` all pass, the four new utilities were
+grepped out of the emitted CSS per §9, and the console is clean on both surfaces._
+
+_Outstanding from this change: **the Docs editor still has no toolbar**, and it is the more
+Markdown-heavy of the two surfaces — the component takes any textarea ref, so it is four
+lines whenever it is wanted, and it was left out of scope rather than overlooked. **No
+preview**, deliberately: the entry renders formatted the moment it is saved and editing is
+one tap, so a live preview would double the composer's height to answer a question that
+answers itself. **Enter on a bulleted line does not continue the list.**_
+
+---
+
+_Previously: **Phase 5.2 — one shutter, and the front camera the right way round.**_
 
 _**2026-08-09 — "no need to have 2 buttons for 2 options, it's so against minimal UI."**
 Correct, and the mode strip shipped hours earlier was the same mistake wearing a better
