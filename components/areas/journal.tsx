@@ -20,6 +20,7 @@ import type {
   JournalEntryView,
   JournalOwner,
 } from "@/lib/journal";
+import { encodeMediaMeta } from "@/lib/media-rules";
 import { cn } from "@/lib/utils";
 
 /** Without a width, so a field can take its own. `field` used to bake in
@@ -340,10 +341,11 @@ function Composer({
     // The file input itself is unnamed, so nothing else is attached.
     for (const item of media) {
       form.append("media", item.file, item.name);
-      form.append(
-        `meta:${item.name}`,
-        `${item.width}x${item.height}:${item.kind}:${item.durationMs ?? 0}`,
-      );
+      // Everything the browser measured, including the **type** — which travels
+      // beside the file rather than on it, because a part's `Content-Type` is
+      // not something every device reliably sends. The format and the reason are
+      // in `lib/media-rules.ts`, next to the decoder the action uses.
+      form.append(`meta:${item.name}`, encodeMediaMeta(item));
     }
 
     setError(null);

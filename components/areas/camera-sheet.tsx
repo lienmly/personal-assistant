@@ -19,6 +19,7 @@ import {
   filterById,
   vignetteCss,
 } from "@/lib/journal-filters";
+import { baseMime, mediaProblem } from "@/lib/media-rules";
 import { cn } from "@/lib/utils";
 
 /** Ten seconds, and it is a hard stop rather than a suggestion. A clip is
@@ -66,6 +67,9 @@ const RECORDER_TYPES = [
 
 export type CapturedMedia = {
   file: File;
+  /** The base type to store it as. Carried as a field because the copy on
+   *  `file` reaches the server as a header some devices drop — `storedTypeOf`. */
+  mimeType: string;
   width: number;
   height: number;
   kind: "photo" | "video";
@@ -114,24 +118,19 @@ function now(): number {
   return Date.now();
 }
 
-/** Mirrors `MAX_MEDIA_BYTES` and the video half of `ACCEPTED_MIME` in
- *  `lib/media-store.ts`, which are the ones that actually decide — that module
- *  imports `lib/db` and this is a client bundle, the same rule `ACCEPTED_IMAGES`
- *  in `media-input.tsx` follows. */
-const MAX_CLIP_BYTES = 6 * 1024 * 1024;
-const STORABLE_VIDEO = ["video/mp4", "video/webm", "video/quicktime"];
-
-/** Why this recording cannot be kept, as a sentence, or `null` if it can. */
-function clipProblem(blob: Blob): string | null {
-  const base = blob.type.split(";")[0].trim().toLowerCase();
-  if (!STORABLE_VIDEO.includes(base)) {
-    // Named, because it is the only way to learn what a given phone produces.
-    return `This browser recorded that as ${base || "an unnamed type"}, which can't be stored yet.`;
-  }
-  if (blob.size > MAX_CLIP_BYTES) {
-    return `That clip is ${(blob.size / 1024 / 1024).toFixed(1)}MB — the limit is ${MAX_CLIP_BYTES / 1024 / 1024}MB. Try a shorter one.`;
-  }
-  return null;
+/**
+ * The type this recording will be **stored** as, decided here and carried
+ * alongside the file rather than left on it.
+ *
+ * `MediaRecorder` reports the codecs it negotiated and only the container is
+ * kept, which is `baseMime`'s job. What is new is that the answer is *sent*: a
+ * `File`'s type reaches the server as a `Content-Type` header on its multipart
+ * part, and an Android phone was observed dropping that header off a recorded
+ * clip — where a missing header parses as `text/plain` and the upload is refused
+ * for a type nothing ever produced. See `metaFor` in `lib/journal-actions.ts`.
+ */
+function storedTypeOf(blob: Blob, requested: string): string {
+  return baseMime(blob.type || requested);
 }
 
 /** The shutter ring's geometry. One place, because the SVG and the arithmetic
@@ -441,6 +440,7 @@ export function CameraSheet({
     const name = `${stamp()}.jpg`;
     onCapture({
       file: new File([blob], name, { type: "image/jpeg" }),
+      mimeType: "image/jpeg",
       width,
       height,
       kind: "photo",
@@ -530,25 +530,31 @@ export function CameraSheet({
       }
 
       const blob = new Blob(chunks, { type: recorder.mimeType || type });
+      const mimeType = storedTypeOf(blob, type);
 
       // **A clip that cannot be stored is refused here, not at submit.** The
       // server refuses it either way, but by then you have written an entry and
       // the answer arrives under the composer, several screens from the camera
-      // that produced it — and until 2026-08-10 it arrived as Next's redaction
-      // boilerplate instead of a sentence. The bitrate hint above is only a
-      // hint, and a phone's hardware encoder is free to ignore it, so this is a
-      // real outcome rather than a defensive flourish.
-      const problem = clipProblem(blob);
+      // that produced it. The bitrate hint above is only a hint, and a phone's
+      // hardware encoder is free to ignore it, so this is a real outcome rather
+      // than a defensive flourish. The same function decides at both ends, so
+      // the two can only ever agree.
+      const problem = mediaProblem({
+        mimeType,
+        byteLength: blob.size,
+        kind: "video",
+      });
       if (problem) {
         setError(problem);
         return;
       }
 
-      const extension = blob.type.includes("mp4") ? "mp4" : "webm";
+      const extension = mimeType.includes("mp4") ? "mp4" : "webm";
       const name = `${stamp()}.${extension}`;
 
       onCapture({
-        file: new File([blob], name, { type: blob.type }),
+        file: new File([blob], name, { type: mimeType }),
+        mimeType,
         width,
         height,
         kind: "video",

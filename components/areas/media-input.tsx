@@ -7,22 +7,20 @@ import {
   CameraSheet,
   type CapturedMedia,
 } from "@/components/areas/camera-sheet";
+import {
+  ACCEPTED_IMAGE_MIME,
+  MAX_MEDIA_PER_ENTRY,
+  baseMime,
+} from "@/lib/media-rules";
 import { cn } from "@/lib/utils";
-
-/** Mirrors the image half of `ACCEPTED_MIME` in `lib/media-store.ts`. Kept as a
- *  literal rather than imported, because that module imports `lib/db` and this
- *  is a client bundle — the same rule `lib/tracks.ts` follows. */
-const ACCEPTED_IMAGES = ["image/jpeg", "image/png", "image/webp"];
 
 /** The longest edge we keep. A 4032×3024 phone photo becomes 1600×1200, which
  *  is still more than any screen this is read on and about a tenth the bytes. */
 const MAX_EDGE = 1600;
 
-/** Mirrors `MAX_MEDIA_PER_ENTRY` in `lib/media-store.ts`, which is the one that
- *  actually decides — that module imports `lib/db` and this is a client bundle,
- *  the same rule `ACCEPTED_IMAGES` above follows. This copy exists so the cap is
- *  a disabled button rather than an error after the upload. */
-const MAX_PER_ENTRY = 10;
+/** The same constant the action enforces, imported rather than mirrored — so the
+ *  cap is a disabled button here *and* an error there, never two numbers. */
+const MAX_PER_ENTRY = MAX_MEDIA_PER_ENTRY;
 
 export type PreparedMedia = {
   /** A stable key for React, and what pairs the file with its metadata in the
@@ -34,6 +32,9 @@ export type PreparedMedia = {
   height: number;
   kind: "photo" | "video";
   durationMs: number | null;
+  /** The base type, decided here and sent alongside the file rather than read
+   *  off its `Content-Type` on the server — see the note in `journal.tsx`. */
+  mimeType: string;
 };
 
 /**
@@ -153,6 +154,7 @@ export function MediaInput({
         height: item.height,
         kind: item.kind,
         durationMs: item.durationMs,
+        mimeType: item.mimeType,
       },
     ]);
   }
@@ -330,7 +332,9 @@ async function prepare(file: File): Promise<PreparedMedia | null> {
 
   if (!bitmap) {
     // Undecodable. Keep it only if the server would accept it as-is.
-    if (!ACCEPTED_IMAGES.includes(file.type)) return null;
+    const mimeType = baseMime(file.type);
+    if (!(ACCEPTED_IMAGE_MIME as readonly string[]).includes(mimeType))
+      return null;
     return {
       name: uniqueName(file.name),
       file,
@@ -339,6 +343,7 @@ async function prepare(file: File): Promise<PreparedMedia | null> {
       height: 0,
       kind: "photo",
       durationMs: null,
+      mimeType,
     };
   }
 
@@ -371,6 +376,8 @@ async function prepare(file: File): Promise<PreparedMedia | null> {
     height,
     kind: "photo",
     durationMs: null,
+    // Not `file.type` — this is the JPEG we just encoded, whatever came in.
+    mimeType: "image/jpeg",
   };
 }
 

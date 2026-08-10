@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { baseMime, mediaProblem } from "@/lib/media-rules";
 
 /**
  * The one place that touches journal media **bytes**.
@@ -19,59 +20,17 @@ import { db } from "@/lib/db";
  * value; they are served by `app/api/journal/media/[id]/route.ts` alone.
  */
 
-/** What a browser is allowed to send. Anything else is refused on upload. */
-export const ACCEPTED_MIME = [
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  // Whichever of these the recorder negotiated: Safari produces MP4/H.264,
-  // Chrome and Firefox produce WebM. `MediaRecorder` hands back a type with the
-  // codecs appended ("video/webm;codecs=vp8,opus"), so callers must compare the
-  // base type — see `baseMime`.
-  "video/mp4",
-  "video/webm",
-  "video/quicktime",
-] as const;
-
-/**
- * A ceiling on one stored item, checked server-side.
- *
- * Neither path normally approaches it. A photo is downscaled to ~1600px in the
- * browser and lands under 500KB; a ten-second clip is recorded at a deliberately
- * modest bitrate and lands around 1.5–2MB. This is the backstop for a client that
- * failed to downscale, or a recorder that ignored the bitrate hint. 6MB also sits
- * under `serverActions.bodySizeLimit` in `next.config.ts`, so a refusal here is a
- * clean error rather than a truncated request.
- */
-export const MAX_MEDIA_BYTES = 6 * 1024 * 1024;
-
-/**
- * How many photos and clips one entry may hold.
- *
- * Ten is a **storage** number wearing a layout number's clothes, the same way
- * the clip's ten seconds is (§6, "A clip is a photo that costs twenty times as
- * much"). Ten photos is ~750KB in a database where every byte is a byte of
- * database; ten *clips* is 20MB, which is why the cap counts items rather than
- * kinds and is deliberately not generous. It is also as many as the grid can
- * show without becoming a contact sheet you scroll past instead of look at.
- *
- * A second entry is always available and costs nothing — a day already holds as
- * many as you like, and they read as one flow. So the cap constrains a single
- * moment, not the day, which is why it can be this low without losing anything.
- */
-export const MAX_MEDIA_PER_ENTRY = 10;
-
-/**
- * "video/webm;codecs=vp8,opus" → "video/webm".
- *
- * `MediaRecorder` reports the type it actually negotiated, codecs and all, and
- * that string is what lands on the `File`. Storing it whole would be honest but
- * useless — nothing downstream branches on the codec, and it would mean the
- * accept-list had to enumerate every codec combination any browser might pick.
- */
-export function baseMime(mimeType: string): string {
-  return mimeType.split(";")[0].trim().toLowerCase();
-}
+/** The rules live in a client-safe module so the camera and this endpoint
+ *  decide from one copy; re-exported here because this is where callers of the
+ *  store expect to find them. */
+export {
+  ACCEPTED_MIME,
+  ACCEPTED_IMAGE_MIME,
+  MAX_MEDIA_BYTES,
+  MAX_MEDIA_PER_ENTRY,
+  baseMime,
+  mediaProblem,
+} from "@/lib/media-rules";
 
 export type NewMedia = {
   entryId: string;
@@ -84,39 +43,6 @@ export type NewMedia = {
   durationMs?: number | null;
   caption?: string | null;
 };
-
-/**
- * Why one file cannot be stored, as a sentence, or `null` if it can.
- *
- * Split out of `putMedia` so a submit can be refused **before the entry is
- * created** — a `File` already carries its type and its size, so neither of
- * these needs the bytes read or a row written to answer. That ordering is the
- * whole point: it is the same argument the per-entry cap already makes a few
- * lines up in `saveJournalEntry`, and getting it wrong is what left three
- * entries in the database holding a title and no photos (2026-08-10, found on
- * the first clip anyone tried to save).
- *
- * `putMedia` still checks, because this is advice and that is the gate.
- */
-export function mediaProblem(item: {
-  mimeType: string;
-  byteLength: number;
-  kind: "photo" | "video";
-}): string | null {
-  const mimeType = baseMime(item.mimeType);
-  const noun = item.kind === "video" ? "clip" : "photo";
-
-  if (!(ACCEPTED_MIME as readonly string[]).includes(mimeType)) {
-    // The type is named because it is the only way to find out what a browser
-    // actually produced — in production the thrown message never reaches the
-    // screen (see `saveJournalEntry`), and this one is a returned value.
-    return `This browser recorded that ${noun} as ${mimeType || "an unnamed type"}, which can't be stored yet.`;
-  }
-  if (item.byteLength > MAX_MEDIA_BYTES) {
-    return `That ${noun} is ${(item.byteLength / 1024 / 1024).toFixed(1)}MB — the limit is ${MAX_MEDIA_BYTES / 1024 / 1024}MB. A shorter one will fit.`;
-  }
-  return null;
-}
 
 /** Stores one photo or clip and returns its id. Rejects oversized or unknown. */
 export async function putMedia(item: NewMedia): Promise<string> {

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { type MediaMeta, decodeMediaMeta } from "@/lib/media-rules";
 import {
   MAX_MEDIA_PER_ENTRY,
   deleteMedia,
@@ -173,14 +174,11 @@ export async function saveJournalEntry(
   // the store loop below, is what left "Happy baby" and two others in the
   // database holding a title and nothing else while the screen said the save had
   // failed outright. Nothing is written unless all of it can be.
-  const prepared = files.map((file) => ({
-    file,
-    meta: metaFor(form, file.name),
-  }));
+  const prepared = files.map((file) => ({ file, meta: metaFor(form, file) }));
 
   for (const { file, meta } of prepared) {
     const problem = mediaProblem({
-      mimeType: file.type,
+      mimeType: meta.mimeType,
       byteLength: file.size,
       kind: meta.kind,
     });
@@ -205,7 +203,7 @@ export async function saveJournalEntry(
     await putMedia({
       entryId: entry.id,
       data: new Uint8Array(await file.arrayBuffer()),
-      mimeType: file.type,
+      mimeType: meta.mimeType,
       width: meta.width,
       height: meta.height,
       kind: meta.kind,
@@ -218,46 +216,17 @@ export async function saveJournalEntry(
 }
 
 /**
- * What the browser already knows about each file, sent alongside it as
- * `meta:<filename>` = "WxH:kind:durationMs".
+ * What the browser already knows about each file, sent alongside it.
  *
  * The alternative is decoding the file server-side to read its header, which
- * means a native image and video library in the dependency list to learn three
- * numbers the client had in hand — it has already decoded the photo to downscale
- * it, and it recorded the clip itself. If the value is missing or malformed we
- * store 0×0 and treat it as a photo, which the UI renders at its natural size.
+ * means a native image and video library in the dependency list to learn what
+ * the client had in hand — it has already decoded the photo to downscale it, and
+ * it recorded the clip itself. The format, and the reason the type is in it
+ * rather than read off the request, are in `lib/media-rules.ts` beside the
+ * encoder the composer uses.
  */
-function metaFor(
-  form: FormData,
-  filename: string,
-): {
-  width: number;
-  height: number;
-  kind: "photo" | "video";
-  durationMs: number | null;
-} {
-  const fallback = {
-    width: 0,
-    height: 0,
-    kind: "photo" as const,
-    durationMs: null,
-  };
-
-  const raw = form.get(`meta:${filename}`);
-  if (typeof raw !== "string") return fallback;
-
-  const [size, kind, duration] = raw.split(":");
-  const [width, height] = (size ?? "").split("x").map(Number);
-  if (!Number.isFinite(width) || !Number.isFinite(height)) return fallback;
-
-  const durationMs = Number(duration);
-
-  return {
-    width,
-    height,
-    kind: kind === "video" ? "video" : "photo",
-    durationMs: Number.isFinite(durationMs) && durationMs > 0 ? durationMs : null,
-  };
+function metaFor(form: FormData, file: File): MediaMeta {
+  return decodeMediaMeta(form.get(`meta:${file.name}`), file.type);
 }
 
 export async function deleteJournalEntry(id: string) {
