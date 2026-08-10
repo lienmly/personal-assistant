@@ -7,8 +7,29 @@ import { db } from "@/lib/db";
 import {
   MAX_MEDIA_PER_ENTRY,
   deleteMedia,
+  mediaProblem,
   putMedia,
 } from "@/lib/media-store";
+
+/**
+ * What a save says back.
+ *
+ * **A refusal is a returned value, never a thrown error, and that is not a
+ * style preference.** React redacts every error crossing the server boundary in
+ * a production build, replacing the message with "An error occurred in the
+ * Server Components render. The specific message is omitted…" — so on Railway,
+ * every carefully worded sentence in this file reached the screen as that
+ * paragraph instead, for every failure alike. The composer was already catching
+ * and displaying `cause.message`; there was simply never a useful message in it.
+ * Found 2026-08-10, when a ten-second clip refused to attach and said nothing
+ * about why.
+ *
+ * A genuine bug — Prisma is down, the session is gone — still throws, because
+ * that belongs in the logs rather than in a sentence under the composer.
+ */
+export type JournalSaveResult =
+  | { ok: true; id: string }
+  | { ok: false; message: string };
 
 /** Server actions are their own public endpoints — the route guard in the
  *  layout does not cover them, so each one re-checks the session. */
@@ -103,7 +124,9 @@ function refresh(path: string) {
  * photo that fails to store should cost you that photo, not the paragraph you
  * just wrote.
  */
-export async function saveJournalEntry(form: FormData) {
+export async function saveJournalEntry(
+  form: FormData,
+): Promise<JournalSaveResult> {
   await requireSession();
 
   const id = str(form, "id");
@@ -124,7 +147,7 @@ export async function saveJournalEntry(form: FormData) {
     .filter((value): value is File => value instanceof File && value.size > 0);
 
   if (!id && !title && !body && files.length === 0) {
-    throw new Error("Write something or add a photo");
+    return { ok: false, message: "Write something or add a photo." };
   }
 
   // **Counted against what the entry already holds, and before anything is
@@ -138,9 +161,30 @@ export async function saveJournalEntry(form: FormData) {
     ? await db.journalMedia.count({ where: { entryId: id } })
     : 0;
   if (existing + files.length > MAX_MEDIA_PER_ENTRY) {
-    throw new Error(
-      `An entry holds ${MAX_MEDIA_PER_ENTRY} photos or clips${existing > 0 ? ` — this one already has ${existing}` : ""}. Start another entry for the rest; they still read as one day.`,
-    );
+    return {
+      ok: false,
+      message: `An entry holds ${MAX_MEDIA_PER_ENTRY} photos or clips${existing > 0 ? ` — this one already has ${existing}` : ""}. Start another entry for the rest; they still read as one day.`,
+    };
+  }
+
+  // **Every file is vetted before the entry is created**, for exactly the reason
+  // the cap above is. A `File` knows its own type and size, so a bad one can be
+  // refused without reading a byte or writing a row — and refusing it later, in
+  // the store loop below, is what left "Happy baby" and two others in the
+  // database holding a title and nothing else while the screen said the save had
+  // failed outright. Nothing is written unless all of it can be.
+  const prepared = files.map((file) => ({
+    file,
+    meta: metaFor(form, file.name),
+  }));
+
+  for (const { file, meta } of prepared) {
+    const problem = mediaProblem({
+      mimeType: file.type,
+      byteLength: file.size,
+      kind: meta.kind,
+    });
+    if (problem) return { ok: false, message: problem };
   }
 
   const entry = id
@@ -157,8 +201,7 @@ export async function saveJournalEntry(form: FormData) {
         select: { id: true, ...OWNER_SELECT },
       });
 
-  for (const file of files) {
-    const meta = metaFor(form, file.name);
+  for (const { file, meta } of prepared) {
     await putMedia({
       entryId: entry.id,
       data: new Uint8Array(await file.arrayBuffer()),
@@ -171,7 +214,7 @@ export async function saveJournalEntry(form: FormData) {
   }
 
   refresh(pathFor(entry));
-  return entry.id;
+  return { ok: true, id: entry.id };
 }
 
 /**

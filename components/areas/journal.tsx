@@ -349,7 +349,15 @@ function Composer({
     setError(null);
     startTransition(async () => {
       try {
-        await saveJournalEntry(form);
+        // A refusal comes back as a value rather than an exception, because a
+        // production build redacts every thrown message into Next's boilerplate
+        // — see `JournalSaveResult`. The form is deliberately left standing:
+        // nothing was written, so what you typed is still the only copy.
+        const result = await saveJournalEntry(form);
+        if (!result.ok) {
+          setError(result.message);
+          return;
+        }
         setMedia([]);
         setRound((value) => value + 1);
         onDone?.();

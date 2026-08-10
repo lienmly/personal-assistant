@@ -582,13 +582,18 @@ const createJournalEntry: Tool = {
     const body = text(args, "body");
     if (!body) return { summary: "FAILED: needs something to say.", events: [] };
 
-    const id = await saveJournalEntry(
+    const result = await saveJournalEntry(
       form({
         ...(projectSlug ? { projectId: owner.id } : { areaId: owner.id }),
         body,
         title: text(args, "title"),
       }),
     );
+    // The action refuses in the same words the composer would show. Handed back
+    // as a FAILED summary rather than retried, per the rule the other tools
+    // follow: nothing that fails is quietly attempted a second way.
+    if (!result.ok) return { summary: `FAILED: ${result.message}`, events: [] };
+    const id = result.id;
 
     const href = projectSlug
       ? `/projects/${owner.slug}?tab=journal`

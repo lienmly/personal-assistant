@@ -85,18 +85,49 @@ export type NewMedia = {
   caption?: string | null;
 };
 
+/**
+ * Why one file cannot be stored, as a sentence, or `null` if it can.
+ *
+ * Split out of `putMedia` so a submit can be refused **before the entry is
+ * created** — a `File` already carries its type and its size, so neither of
+ * these needs the bytes read or a row written to answer. That ordering is the
+ * whole point: it is the same argument the per-entry cap already makes a few
+ * lines up in `saveJournalEntry`, and getting it wrong is what left three
+ * entries in the database holding a title and no photos (2026-08-10, found on
+ * the first clip anyone tried to save).
+ *
+ * `putMedia` still checks, because this is advice and that is the gate.
+ */
+export function mediaProblem(item: {
+  mimeType: string;
+  byteLength: number;
+  kind: "photo" | "video";
+}): string | null {
+  const mimeType = baseMime(item.mimeType);
+  const noun = item.kind === "video" ? "clip" : "photo";
+
+  if (!(ACCEPTED_MIME as readonly string[]).includes(mimeType)) {
+    // The type is named because it is the only way to find out what a browser
+    // actually produced — in production the thrown message never reaches the
+    // screen (see `saveJournalEntry`), and this one is a returned value.
+    return `This browser recorded that ${noun} as ${mimeType || "an unnamed type"}, which can't be stored yet.`;
+  }
+  if (item.byteLength > MAX_MEDIA_BYTES) {
+    return `That ${noun} is ${(item.byteLength / 1024 / 1024).toFixed(1)}MB — the limit is ${MAX_MEDIA_BYTES / 1024 / 1024}MB. A shorter one will fit.`;
+  }
+  return null;
+}
+
 /** Stores one photo or clip and returns its id. Rejects oversized or unknown. */
 export async function putMedia(item: NewMedia): Promise<string> {
   const mimeType = baseMime(item.mimeType);
 
-  if (!(ACCEPTED_MIME as readonly string[]).includes(mimeType)) {
-    throw new Error(`Unsupported file type: ${mimeType}`);
-  }
-  if (item.data.byteLength > MAX_MEDIA_BYTES) {
-    throw new Error(
-      `That ${item.kind === "video" ? "clip" : "image"} is ${(item.data.byteLength / 1024 / 1024).toFixed(1)}MB — the limit is ${MAX_MEDIA_BYTES / 1024 / 1024}MB.`,
-    );
-  }
+  const problem = mediaProblem({
+    mimeType: item.mimeType,
+    byteLength: item.data.byteLength,
+    kind: item.kind,
+  });
+  if (problem) throw new Error(problem);
 
   const row = await db.journalMedia.create({
     data: {

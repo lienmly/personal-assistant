@@ -114,6 +114,26 @@ function now(): number {
   return Date.now();
 }
 
+/** Mirrors `MAX_MEDIA_BYTES` and the video half of `ACCEPTED_MIME` in
+ *  `lib/media-store.ts`, which are the ones that actually decide — that module
+ *  imports `lib/db` and this is a client bundle, the same rule `ACCEPTED_IMAGES`
+ *  in `media-input.tsx` follows. */
+const MAX_CLIP_BYTES = 6 * 1024 * 1024;
+const STORABLE_VIDEO = ["video/mp4", "video/webm", "video/quicktime"];
+
+/** Why this recording cannot be kept, as a sentence, or `null` if it can. */
+function clipProblem(blob: Blob): string | null {
+  const base = blob.type.split(";")[0].trim().toLowerCase();
+  if (!STORABLE_VIDEO.includes(base)) {
+    // Named, because it is the only way to learn what a given phone produces.
+    return `This browser recorded that as ${base || "an unnamed type"}, which can't be stored yet.`;
+  }
+  if (blob.size > MAX_CLIP_BYTES) {
+    return `That clip is ${(blob.size / 1024 / 1024).toFixed(1)}MB — the limit is ${MAX_CLIP_BYTES / 1024 / 1024}MB. Try a shorter one.`;
+  }
+  return null;
+}
+
 /** The shutter ring's geometry. One place, because the SVG and the arithmetic
  *  that fills it have to agree. */
 const RING_RADIUS = 34;
@@ -510,6 +530,20 @@ export function CameraSheet({
       }
 
       const blob = new Blob(chunks, { type: recorder.mimeType || type });
+
+      // **A clip that cannot be stored is refused here, not at submit.** The
+      // server refuses it either way, but by then you have written an entry and
+      // the answer arrives under the composer, several screens from the camera
+      // that produced it — and until 2026-08-10 it arrived as Next's redaction
+      // boilerplate instead of a sentence. The bitrate hint above is only a
+      // hint, and a phone's hardware encoder is free to ignore it, so this is a
+      // real outcome rather than a defensive flourish.
+      const problem = clipProblem(blob);
+      if (problem) {
+        setError(problem);
+        return;
+      }
+
       const extension = blob.type.includes("mp4") ? "mp4" : "webm";
       const name = `${stamp()}.${extension}`;
 
