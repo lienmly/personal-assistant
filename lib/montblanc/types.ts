@@ -66,6 +66,21 @@ export type MontblancEvent =
   | { type: "text"; text: string }
   | { type: "error"; message: string };
 
+/**
+ * One thing Montblanc has noticed about the person, across conversations.
+ *
+ * Lives here rather than in `lib/montblanc/memory.ts` for that module's header
+ * reason: memory.ts imports Prisma, and the drawer renders these. Behaviour
+ * rather than feelings — see the distiller's rules.
+ */
+export type NoteView = {
+  id: string;
+  kind: string;
+  text: string;
+  /** "9 Aug". A note is dated because *how it changes* is half the point. */
+  when: string;
+};
+
 /** How many turns of history the drawer sends back. Enough to carry a
  *  clarification ("which project?" → "Sleepy Cat") and its answer, and short
  *  enough that a long session doesn't quietly become an expensive one. */

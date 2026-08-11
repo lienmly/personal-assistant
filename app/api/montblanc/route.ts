@@ -6,6 +6,7 @@ import {
   MontblancNotConfigured,
   type ApiMessage,
 } from "@/lib/montblanc/deepseek";
+import { getNotes, recordExchange, renderNotes } from "@/lib/montblanc/memory";
 import { systemMessage } from "@/lib/montblanc/prompt";
 import { TOOLS, TOOL_SCHEMAS } from "@/lib/montblanc/tools";
 import {
@@ -48,9 +49,21 @@ export async function POST(request: Request) {
   }
 
   let turns: Turn[];
+  let conversationId: string | null;
   try {
-    const body = (await request.json()) as { turns?: Turn[] };
+    const body = (await request.json()) as {
+      turns?: Turn[];
+      conversationId?: unknown;
+    };
     turns = Array.isArray(body.turns) ? body.turns : [];
+    // Minted by the drawer, one per opening, so "a conversation" means one
+    // sitting. Length-capped because it becomes a primary key.
+    conversationId =
+      typeof body.conversationId === "string" &&
+      body.conversationId.length > 0 &&
+      body.conversationId.length <= 64
+        ? body.conversationId
+        : null;
   } catch {
     return new Response("Bad request", { status: 400 });
   }
@@ -59,6 +72,8 @@ export async function POST(request: Request) {
     return new Response("Bad request", { status: 400 });
   }
 
+  const question = turns[turns.length - 1].content;
+
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream<Uint8Array>({
@@ -66,9 +81,26 @@ export async function POST(request: Request) {
       const send = (event: MontblancEvent) =>
         controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
 
+      // What was finally said, so the log records the answer and not just the
+      // question. Set by whichever round breaks out with words.
+      let spoken: string | null = null;
+
       try {
+        // Both in one trip. `getNotes` is one indexed read of at most fifteen
+        // short rows — far cheaper than the round trip a `recall` tool would
+        // have cost on every single request, which is the same trade §6 made
+        // when it put "what currently exists" in the prompt rather than behind
+        // a tool.
+        const [context, notes] = await Promise.all([
+          buildContext(),
+          getNotes(),
+        ]);
+
         const messages: ApiMessage[] = [
-          { role: "system", content: systemMessage(await buildContext()) },
+          {
+            role: "system",
+            content: systemMessage(context, renderNotes(notes)),
+          },
           ...turns
             .slice(-HISTORY_TURNS)
             .map((turn) => ({ role: turn.role, content: turn.content }) as ApiMessage),
@@ -87,7 +119,8 @@ export async function POST(request: Request) {
 
           if (result.toolCalls.length === 0) {
             if (result.content?.trim()) {
-              send({ type: "text", text: result.content.trim() });
+              spoken = result.content.trim();
+              send({ type: "text", text: spoken });
             }
             break;
           }
@@ -147,6 +180,23 @@ export async function POST(request: Request) {
           });
         }
       } finally {
+        // In the `finally`, so a round that threw still records what was asked
+        // — a question that broke Montblanc is a thing worth having a record of.
+        // Awaited before closing rather than left dangling: the runtime is
+        // entitled to stop executing once the response is done, and a floating
+        // promise here is a write that sometimes happens.
+        if (conversationId) {
+          try {
+            await recordExchange({
+              conversationId,
+              question,
+              answer: spoken,
+            });
+          } catch {
+            // The log is a convenience. Failing to write it must never be the
+            // reason an answer the person is already reading does not arrive.
+          }
+        }
         controller.close();
       }
     },

@@ -783,3 +783,98 @@ model Event {
   /// read has to consider them regardless of how far in the future it looks.
   @@index([recurrence, start])
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Montblanc's memory — added 2026-08-10
+//
+// **A transcript is not a memory, and these three tables are that distinction.**
+//
+// CLAUDE.md §6 refuses to keep a chat log, and the argument it gives is entirely
+// about the *drawer*: "a chat you have to scroll past to start the next thought
+// is a chat". That was never an argument against the app knowing anything. So
+// the drawer still opens on a blank sheet, and what persists is underneath it.
+//
+// The middle table is the whole idea. Raw history grows without bound and is
+// paid for on every single request — §6 already made exactly this trade when it
+// refused a `list_projects` tool, on the grounds that a whole extra round trip
+// to fetch two thousand characters that change once a fortnight is not worth it.
+// So the log is **never** sent to the model. What is sent is a short list of
+// dated one-line notes distilled from it.
+//
+// Dated notes rather than one overwritten summary, because "how it changes" is
+// half the point: a blob records the present and destroys the past, whereas a
+// note that can be *superseded* records both.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// One opening of the drawer. Minted by the client, so "one conversation" means
+/// one sitting rather than one request.
+model MontblancConversation {
+  id String @id
+
+  startedAt     DateTime @default(now())
+  lastMessageAt DateTime @default(now())
+
+  /// Null until the distiller has read it — which is the whole of the sweep's
+  /// query. `ensureDistilled()` in `lib/montblanc/memory.ts` picks these up on
+  /// drawer open, idempotently and without a cron, exactly as
+  /// `ensureSeriesSlots` has kept the posting cadence alive since Phase 2.
+  distilledAt DateTime?
+
+  messages MontblancMessage[]
+  notes    MontblancNote[]
+
+  @@index([distilledAt, lastMessageAt])
+}
+
+/// One thing said, by either side. **Nothing reads this into a prompt.** It is
+/// the raw material the distiller reads once, and the record you can go back to
+/// when a note says something you do not recognise.
+model MontblancMessage {
+  id String @id @default(cuid())
+
+  /// "user" | "assistant". Deliberately not an enum: there is no tool or system
+  /// row here, and the two values this takes are the wire format's own.
+  role    String
+  content String
+
+  createdAt DateTime @default(now())
+
+  conversationId String
+  conversation   MontblancConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+}
+
+/// One line Montblanc noticed, dated. These are what actually reach the prompt.
+///
+/// **Behaviour, not feelings.** A command bar is a poor mood sensor — most turns
+/// are "add a bug to Sleepy Cat", which reveals nothing emotional — so a note
+/// records what is being returned to, deferred or complained about. Claiming to
+/// read a state of mind would be the app asserting things nobody told it, which
+/// is the oldest rule in CLAUDE.md.
+model MontblancNote {
+  id String @id @default(cuid())
+
+  /// concern | focus | preference | decision | fact. Free text for the same
+  /// reason `Task.track` is (§6): a kind that turns out to be wanted should not
+  /// cost a migration.
+  kind String
+  text String
+
+  createdAt DateTime @default(now())
+
+  /// Set when a later conversation resolves or contradicts this. A superseded
+  /// note is never sent to the model — a concern that has passed must stop being
+  /// asserted — and keeping the row rather than deleting it is what makes the
+  /// change itself readable. Also what the × in the drawer writes, so correcting
+  /// Montblanc and Montblanc correcting itself are the same act.
+  supersededAt DateTime?
+
+  /// The conversation it came from, so a note you do not recognise can be traced
+  /// back to what was said. `SetNull` rather than `Cascade`: clearing old logs
+  /// should not silently unlearn everything.
+  sourceId String?
+  source   MontblancConversation? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+
+  @@index([supersededAt, createdAt])
+}

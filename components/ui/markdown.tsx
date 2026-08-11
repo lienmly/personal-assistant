@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { parseMarkdown, type Block, type Inline } from "@/lib/markdown";
 
 /**
@@ -8,12 +10,21 @@ import { parseMarkdown, type Block, type Inline } from "@/lib/markdown";
 export function Markdown({
   source,
   skipLeadingHeading = false,
+  className = "text-[13.5px] leading-relaxed text-ink/90",
+  onLinkClick,
 }: {
   source: string;
   /** Drop a heading that opens the document. A doc pasted from a file starts
    *  with its own title, and the reader already renders one above — without
    *  this the page says the same sentence twice, in two sizes. */
   skipLeadingHeading?: boolean;
+  /** The root type scale. Defaults to the doc reader's, which is what every
+   *  page-sized caller wants; Montblanc's drawer is a size down. */
+  className?: string;
+  /** Called when an in-app link is followed, so an overlay that renders this
+   *  can get out of the way. Never fires for an external link — that one
+   *  opens a tab and leaves this page alone. */
+  onLinkClick?: () => void;
 }) {
   const parsed = parseMarkdown(source);
   const blocks =
@@ -26,15 +37,28 @@ export function Markdown({
   }
 
   return (
-    <div className="text-[13.5px] leading-relaxed text-ink/90">
+    <div className={className}>
       {blocks.map((block, index) => (
-        <BlockView key={index} block={block} first={index === 0} />
+        <BlockView
+          key={index}
+          block={block}
+          first={index === 0}
+          onLinkClick={onLinkClick}
+        />
       ))}
     </div>
   );
 }
 
-function BlockView({ block, first }: { block: Block; first: boolean }) {
+function BlockView({
+  block,
+  first,
+  onLinkClick,
+}: {
+  block: Block;
+  first: boolean;
+  onLinkClick?: () => void;
+}) {
   switch (block.kind) {
     case "heading": {
       const size =
@@ -45,7 +69,7 @@ function BlockView({ block, first }: { block: Block; first: boolean }) {
             : "text-[12px] font-semibold uppercase tracking-[0.08em] text-faint";
       return (
         <p className={`${first ? "" : "mt-5"} mb-2 text-ink ${size}`}>
-          <InlineRun content={block.content} />
+          <InlineRun content={block.content} onLinkClick={onLinkClick} />
         </p>
       );
     }
@@ -53,7 +77,7 @@ function BlockView({ block, first }: { block: Block; first: boolean }) {
     case "paragraph":
       return (
         <p className={first ? "" : "mt-3"}>
-          <InlineRun content={block.content} />
+          <InlineRun content={block.content} onLinkClick={onLinkClick} />
         </p>
       );
 
@@ -67,7 +91,7 @@ function BlockView({ block, first }: { block: Block; first: boolean }) {
         >
           {block.items.map((item, index) => (
             <li key={index} className="pl-1">
-              <InlineRun content={item} />
+              <InlineRun content={item} onLinkClick={onLinkClick} />
             </li>
           ))}
         </Tag>
@@ -79,7 +103,7 @@ function BlockView({ block, first }: { block: Block; first: boolean }) {
         <p
           className={`${first ? "" : "mt-3"} rounded-tile bg-inset px-3.5 py-2.5 text-muted`}
         >
-          <InlineRun content={block.content} />
+          <InlineRun content={block.content} onLinkClick={onLinkClick} />
         </p>
       );
 
@@ -97,7 +121,21 @@ function BlockView({ block, first }: { block: Block; first: boolean }) {
   }
 }
 
-function InlineRun({ content }: { content: Inline[] }) {
+/** The one class both link kinds wear, so an in-app link and an outward one
+ *  are told apart by where they go and never by how they look.
+ *
+ *  `break-words` because a link whose text is its own URL is a single
+ *  unbroken word, and in a 390px drawer that scrolls the message sideways. */
+const LINK_CLASS =
+  "break-words text-accent underline decoration-accent/30 underline-offset-2 hover:decoration-accent";
+
+function InlineRun({
+  content,
+  onLinkClick,
+}: {
+  content: Inline[];
+  onLinkClick?: () => void;
+}) {
   return (
     <>
       {content.map((piece, index) => {
@@ -120,13 +158,25 @@ function InlineRun({ content }: { content: Inline[] }) {
               </code>
             );
           case "link":
-            return (
+            // `safeHref` admits in-app paths as well as http(s), so a doc
+            // linking to another doc used to open in a new tab and leave the
+            // app — a router push is what an internal link has always meant.
+            return piece.href.startsWith("/") ? (
+              <Link
+                key={index}
+                href={piece.href}
+                onClick={onLinkClick}
+                className={LINK_CLASS}
+              >
+                {piece.text}
+              </Link>
+            ) : (
               <a
                 key={index}
                 href={piece.href}
                 target="_blank"
                 rel="noreferrer"
-                className="text-accent underline decoration-accent/30 underline-offset-2 hover:decoration-accent"
+                className={LINK_CLASS}
               >
                 {piece.text}
               </a>
