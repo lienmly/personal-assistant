@@ -9,11 +9,15 @@ import type {
   AreaView,
   BoardProjectView,
   SubtaskView,
+  TaskCommentView,
   TaskView,
 } from "@/components/board/types";
 import {
+  addComment,
   addSubtask,
+  deleteComment,
   deleteTask,
+  getTaskComments,
   renameSubtask,
   saveTask,
 } from "@/lib/task-actions";
@@ -294,6 +298,16 @@ export function TaskPanel({
               hang a step off until the row has an id. */}
           {task && <ChecklistEditor taskId={task.id} initial={task.subtasks} />}
 
+          {/* Outside the form for the same reason the checklist is, and after
+              it for a second one: the steps are part of what the task *is*, and
+              a comment is what has happened to it since. */}
+          {task && <CommentThread taskId={task.id} />}
+        </div>
+
+        <div className="flex items-center justify-end gap-2 bg-shell px-5 py-3">
+          {/* `mr-auto` rather than `justify-between` on the row: on a *new* task
+              there is nothing to delete, and a two-child `justify-between`
+              would push Cancel to the far left the moment this one is absent. */}
           {task && (
             <button
               type="button"
@@ -304,7 +318,7 @@ export function TaskPanel({
                   dismiss();
                 })
               }
-              className="group mt-6 flex items-center gap-2 text-[13px] text-muted transition-colors duration-(--duration-quick) hover:text-accent"
+              className="group mr-auto flex items-center gap-2 rounded-chip px-2 py-2 text-[13px] text-muted transition-colors duration-(--duration-quick) hover:text-accent"
             >
               <Trash2
                 className="size-3.5 transition-transform duration-(--duration-base) ease-soft group-hover:-rotate-12"
@@ -313,9 +327,6 @@ export function TaskPanel({
               Delete this task
             </button>
           )}
-        </div>
-
-        <div className="flex items-center justify-end gap-2 bg-shell px-5 py-3">
           <button
             type="button"
             onClick={dismiss}
@@ -453,6 +464,166 @@ function ChecklistEditor({
         >
           <Plus className="size-3.5" strokeWidth={2.4} />
         </button>
+      </div>
+
+      {error && (
+        <p className="mt-2 animate-rise text-[12px] text-accent">{error}</p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The comment thread: what has happened on this task, in order, each stamped.
+ *
+ * The stamp is the whole feature. `Notes` above says what the task is and is
+ * rewritten in place, which destroys what it said before; this is a row per
+ * moment, so "the export is timing out at 30s" and "it was the proxy, not the
+ * query" stay two facts on two days instead of one field that only remembers
+ * the second.
+ *
+ * Oldest at the top, newest at the bottom, with the box you type into at the
+ * end of it — the journal's argument (§6, "A day is a thread"), which is the
+ * same shape: a sequence of things that happened to one object is an order, not
+ * a list, and an order read newest-first is read backwards.
+ *
+ * Fetched when the panel opens rather than carried on the `TaskView` the board
+ * handed us: a board holds ninety tasks and shows none of this, and the panel
+ * is the one place it is ever read.
+ */
+function CommentThread({ taskId }: { taskId: string }) {
+  // `null` is "not back yet", which is a different thing from "none" — the
+  // empty state invites you to write the first one, and flashing it while the
+  // read is in flight would be the app claiming a thread is empty before it has
+  // looked.
+  const [comments, setComments] = useState<TaskCommentView[] | null>(null);
+  const [draft, setDraft] = useState("");
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    void getTaskComments(taskId)
+      .then((rows) => {
+        if (live) setComments(rows);
+      })
+      .catch(() => {
+        if (live) setComments([]);
+      });
+    // The panel outlives nothing here — it unmounts on close — but a task id
+    // that changed under a mounted panel would otherwise let a slow read
+    // overwrite a fast one with the wrong task's thread.
+    return () => {
+      live = false;
+    };
+  }, [taskId]);
+
+  function add() {
+    const body = draft.trim();
+    if (!body) return;
+    setError(null);
+    startTransition(async () => {
+      try {
+        // The stamped row comes back from the server rather than being guessed
+        // at here: the time is the database's, and formatting it twice is how
+        // the new row comes to read differently from the one above it.
+        const comment = await addComment(taskId, body);
+        setComments((current) => [...(current ?? []), comment]);
+        setDraft("");
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : "Could not add it");
+      }
+    });
+  }
+
+  function remove(id: string) {
+    setComments((current) => current?.filter((row) => row.id !== id) ?? null);
+    startTransition(() => {
+      void deleteComment(id);
+    });
+  }
+
+  return (
+    <div className="mt-6">
+      <div className="mb-1.5 flex items-baseline gap-2">
+        <span className={cn(labelCls, "mb-0")}>Comments</span>
+        <span className="text-[11.5px] text-faint">
+          What’s happened since, each one stamped
+        </span>
+      </div>
+
+      {comments === null ? (
+        <p className="text-[12px] text-faint">Looking…</p>
+      ) : comments.length === 0 ? (
+        <p className="text-[12px] leading-relaxed text-faint">
+          Nothing yet. What you found out, what you tried, what the person you
+          were waiting on said.
+        </p>
+      ) : (
+        <div className="flex flex-col gap-1.5">
+          {comments.map((comment) => (
+            <div
+              key={comment.id}
+              className="group animate-rise flex items-start gap-2 rounded-2xl bg-inset px-3 py-2"
+            >
+              <div className="min-w-0 flex-1">
+                {/* `break-words`, because a pasted URL is one unbroken word and
+                    a 440px panel is the width it has to fit in. */}
+                <p className="text-[13px] leading-relaxed break-words whitespace-pre-wrap text-ink">
+                  {comment.body}
+                </p>
+                <p className="mt-1 text-[11px] text-faint" title={comment.at}>
+                  {comment.when}
+                </p>
+              </div>
+              <button
+                type="button"
+                disabled={pending}
+                aria-label={`Delete this comment from ${comment.when}`}
+                onClick={() => remove(comment.id)}
+                // Visible outright on touch, revealed on hover on a pointer
+                // device — §9, hover is not an affordance on a phone.
+                className="grid size-6 shrink-0 place-items-center rounded-full text-faint transition-[background-color,color,opacity,transform] duration-(--duration-base) ease-soft hover:bg-card hover:text-accent active:scale-90 sm:opacity-0 sm:group-hover:opacity-100"
+              >
+                <X className="size-3.5" strokeWidth={2.2} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="mt-2">
+        <textarea
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          rows={2}
+          // Enter makes a new line, as it does in every textarea in this app;
+          // ⌘/Ctrl+Enter posts. Binding bare Enter to submit is what makes a
+          // two-sentence comment impossible to write.
+          onKeyDown={(event) => {
+            if (event.key !== "Enter" || !(event.metaKey || event.ctrlKey))
+              return;
+            event.preventDefault();
+            add();
+          }}
+          placeholder="Turned out to be the clock, not the token."
+          aria-label="Write a comment"
+          className={cn(field, "resize-y")}
+        />
+        <div className="mt-1.5 flex items-center justify-end gap-2">
+          {/* "Ctrl" rather than "⌘", matching the Markdown toolbar's hints — the
+              handler takes either, and picking one at render time would be a
+              platform check for a five-character label. */}
+          <span className="text-[11px] text-faint">Ctrl + ↵ to post</span>
+          <button
+            type="button"
+            disabled={pending || draft.trim() === ""}
+            onClick={add}
+            className="rounded-chip bg-inset px-3 py-1.5 text-[12.5px] text-muted transition-[background-color,color,transform,opacity] duration-(--duration-base) ease-soft hover:bg-line hover:text-ink active:scale-[0.97] disabled:opacity-35"
+          >
+            {pending ? "Posting…" : "Comment"}
+          </button>
+        </div>
       </div>
 
       {error && (

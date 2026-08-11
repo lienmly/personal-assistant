@@ -35,6 +35,23 @@ export type SubtaskView = {
   status: TaskStatus;
 };
 
+/**
+ * One dated note on a task.
+ *
+ * `when` is preformatted server-side, like every other date label in this app —
+ * `createdAt` is a real instant, so it formats in **local** time, and doing it
+ * on the client would render it twice from two clocks. `at` is the full stamp,
+ * for the `title` on hover: the label says "Today, 14:32" because that is what
+ * you want to read, and the exact day is one hover away when you are reading a
+ * thread back months later.
+ */
+export type TaskCommentView = {
+  id: string;
+  body: string;
+  when: string;
+  at: string;
+};
+
 export type TaskView = {
   id: string;
   title: string;

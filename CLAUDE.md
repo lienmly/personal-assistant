@@ -996,6 +996,39 @@ distinction this file did not have — **a transcript is not a memory**._
 - [ ] **Still not used on a real phone**, and the memory list is the part most likely to want
       it — it is the one new thing in the drawer that can get long
 
+### Phase 5.6 — A task keeps a log
+_Built 2026-08-11. One ask — comments on a task, with the time and date on each — and it is
+the first structural change to `Task` since the checklist. The panel could say what a task
+**is** and had nowhere to say what had **happened** to it._
+- [x] **`TaskComment`** (`20260811214157_task_comments`) — body, `createdAt`, cascade. Purely
+      additive; `migrate dev` generated it and every statement is a CREATE
+- [x] **The stamp comes from the server's clock and is not editable** — §6, "The date is not a
+      field", one noun over. There is no edit, either: the honest fix for a comment that came
+      out wrong is to delete it and say the thing again, stamped with when you said it
+- [x] **A thread reads forwards** — oldest at the top, the composer at the bottom. The
+      journal's argument (§6, "A day is a thread"): a sequence of things that happened to one
+      object is an order, not a list
+- [x] **Fetched when the panel opens**, not carried on `TaskView` — a board holds ninety tasks
+      and renders none of this. `TASK_VIEW_SELECT` is untouched
+- [x] **Enter is a new line and Ctrl+↵ posts.** §6's "Enter is not Post", arrived at from the
+      other side: a comment is prose, so the key that ends a paragraph must not file it
+- [x] **It is on every surface at once** — the Hunt Board, Today, a project page and an area
+      page all open the same `TaskPanel`, so the section arrived on four screens with no
+      per-surface work
+- [x] **"Delete this task" moved into the footer**, beside Cancel and Save. It had been the
+      last thing in the *scrolling* body, so adding a comment thread pushed it further down a
+      column that now grows without bound — a control you have to scroll to find is one you
+      stop knowing is there. `mr-auto` rather than `justify-between` on the row: a new task
+      has nothing to delete, and a two-child `justify-between` would fling Cancel to the far
+      left the moment the button is absent
+- [ ] **Nothing shows that a task has any.** A thread is invisible until you open the row, and
+      the fix is `_count.comments` on a query already running plus a badge on three tight card
+      layouts — deliberately not spent here. §6
+- [ ] **Comments are plain text**, matching `Notes` beside them. The Markdown toolbar takes any
+      textarea ref (Phase 5.3), so this is four lines whenever it is wanted
+- [ ] **Not seen on a real phone**, unchanged since Phase 4.8 — the section is one column of
+      full-width rows inside a panel that was already checked at 390px
+
 ### Phase 6 — Ledger (money)
 - [ ] Bank account connections
 - [ ] Property management statement ingestion + audit
@@ -1029,7 +1062,7 @@ a destination.**
 | **Area** | Life domain. Coarse. Supplies colour + calendar separation, and since 2026-08-05 has a **page** — journal, docs, tasks. | Work, Baby, Hobbies, Home & Money | ~5 ever |
 | **Project** | The thing being pushed forward. Belongs to one Area. | "Utaitai", "Sleepy Cat", "Rental 4B" | Constant |
 | **Brand** | A public identity with an audience and a voice. Owns Channels. | Utaitai, Coding Mom, Sleepy Cat | Rare |
-| **Task** | A task. Belongs to a Project, or floats in an Area for one-offs. Since 2026-08-06 it can carry a **checklist** of subtasks — the same model, one level deep. | "Fix collision bug" | Constant |
+| **Task** | A task. Belongs to a Project, or floats in an Area for one-offs. Since 2026-08-06 it can carry a **checklist** of subtasks — the same model, one level deep — and since 2026-08-11 a **log of dated comments**. | "Fix collision bug" | Constant |
 | ~~Sprint~~ | _Retired 2026-08-04. Table kept, nothing reads it — see "The sprint" below._ | — | — |
 | **Content item** | A unit of content going out. Carries a Brand and (optionally) a Project. | "Devlog #7 → X + Threads" | Constant |
 | **Series** | A standing commitment that generates dated Content item slots. | "Daily short, both Utaitai TikToks" | Rare |
@@ -1699,6 +1732,11 @@ Built ones are in `prisma/schema.prisma`, which is the source of truth; this is 
   recurringId (set on a completed snapshot, pointing at the live row),
   **parentId** (set on a checklist item, pointing at the job it is a step of —
   cascade, one level deep) ✅
+- **TaskComment** — taskId, body (plain text), createdAt. What *happened* on a task, as
+  opposed to `Task.notes`, which is what the task *is*. **The stamp is the server's
+  clock and there is no edit** (§6, "The date is not a field"). Cascades with its task,
+  like a Doc. Read only by the task panel, so it is deliberately **not** on
+  `TASK_VIEW_SELECT` — see §6, "A note is what it is, a comment is what happened" ✅
 - **Doc** — projectId **or** areaId (both nullable, exactly one set — enforced in
   `lib/doc-actions.ts`), slug (minted once, never follows a rename), title, body
   (Markdown), sortOrder. Cascades with its owner — the only relation that does.
@@ -2126,6 +2164,55 @@ expanded checklist under every row is the "board dumps everything on my face" pr
 level down. Editing lives in the task panel — one field, Enter to add — for the same reason
 the idea box and the experiment capture exist: adding "and Instagram too" should not require
 answering questions about projects and due dates.
+
+### A note is what it is, a comment is what happened — decided 2026-08-11
+
+`Task.notes` is **one field you rewrite**, and rewriting it destroys what it said before.
+That is right for what a task *is* — the definition, the acceptance condition, the thing
+you re-read before starting. It is wrong for everything you find out along the way, and
+before this there were two equally bad homes for that.
+
+- **Append to `notes`** and you get an undated wall with no order in it. "The export times
+  out at 30s" and "it was the proxy, not the query" are two facts from two days, and the
+  field can only tell you they are both in there somewhere.
+- **A subtask** and you have declared something to *do*. A finding is not a step, and
+  filing it as one makes the checklist — whose whole job is "the last box finishes the
+  job" — carry rows that can never be the last box.
+
+So a `TaskComment` is a row per moment. It is the same distinction `JournalEntry` draws
+against `Doc`, one noun over: a page you maintain, versus a dated record you add to.
+
+Five things fell out, each chosen over the obvious alternative:
+
+1. **The stamp is the server's clock and there is no way to move it.** §6, "The date is not
+   a field", which the journal arrived at the hard way — a time somebody chose is a claim,
+   a time that came from a clock is a fact, and reading a thread back is only worth doing
+   because its order is the order things actually happened in.
+2. **There is no edit, either**, which goes one step further than the journal does. The
+   journal allows one because an entry is a paragraph you were composing; a comment is a
+   sentence, and the honest fix for one that came out wrong is to delete it and say the
+   thing again — stamped with when you said it, rather than silently rewriting what you
+   knew on Tuesday.
+3. **Oldest first, composer last.** Every *list* in this app is newest-first and this is
+   not a list — it is the same shape as a day in the journal, one train of thought read
+   forwards. The box you type into is the end of the thread rather than a form above it.
+4. **Fetched when the panel opens, not carried on `TaskView`.** Nesting them in
+   `TASK_VIEW_SELECT` the way the checklist is nested would pull every comment body on a
+   board of ninety rows to render a board that shows none of them — the checklist's
+   argument ("never read apart from the row it belongs to") does not transfer, because a
+   comment is only ever read *inside the panel*. Same bargain as "only the active tab's
+   heavy read runs" on a project page.
+5. **Nothing revalidates.** No server-rendered surface reads comments, so re-rendering
+   Today and the board to record a sentence neither of them displays is work for nothing.
+   The panel holds its own copy, exactly as the checklist editor does and for the same
+   reason: it was opened with a *snapshot*, so a revalidation would never reach it anyway.
+
+**The honest cost is that nothing on any card says a task has a thread.** Making it visible
+is `_count.comments` — cheap, on queries already running — plus a badge on the Hunt Board
+row, Today's `TaskLine` and the kanban card, all three of which are one line tall by
+deliberate correction (§6, "Stages and tracks answer different questions"). That is a
+layout decision on three tight surfaces rather than a lookup, so it is written down here
+rather than guessed at.
 
 ### "While you're in it" — added 2026-08-02, **removed 2026-08-04**
 
@@ -3715,6 +3802,20 @@ Three rules inside it:
   without restarting the dev server. Same family as the `animationend` note in the 4.17 log:
   the harness's own state can look exactly like a bug in the code.
 
+- **A leftover production `.next` makes `next dev` 404 every route, and it looks nothing
+  like a stale build.** Found 2026-08-11: a fresh `next dev` served the root layout (so the
+  app directory was found) and then 404'd `/board`, `/login` **and**
+  `/manifest.webmanifest`, with no compile line logged for any of them — Turbopack had
+  discovered no routes at all. The cause is a production build sitting in `.next` beside
+  `.next/dev`; `rm -rf .next` and restart fixed every route in one step. Same family as the
+  stale-stylesheet note above: **the build directory's state can look exactly like a bug in
+  the code**, and here it looks like the router itself is broken. Suspect it whenever
+  *everything* 404s rather than one page.
+- **Port 3000 on the Windows machine is the Utaitai frontend**, not this app. `npm run dev`
+  here is `next dev -p 3100`. Check the command line of whatever is listening before
+  assuming a dev server on 3000 is this one — and before killing it. (`Get-CimInstance
+  Win32_Process -Filter "ProcessId = N" | Select CommandLine`.) Killing the wrong tree has
+  already happened once, on 2026-08-06.
 - **The app assumes the server's local time is *my* local time**, and Phase 4 makes that
   assumption load-bearing rather than theoretical. Every "today", every publish window and
   the whole calendar grid is computed server-side with `new Date()` and the local-time
@@ -3737,8 +3838,83 @@ Three rules inside it:
 
 ---
 
-_Last updated: 2026-08-10 · Status: **Phase 5.5 — Montblanc's replies render, and it
-remembers.**_
+_Last updated: 2026-08-11 · Status: **Phase 5.6 — a task keeps a log.**_
+
+_**2026-08-11 — "add comments section to task — make sure have time and date for the comment
+as well."** The panel could say everything about what a task **is** — its title, its due
+date, its track, the steps it gets done in — and had nowhere at all to say what had
+**happened** to it. `Task.notes` is the only field that could have held it and it is one
+field you rewrite, so appending to it gives you an undated wall in which "the export times
+out at 30s" and "it was the proxy, not the query" are two days' findings with nothing to
+say which came first. A `TaskComment` is a row per moment. Purely additive migration, every
+statement a CREATE._
+
+_**The stamp was the ask and it is also the rule.** It comes from the server's clock and
+nothing can move it — §6, "The date is not a field", which the journal arrived at the hard
+way on 2026-08-06. **There is no edit either**, which goes one step further than the journal
+does: an entry is a paragraph you were composing, a comment is a sentence, and the honest
+fix for one that came out wrong is to delete it and say the thing again with the time you
+actually said it. The label reads "Today, 14:49" and carries the full weekday-and-year stamp
+on hover, because the year is four characters of noise on a thread written this week and the
+only thing you want months later._
+
+_**Two things were taken from surfaces that had already solved them.** The thread runs
+oldest-first with the composer at the end of it, which is the journal's "a day is a thread"
+— a sequence of things that happened to one object is an order, not a list, and every *list*
+in this app being newest-first does not make this one. And **Enter makes a new line while
+Ctrl+↵ posts**, which is §6's "Enter is not Post" from the other side: there the headline
+field was submitting a journal entry with no body in it, and here a comment is prose, so the
+key that ends a paragraph must not file it._
+
+_**The one design decision with a real alternative was where to read them from.** The
+checklist is nested in `TASK_VIEW_SELECT` on the argument that it is never read apart from
+the row it belongs to, and copying that here would pull every comment body on a board of
+ninety rows to render a board that displays none of them. A comment is only ever read
+**inside the panel**, so it is fetched when the panel opens — the same bargain a project
+page makes by running only the active tab's heavy read. Nothing revalidates for the same
+reason: no server-rendered surface reads these._
+
+_Verified in a signed-in browser against the live database, on the Hunt Board and on Today —
+the panel is shared, so the section arrived on four surfaces with no per-surface work.
+Posted a two-line comment with Ctrl+↵ and confirmed Enter had made a line break rather than
+filing it; both lines survived the round trip and the stamp read "Today, 14:49". Closed the
+panel and reopened it to confirm the thread comes back **from the database** rather than from
+the component's own state. Posted a second with the button and watched it land underneath at
+14:52, which is the ordering. Deleted both from the ×, and in dark theme posted and deleted a
+third to confirm the tile reads on `bg-inset` over the panel. **The board was confirmed back
+where it started** — 0 comment rows, 195 open tasks, and the test task's title, notes, status
+and due date untouched. `npx tsc --noEmit`, `eslint` and `npx next build` all pass._
+
+_**One environment finding, not caused by the change and worth writing down**: `/board`,
+`/login` and even `/manifest.webmanifest` all 404'd on a fresh `next dev` while the root
+layout still rendered — no route in the app matched, and Turbopack logged no compile at all.
+A leftover **production** `.next` in the same directory; deleting it fixed every route in one
+step. It reads exactly like a broken build, which is the same family as the stale-stylesheet
+note in §9. Also: **port 3000 on this machine is the Utaitai frontend**, and this app's dev
+server is `next dev -p 3100`._
+
+_**"Delete this task" moved into the footer** in the same pass, and the comments are why it
+had to. It was the last thing in the scrolling body, which was fine when the body ended at a
+short checklist — now the column below Notes grows with every comment written, so the one
+destructive control on the panel was drifting further out of reach the more a task was used.
+In the footer it sits beside Cancel and Save, which are the panel's other two verbs. It is
+`mr-auto` rather than a `justify-between` row, because a **new** task has nothing to delete
+and `justify-between` with two children would throw Cancel to the far left. Verified both
+ways — the edit panel puts Delete left with Cancel and Save right, the new-task panel keeps
+Cancel and Save right with nothing on the left — and the delete itself was exercised end to
+end on a throwaway task, which is now gone. The board is back at 195 open._
+
+_Outstanding from this change: **nothing on any card says a task has comments**, so a thread
+is invisible until you open the row — the fix is a `_count` on queries already running plus a
+badge on three card layouts that are one line tall by deliberate correction, which is a layout
+decision rather than a lookup and was left rather than guessed at. **Comments are plain
+text**, matching Notes beside them; the Markdown toolbar takes any textarea ref, so it is four
+lines whenever it is wanted. **And it has not been seen on a real phone**, unchanged since
+Phase 4.8._
+
+---
+
+_Previously: **Phase 5.5 — Montblanc's replies render, and it remembers.**_
 
 _**2026-08-10 — "can you fix formatting for montblanc response? also is there a way to store
 montblanc chat history so it has some context of what I'm concerned about, my state of mind

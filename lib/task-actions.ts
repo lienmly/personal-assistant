@@ -3,10 +3,11 @@
 import { revalidatePath } from "next/cache";
 import type { Prisma, Recurrence, Task, TaskStatus } from "@prisma/client";
 
+import type { TaskCommentView } from "@/components/board/types";
 import { auth } from "@/lib/auth";
 import { addDays, nextOccurrence } from "@/lib/calendar-keys";
 import { db } from "@/lib/db";
-import { todayKey } from "@/lib/utils";
+import { localDayKey, todayKey } from "@/lib/utils";
 
 /** Server actions are their own public endpoints — the route guard in the
  *  layout does not cover them, so each one re-checks the session. */
@@ -341,6 +342,129 @@ export async function renameSubtask(taskId: string, title: string) {
 
   await db.task.update({ where: { id: taskId }, data: { title: clean } });
   refresh();
+}
+
+// ── Comments ────────────────────────────────────────────────────────────────
+//
+// `Task.notes` is what the task *is*; a comment is what *happened* on it. See
+// the note on `TaskComment` in the schema for why that is a table rather than
+// more text in one field.
+//
+// None of these calls `refresh()`, deliberately. No server-rendered surface
+// reads comments — they live in the panel, which holds its own copy of the list
+// exactly as the checklist editor does — so revalidating four routes would be
+// re-rendering the whole board to record a sentence nothing on it displays.
+
+/** `createdAt` is a real instant, not a `@db.Date`, so all three of these
+ *  format in **local** time — the opposite rule from `dueDate` twenty lines up
+ *  (CLAUDE.md §6, "Dates are a trap here"). */
+const commentTime = new Intl.DateTimeFormat("en-GB", {
+  hour: "2-digit",
+  minute: "2-digit",
+});
+const commentDay = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+});
+const commentDayYear = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+});
+const commentFull = new Intl.DateTimeFormat("en-GB", {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+/** "Today, 14:32" · "10 Aug, 09:05" · "3 Nov 2025, 21:40".
+ *
+ *  The time is always shown, because a comment's whole claim is that it was
+ *  written at a moment. The year is only shown once it stops being this one —
+ *  on a thread written this week it is four characters of noise on every row. */
+function commentStamp(at: Date, today = todayKey()): string {
+  const day = localDayKey(at);
+  const label =
+    day === today
+      ? "Today"
+      : at.getFullYear() === new Date().getFullYear()
+        ? commentDay.format(at)
+        : commentDayYear.format(at);
+  return `${label}, ${commentTime.format(at)}`;
+}
+
+/**
+ * A task's comments, oldest first.
+ *
+ * Oldest first because a thread is read *forwards* — it is the same argument
+ * the journal settled on 2026-08-06 (§6, "A day is a thread"): a list of things
+ * is newest-first, and a sequence of things that happened to one object is not
+ * a list, it is an order.
+ *
+ * Fetched when the panel opens rather than carried on `TaskView`, because the
+ * board holds ninety of those and renders none of this. Same bargain as "only
+ * the active tab's heavy read runs" on a project page.
+ */
+export async function getTaskComments(
+  taskId: string,
+): Promise<TaskCommentView[]> {
+  await requireSession();
+
+  const rows = await db.taskComment.findMany({
+    where: { taskId },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, body: true, createdAt: true },
+  });
+
+  const today = todayKey();
+  return rows.map((row) => ({
+    id: row.id,
+    body: row.body,
+    when: commentStamp(row.createdAt, today),
+    at: commentFull.format(row.createdAt),
+  }));
+}
+
+/**
+ * Add one.
+ *
+ * The stamp is the database's `now()` and is never taken from the form — a time
+ * the client supplies is a time that can be chosen, and a comment thread is only
+ * worth reading back because its order came from a clock (§6, "The date is not
+ * a field"). It is returned already formatted so the panel can show the new row
+ * without a round trip and without a second copy of the formatting.
+ */
+export async function addComment(
+  taskId: string,
+  body: string,
+): Promise<TaskCommentView> {
+  await requireSession();
+
+  const clean = body.trim();
+  if (!clean) throw new Error("Write something first");
+
+  const comment = await db.taskComment.create({
+    data: { taskId, body: clean },
+    select: { id: true, body: true, createdAt: true },
+  });
+
+  return {
+    id: comment.id,
+    body: comment.body,
+    when: commentStamp(comment.createdAt),
+    at: commentFull.format(comment.createdAt),
+  };
+}
+
+/** Remove one. There is no edit: a comment is a record of a moment, and the
+ *  honest fix for one that came out wrong is to delete it and say the thing
+ *  again — which is stamped with when you actually said it. */
+export async function deleteComment(commentId: string) {
+  await requireSession();
+  await db.taskComment.delete({ where: { id: commentId } });
 }
 
 /**

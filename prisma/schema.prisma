@@ -714,12 +714,51 @@ model Task {
   parent   Task?   @relation("TaskChecklist", fields: [parentId], references: [id], onDelete: Cascade)
   subtasks Task[]  @relation("TaskChecklist")
 
+  /// What has happened on this task since it was written. See `TaskComment`.
+  comments TaskComment[]
+
   @@index([status, dueDate])
   @@index([projectId, status, sortOrder])
   @@index([areaId, status])
   @@index([sprintId, status])
   @@index([recurringId, completedAt])
   @@index([parentId, sortOrder])
+}
+
+/// A dated note *on* a task — what you found out, what you tried, what the
+/// person you were waiting on said.
+///
+/// `Task.notes` is what the task **is**: one field you rewrite, and rewriting it
+/// destroys what it said before. A comment is what **happened**, so it is a row
+/// per moment and it is stamped. That is the same distinction `JournalEntry`
+/// draws against `Doc`, one noun over, and it is why this is a table rather than
+/// more text in `notes`: "the API returns 403 for expired sessions" and "turned
+/// out to be the clock, not the token" are two facts on two days, and a field
+/// can only hold the second.
+///
+/// **The time is set once, from the server's clock, and is not editable** —
+/// CLAUDE.md §6, "The date is not a field". A stamp somebody chose is a claim; a
+/// stamp that came from a clock is a fact, and the whole use of reading a task's
+/// history back is trusting the order it is in.
+///
+/// Cascade, like a `Doc` and unlike almost everything else pointing at a Task: a
+/// comment detached from the task it is about is a sentence about nothing.
+model TaskComment {
+  id String @id @default(cuid())
+
+  /// Plain text, deliberately — the same as `Task.notes` beside it. A comment is
+  /// a couple of sentences typed one-handed, and the journal's Markdown toolbar
+  /// is a thing you reach for when writing a page.
+  body String
+
+  /// A real timestamp, not a `@db.Date`: the point is the moment, so it formats
+  /// and compares in **local** time (§6, "Dates are a trap here").
+  createdAt DateTime @default(now())
+
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, createdAt])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
