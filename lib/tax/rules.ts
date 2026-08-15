@@ -105,32 +105,28 @@ export type FederalRules = {
   };
 };
 
-export type CaliforniaRules = {
+export type WashingtonRules = {
   taxYear: number;
-  jurisdiction: "ca";
+  jurisdiction: "wa";
 
-  brackets: ByStatus<Bracket[]>;
-  standardDeduction: ByStatus<Figure>;
-  exemptionCreditCents: ByStatus<Figure>;
-  dependentExemptionCreditCents: Figure;
+  /** **Standing facts, not figures.** Washington has no personal income tax —
+   *  which is why this file is a fraction of the size a state with one needs —
+   *  and does have a tax on long-term capital gains. Both want an annual glance,
+   *  because legislatures change them, but both have a defensible default in a
+   *  way a rate does not. */
+  hasIncomeTax: false;
+  hasCapitalGainsTax: boolean;
 
-  /** The Mental Health Services Act surcharge above $1m. */
-  mentalHealthSurcharge: { rate: Figure; thresholdCents: Figure };
-
-  /** California conforms to neither, which is why `DepreciableAsset` carries a
-   *  second method — and the difference between the two schedules is itself a
-   *  line on the CA return. */
-  conformsToBonus: boolean;
-  conformsToSection179: boolean;
-  section179LimitCents: Figure;
-
-  /** California has no QBI deduction at all. */
-  hasQbi: boolean;
-
-  standardMileageCents: Figure;
+  capitalGains: {
+    rate: Figure;
+    /** Long-term gain excluded before the rate applies. Indexed annually. */
+    standardDeductionCents: Figure;
+    charitableFloorCents: Figure;
+    charitableCapCents: Figure;
+  };
 };
 
-export type TaxRules = FederalRules | CaliforniaRules;
+export type TaxRules = FederalRules | WashingtonRules;
 
 /** A rule set as it comes back from the database, with what is missing named. */
 export type LoadedRules<T extends TaxRules = TaxRules> = {
@@ -201,14 +197,20 @@ export function parseTaxRules(
   }
 
   const candidate = payload as Partial<TaxRules>;
-  if (candidate.jurisdiction !== "federal" && candidate.jurisdiction !== "ca") {
+  if (candidate.jurisdiction !== "federal" && candidate.jurisdiction !== "wa") {
     return { ok: false, problem: "That rule set names no jurisdiction." };
   }
   if (typeof candidate.taxYear !== "number") {
     return { ok: false, problem: "That rule set names no tax year." };
   }
-  if (!candidate.brackets || typeof candidate.brackets !== "object") {
-    return { ok: false, problem: "That rule set has no brackets." };
+  // Deliberately no bracket check. Washington has none — it has no income tax —
+  // and demanding a table every jurisdiction must have was an assumption that
+  // only held while the only state modelled was California.
+  if (
+    candidate.jurisdiction === "federal" &&
+    (!("brackets" in candidate) || typeof candidate.brackets !== "object")
+  ) {
+    return { ok: false, problem: "That federal rule set has no brackets." };
   }
 
   return { ok: true, rules: candidate as TaxRules };

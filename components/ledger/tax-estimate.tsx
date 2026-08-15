@@ -31,7 +31,7 @@ export function TaxEstimateView({ tax }: { tax: TaxView }) {
             <span className="text-[10px] font-normal text-white/40">est.</span>
           </p>
           <p className="mt-2 text-xs text-white/50">
-            {tax.taxYear} · federal and California
+            {tax.taxYear} · federal and Washington
             {draft && " · draft rules"}
           </p>
         </div>
@@ -177,17 +177,40 @@ export function TaxEstimateView({ tax }: { tax: TaxView }) {
             draft={draft}
           />
           <EstimateFigure
-            label="California"
-            value={tax.california.usable ? labels.californiaLabel : null}
+            label="Washington"
+            value={tax.state.usable ? labels.stateLabel : null}
             note={
-              tax.california.usable
-                ? "Its own brackets, with no QBI deduction and gains taxed as ordinary income"
-                : "California's constants have not been confirmed"
+              !tax.state.usable
+                ? "Washington's constants have not been confirmed"
+                : (result.state?.capitalGainsTaxCents ?? 0) > 0
+                  ? "No income tax — this is the capital gains tax on the long-term gain"
+                  : "No income tax, and no long-term gain it reaches this year"
             }
             draft={draft}
           />
         </div>
       </section>
+
+      {result.state && result.state.exclusions.length > 0 && (
+        <section className="rounded-card bg-card p-5 shadow-card">
+          <h3 className="mb-3 text-[15px] font-semibold tracking-tight text-ink">
+            What Washington cannot reach
+          </h3>
+          <ul className="flex flex-col gap-2">
+            {result.state.exclusions.map((exclusion) => (
+              <li
+                key={exclusion.label}
+                className="flex items-baseline justify-between gap-3 text-[13px]"
+              >
+                <span className="text-muted">{exclusion.label}</span>
+                <span className="tabular-nums text-ink">
+                  {moneyLabel(exclusion.cents)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {result.unmodelled.length > 0 && (
         <section className="rounded-card bg-card p-5 shadow-card">

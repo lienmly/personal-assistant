@@ -8,9 +8,9 @@ import {
   parseTaxRules,
 } from "@/lib/tax/rules";
 import {
-  CALIFORNIA_SOURCES,
-  californiaSkeleton,
-} from "@/lib/tax/rulesets/california";
+  WASHINGTON_SOURCES,
+  washingtonSkeleton,
+} from "@/lib/tax/rulesets/washington";
 import { FEDERAL_SOURCES, federalSkeleton } from "@/lib/tax/rulesets/federal";
 import { type ScheduleE, scheduleEFor } from "@/lib/tax/schedule-e";
 import {
@@ -18,7 +18,7 @@ import {
   estimate,
   estimateLabels,
 } from "@/lib/tax/engine";
-import type { CaliforniaRules, FederalRules } from "@/lib/tax/rules";
+import type { FederalRules, WashingtonRules } from "@/lib/tax/rules";
 import {
   type SurfacedStrategy,
   surfaceStrategies,
@@ -28,7 +28,7 @@ import {
 
 export type RuleSetView = {
   id: string | null;
-  jurisdiction: "federal" | "ca";
+  jurisdiction: "federal" | "wa";
   jurisdictionLabel: string;
   taxYear: number;
   status: RuleSetStatus | "absent";
@@ -46,7 +46,7 @@ export type TaxView = {
   taxYear: number;
   availableYears: number[];
   federal: RuleSetView;
-  california: RuleSetView;
+  state: RuleSetView;
   scheduleEs: ScheduleE[];
   /** Set when nothing can be computed, and it says which numbers are missing. */
   blocker: string | null;
@@ -90,7 +90,7 @@ export type TaxProfileView = {
   missing: string[];
 };
 
-const JURISDICTION_LABEL = { federal: "Federal", ca: "California" } as const;
+const JURISDICTION_LABEL = { federal: "Federal", wa: "Washington" } as const;
 
 /**
  * Load a rule set, preferring `verified` over `draft`.
@@ -102,7 +102,7 @@ const JURISDICTION_LABEL = { federal: "Federal", ca: "California" } as const;
  */
 export async function loadRules(
   taxYear: number,
-  jurisdiction: "federal" | "ca",
+  jurisdiction: "federal" | "wa",
 ): Promise<LoadedRules | null> {
   const row = await db.taxRuleSet.findFirst({
     where: { taxYear, jurisdiction, supersededAt: null },
@@ -125,19 +125,19 @@ export async function loadRules(
   };
 }
 
-function skeletonFor(taxYear: number, jurisdiction: "federal" | "ca"): TaxRules {
+function skeletonFor(taxYear: number, jurisdiction: "federal" | "wa"): TaxRules {
   return jurisdiction === "federal"
     ? federalSkeleton(taxYear)
-    : californiaSkeleton(taxYear);
+    : washingtonSkeleton(taxYear);
 }
 
-export function sourcesFor(jurisdiction: "federal" | "ca") {
-  return jurisdiction === "federal" ? FEDERAL_SOURCES : CALIFORNIA_SOURCES;
+export function sourcesFor(jurisdiction: "federal" | "wa") {
+  return jurisdiction === "federal" ? FEDERAL_SOURCES : WASHINGTON_SOURCES;
 }
 
 async function ruleSetView(
   taxYear: number,
-  jurisdiction: "federal" | "ca",
+  jurisdiction: "federal" | "wa",
 ): Promise<RuleSetView> {
   const loaded = await loadRules(taxYear, jurisdiction);
   const skeleton = skeletonFor(taxYear, jurisdiction);
@@ -196,7 +196,7 @@ async function ruleSetView(
  * be the seed's `update: {}` failure with a tax return attached.
  */
 export async function ensureRuleSets(taxYear: number): Promise<void> {
-  for (const jurisdiction of ["federal", "ca"] as const) {
+  for (const jurisdiction of ["federal", "wa"] as const) {
     const existing = await db.taxRuleSet.findFirst({
       where: { taxYear, jurisdiction },
       select: { id: true },
@@ -222,9 +222,9 @@ export async function ensureRuleSets(taxYear: number): Promise<void> {
 export async function getTaxView(taxYear: number): Promise<TaxView> {
   await ensureRuleSets(taxYear);
 
-  const [federal, california, properties, profileRow, years] = await Promise.all([
+  const [federal, state, properties, profileRow, years] = await Promise.all([
     ruleSetView(taxYear, "federal"),
-    ruleSetView(taxYear, "ca"),
+    ruleSetView(taxYear, "wa"),
     db.property.findMany({
       where: { status: { in: ["rented", "vacant"] } },
       orderBy: { sortOrder: "asc" },
@@ -252,7 +252,7 @@ export async function getTaxView(taxYear: number): Promise<TaxView> {
   const blocker =
     federal.usable
       ? null
-      : `The tax constants for ${taxYear} have not been confirmed yet — ${federal.missingCount} federal and ${california.missingCount} California figures still need looking up. Nothing is estimated from a guess.`;
+      : `The tax constants for ${taxYear} have not been confirmed yet — ${federal.missingCount} federal and ${state.missingCount} Washington figures still need looking up. Nothing is estimated from a guess.`;
 
   const stampFormat = new Intl.DateTimeFormat("en-GB", {
     day: "numeric",
@@ -300,8 +300,8 @@ export async function getTaxView(taxYear: number): Promise<TaxView> {
     const federalRules = (await loadRules(taxYear, "federal"))?.rules as
       | FederalRules
       | undefined;
-    const caRules = california.usable
-      ? ((await loadRules(taxYear, "ca"))?.rules as CaliforniaRules | undefined)
+    const stateRules = state.usable
+      ? ((await loadRules(taxYear, "wa"))?.rules as WashingtonRules | undefined)
       : undefined;
 
     const carryforward = await db.taxCarryforward.aggregate({
@@ -335,10 +335,10 @@ export async function getTaxView(taxYear: number): Promise<TaxView> {
             activeParticipation: byProperty.get(schedule.propertyId) ?? true,
           })),
         passiveCarryforwardCents: carryforward._sum.amountCents ?? 0,
-        // California's own depreciation basis is not reproduced (see
-        // `lib/tax/california.ts`), so this stays zero rather than being
-        // approximated from the federal figure.
-        depreciationDifferenceCents: 0,
+        // Washington exempts real estate from its capital gains tax, so a gain
+        // from selling the rental has to be told apart from a stock sale rather
+        // than inferred.
+        realEstateGainCents: profileRow.realEstateGainCents ?? 0,
 
         hsaContributionCents: profileRow.hsaContributionCents ?? 0,
         traditionalRetirementCents: profileRow.traditionalRetirementCents ?? 0,
@@ -349,6 +349,7 @@ export async function getTaxView(taxYear: number): Promise<TaxView> {
           profileRow.primaryMortgageInterestCents ?? 0,
         primaryPropertyTaxCents: profileRow.primaryPropertyTaxCents ?? 0,
         stateIncomeTaxPaidCents: profileRow.stateIncomeTaxPaidCents ?? 0,
+        salesTaxPaidCents: profileRow.salesTaxPaidCents ?? 0,
 
         federalWithheldCents: profileRow.federalWithheldCents ?? 0,
         stateWithheldCents: profileRow.stateWithheldCents ?? 0,
@@ -358,7 +359,7 @@ export async function getTaxView(taxYear: number): Promise<TaxView> {
         realEstateProfessional: profileRow.realEstateProfessional,
 
         federal: federalRules,
-        california: caRules ?? null,
+        state: stateRules ?? null,
       });
 
       if (!result) {
@@ -460,7 +461,7 @@ export async function getTaxView(taxYear: number): Promise<TaxView> {
     taxYear,
     availableYears,
     federal,
-    california,
+    state,
     scheduleEs,
     blocker,
     hasProfile: profileRow !== null,

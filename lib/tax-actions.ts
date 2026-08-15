@@ -73,7 +73,7 @@ export async function saveTaxProfile(form: FormData): Promise<TaxResult> {
   const data = {
     filingStatus: status as FilingStatusKey,
     dependents: optionalInt(form, "dependents") ?? 0,
-    stateOfResidence: String(form.get("stateOfResidence") ?? "CA").toUpperCase(),
+    stateOfResidence: String(form.get("stateOfResidence") ?? "WA").toUpperCase(),
 
     w2WagesCents: optionalCents(form, "w2Wages"),
     spouseW2WagesCents: optionalCents(form, "spouseW2Wages"),
@@ -96,6 +96,8 @@ export async function saveTaxProfile(form: FormData): Promise<TaxResult> {
     primaryMortgageInterestCents: optionalCents(form, "primaryMortgageInterest"),
     primaryPropertyTaxCents: optionalCents(form, "primaryPropertyTax"),
     stateIncomeTaxPaidCents: optionalCents(form, "stateIncomeTaxPaid"),
+    salesTaxPaidCents: optionalCents(form, "salesTaxPaid"),
+    realEstateGainCents: optionalCents(form, "realEstateGain"),
 
     priorYearTaxCents: optionalCents(form, "priorYearTax"),
     priorYearAgiCents: optionalCents(form, "priorYearAgi"),

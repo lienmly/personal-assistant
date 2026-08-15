@@ -15,7 +15,7 @@ import { PrismaClient } from "@prisma/client";
 
 import { getTaxView } from "../lib/tax";
 import { federalSkeleton } from "../lib/tax/rulesets/federal";
-import { californiaSkeleton } from "../lib/tax/rulesets/california";
+import { washingtonSkeleton } from "../lib/tax/rulesets/washington";
 
 const db = new PrismaClient();
 let failed = 0;
@@ -102,9 +102,9 @@ async function main() {
     },
   });
   await db.taxRuleSet.updateMany({
-    where: { taxYear: YEAR, jurisdiction: "ca" },
+    where: { taxYear: YEAR, jurisdiction: "wa" },
     data: {
-      payload: fillSkeleton(californiaSkeleton(YEAR)) as object,
+      payload: fillSkeleton(washingtonSkeleton(YEAR)) as object,
       status: "verified",
       verifiedAt: new Date(),
     },

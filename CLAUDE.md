@@ -2596,6 +2596,43 @@ is read once and scrolled past for the rest of the year; a hairline `est.` besid
 forty figures cannot be. A figure computed from unconfirmed constants carries a second badge,
 and one that could not be computed reads "not computed" rather than zero.
 
+### The state was Washington, not California — 2026-08-15
+
+Corrected the day after Phase 6 closed, and worth recording because of **where the wrong
+assumption came from**: `TZ=America/Los_Angeles` in the Environment notes, which is the
+*server's* timezone and says nothing about where anybody lives. I read a deployment setting as
+a fact about the user. Nobody had said California at any point.
+
+Washington makes the state layer much smaller, and mostly by subtraction — **there is no
+personal income tax**, so salary, self-employment, interest, dividends and *rental income* are
+untouched by the state. That deleted the entire class of federal/state divergence California's
+module existed for: no state brackets, no separate depreciation basis, no state passive-loss
+bookkeeping, no exemption credits.
+
+Three things did **not** simplify, and all three are the kind that get missed precisely because
+"no income tax" sounds like "no tax":
+
+1. **Washington taxes long-term capital gains at 7% above a threshold.** It only appears in a
+   year with a large stock sale — exactly the year you would want warning — and it is easy to
+   forget because the state is famous for the thing it does not have.
+2. **Real estate is exempt from that tax outright.** Selling the rental does not trigger it,
+   however large the gain. So `TaxProfile` gained `realEstateGainCents`: the app cannot tell a
+   house sale from a stock sale, and inferring it would be wrong in the one year it mattered.
+3. **The SALT election stops being academic.** Schedule A takes state and local *income or
+   sales* tax, never both. In a state with an income tax, income always wins and the choice is
+   invisible. Here income tax is zero by construction, so **sales tax is the whole of it** —
+   and treating it as zero understates the itemized deduction by thousands. Hence
+   `salesTaxPaidCents`, and `Math.max` rather than a sum.
+
+**`parseTaxRules` had baked the assumption in too**, demanding a bracket table of every
+jurisdiction. That held only while the one state modelled had an income tax. It now requires
+brackets of *federal* and nothing else — the kind of constraint that looks like validation and
+is really a generalisation from a sample of one.
+
+The migration is additive: two nullable columns and a changed default. The `ca` rule-set
+skeletons were deleted rather than migrated, which cost nothing because **they contained no
+confirmed numbers** — the entire point of shipping them empty.
+
 ### A wrong tax number looks exactly like a right one — 2026-08-14
 
 **No tax constant in this app comes from a model's memory.** The rule sets in
@@ -4544,7 +4581,33 @@ Three rules inside it:
 
 ---
 
-_Last updated: 2026-08-14 · Status: **Phase 6 is done — the Ledger.**_
+_Last updated: 2026-08-15 · Status: **Phase 6 is done — the Ledger.**_
+
+_**2026-08-15 — "the state tax is washington, not california."** Corrected the day after the
+phase closed. The assumption came from `TZ=America/Los_Angeles` in the Environment notes — the
+**server's** timezone, which says nothing about where anybody lives, and which nobody had ever
+offered as a fact about residence._
+
+_Washington shrinks the state layer mostly by subtraction: **no personal income tax**, so
+salary, self-employment, interest, dividends and rental income are untouched by the state, and
+the whole federal/state divergence machinery California needed goes with it. What did not
+simplify: **a 7% tax on long-term capital gains** that only shows up in a year with a large
+stock sale, **real estate exempt from it outright** (so selling the rental triggers nothing,
+which is why `realEstateGainCents` had to become its own field rather than an inference), and
+**the SALT election becoming load-bearing** — Schedule A takes income *or* sales tax, and with
+income tax at zero the sales-tax box is the whole deduction. Leaving it blank understates
+itemizing by thousands._
+
+_**One assumption was baked into a place I would not have looked**: `parseTaxRules` demanded a
+bracket table of every jurisdiction, which is only true of a state that has an income tax — a
+constraint that looked like validation and was really a generalisation from a sample of one. It
+now requires brackets of federal alone._
+
+_Additive migration, two nullable columns and a changed default. The `ca` skeletons were deleted
+rather than migrated, which cost nothing: **they held no confirmed numbers**, which is the whole
+point of shipping them empty. All nine check scripts pass — `tax-check` and `engine-check` gained
+10 assertions between them, covering the capital gains tax, the real-estate exemption, and that
+income and sales tax are an election rather than a sum._
 
 _**2026-08-14 — Layer 8, and the phase closes.** Montblanc's Ledger tools and `docs/ledger.md`._
 

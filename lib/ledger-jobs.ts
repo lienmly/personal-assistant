@@ -174,7 +174,7 @@ export async function ensureLedgerJobs(): Promise<void> {
   // reads them (§6).
   const nextYear = shouldDraftNextYear();
   if (nextYear && process.env.DEEPSEEK_API_KEY) {
-    for (const jurisdiction of ["federal", "ca"] as const) {
+    for (const jurisdiction of ["federal", "wa"] as const) {
       const already = await db.taxRuleSet.findFirst({
         where: { taxYear: nextYear, jurisdiction },
         select: { id: true },
@@ -418,7 +418,7 @@ async function runJob(job: LedgerJob): Promise<string> {
       // database row, so it carries its own.
       const [year, jurisdiction] = (job.refId ?? "").split(":");
       const taxYear = Number(year);
-      if (!Number.isInteger(taxYear) || (jurisdiction !== "federal" && jurisdiction !== "ca")) {
+      if (!Number.isInteger(taxYear) || (jurisdiction !== "federal" && jurisdiction !== "wa")) {
         throw new Error("tax_rules_draft needs a year and a jurisdiction.");
       }
       return draftRuleSetFor(taxYear, jurisdiction);

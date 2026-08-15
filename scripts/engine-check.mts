@@ -20,7 +20,7 @@ import { estimate, type EstimateInput } from "../lib/tax/engine";
 import { niit } from "../lib/tax/niit";
 import { applyPassiveLimits } from "../lib/tax/passive";
 import { qbiDeduction } from "../lib/tax/qbi";
-import type { CaliforniaRules, FederalRules } from "../lib/tax/rules";
+import type { FederalRules, WashingtonRules } from "../lib/tax/rules";
 import { selfEmploymentTax } from "../lib/tax/se-tax";
 
 let failed = 0;
@@ -118,22 +118,18 @@ const FEDERAL: FederalRules = {
   },
 };
 
-const CALIFORNIA: CaliforniaRules = {
+/** INVENTED. Washington has no income tax; what it has is a capital gains tax. */
+const WASHINGTON: WashingtonRules = {
   taxYear: 2026,
-  jurisdiction: "ca",
-  brackets: byStatus([
-    { upToCents: 5_000_000, rate: 0.02 },
-    { upToCents: null, rate: 0.09 },
-  ]),
-  standardDeduction: byStatus(500_000),
-  exemptionCreditCents: byStatus(14_000),
-  dependentExemptionCreditCents: 43_000,
-  mentalHealthSurcharge: { rate: 0.01, thresholdCents: 100_000_000 },
-  conformsToBonus: false,
-  conformsToSection179: false,
-  section179LimitCents: 2_500_000,
-  hasQbi: false,
-  standardMileageCents: 67,
+  jurisdiction: "wa",
+  hasIncomeTax: false,
+  hasCapitalGainsTax: true,
+  capitalGains: {
+    rate: 0.07,
+    standardDeductionCents: 27_000_000,
+    charitableFloorCents: 2_700_000,
+    charitableCapCents: 10_000_000,
+  },
 };
 
 section("self-employment tax");
@@ -353,7 +349,7 @@ const base: EstimateInput = {
   longTermGainCents: 0,
   properties: [],
   passiveCarryforwardCents: 0,
-  depreciationDifferenceCents: 0,
+  realEstateGainCents: 0,
   hsaContributionCents: 0,
   traditionalRetirementCents: 0,
   studentLoanInterestCents: 0,
@@ -361,13 +357,14 @@ const base: EstimateInput = {
   primaryMortgageInterestCents: 0,
   primaryPropertyTaxCents: 0,
   stateIncomeTaxPaidCents: 0,
+  salesTaxPaidCents: 0,
   federalWithheldCents: 0,
   stateWithheldCents: 0,
   estimatedPaidCents: 0,
   reSafeHarbourHours: null,
   realEstateProfessional: false,
   federal: FEDERAL,
-  california: null,
+  state: null,
 };
 
 {
@@ -429,32 +426,94 @@ const base: EstimateInput = {
 }
 
 {
-  const result = estimate({ ...base, w2WagesCents: 12_000_000, california: CALIFORNIA })!;
-  ok("California is computed", result.california !== null);
-  eq("its taxable income differs from federal", result.california!.taxableIncomeCents, 11_500_000);
+  // No income tax, so a salary alone owes the state nothing at all.
+  const result = estimate({ ...base, w2WagesCents: 12_000_000, state: WASHINGTON })!;
+  ok("Washington is computed", result.state !== null);
+  eq("and a salary owes it nothing", result.state!.totalCents, 0);
+  eq("so the total is federal only", result.totalTaxCents, result.federalTotalCents);
   ok(
-    "and it says what it does not model",
-    result.california!.unmodelled.some((note) => note.includes("suspended passive losses")),
+    "it says why rather than just showing zero",
+    result.state!.notes.some((note) => note.includes("no personal income tax")),
   );
 }
 
 {
-  // California adds back the QBI deduction, because it has none.
+  // A large long-term gain from securities: over the $270,000 deduction by
+  // $130,000, at 7%.
   const result = estimate({
     ...base,
-    w2WagesCents: 1_000_000,
-    properties: [{ netCents: 3_000_000, activeParticipation: true }],
-    california: CALIFORNIA,
+    w2WagesCents: 12_000_000,
+    longTermGainCents: 40_000_000,
+    state: WASHINGTON,
+  })!;
+  eq("the gain above the deduction is taxed", result.state!.taxableGainCents, 13_000_000);
+  eq("at 7%", result.state!.capitalGainsTaxCents, Math.round(13_000_000 * 0.07));
+  ok("and it reaches the total", result.totalTaxCents > result.federalTotalCents);
+}
+
+{
+  // **Real estate is exempt outright.** The same gain, from selling the rental,
+  // owes Washington nothing — the assumption most likely to be got backwards.
+  const result = estimate({
+    ...base,
+    w2WagesCents: 12_000_000,
+    longTermGainCents: 40_000_000,
+    realEstateGainCents: 40_000_000,
+    state: WASHINGTON,
+  })!;
+  eq("selling the rental is exempt", result.state!.capitalGainsTaxCents, 0);
+  ok(
+    "and the exemption is named rather than silent",
+    result.state!.exclusions.some((item) => item.label.includes("real estate")),
+  );
+}
+
+{
+  // Below the deduction, nothing is due.
+  const result = estimate({
+    ...base,
+    w2WagesCents: 12_000_000,
+    longTermGainCents: 10_000_000,
+    state: WASHINGTON,
+  })!;
+  eq("a small gain owes nothing", result.state!.capitalGainsTaxCents, 0);
+}
+
+{
+  // **The SALT election.** With no state income tax, sales tax is what goes on
+  // Schedule A — and treating it as zero understates the itemized total.
+  const withSales = estimate({
+    ...base,
+    w2WagesCents: 20_000_000,
+    salesTaxPaidCents: 300_000,
+    primaryPropertyTaxCents: 400_000,
+    primaryMortgageInterestCents: 2_500_000,
+  })!;
+  const withoutSales = estimate({
+    ...base,
+    w2WagesCents: 20_000_000,
+    primaryPropertyTaxCents: 400_000,
+    primaryMortgageInterestCents: 2_500_000,
   })!;
   ok(
-    "the add-back is named",
-    result.california!.additions.some((addition) => addition.label.includes("QBI")),
+    "sales tax raises the itemized deduction",
+    withSales.itemizedCents > withoutSales.itemizedCents,
+    `${withSales.itemizedCents} vs ${withoutSales.itemizedCents}`,
   );
-  eq(
-    "and equals the federal deduction",
-    result.california!.additions.find((a) => a.label.includes("QBI"))?.cents,
-    result.qbi.deductionCents,
-  );
+  eq("by exactly the sales tax", withSales.itemizedCents - withoutSales.itemizedCents, 300_000);
+}
+
+{
+  // Income tax and sales tax are an election, never a sum.
+  const result = estimate({
+    ...base,
+    w2WagesCents: 20_000_000,
+    stateIncomeTaxPaidCents: 500_000,
+    salesTaxPaidCents: 300_000,
+    primaryPropertyTaxCents: 100_000,
+  })!;
+  // The larger of 500,000 and 300,000, plus 100,000 property — not 900,000.
+  eq("the larger is elected, not both added", result.itemizedCents, 600_000);
 }
 
 {
@@ -466,13 +525,13 @@ const base: EstimateInput = {
 {
   // A California rule set that exists but cannot compute is a failure, not a
   // quiet fallback to federal-only.
-  const brokenCa: CaliforniaRules = {
-    ...CALIFORNIA,
-    standardDeduction: byStatus(null),
+  const brokenState: WashingtonRules = {
+    ...WASHINGTON,
+    capitalGains: { ...WASHINGTON.capitalGains, rate: null },
   };
   eq(
-    "a broken California set refuses rather than reporting federal alone",
-    estimate({ ...base, california: brokenCa }),
+    "a broken state set refuses rather than reporting federal alone",
+    estimate({ ...base, longTermGainCents: 40_000_000, state: brokenState }),
     null,
   );
 }

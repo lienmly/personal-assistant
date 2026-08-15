@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { completeJson } from "@/lib/deepseek";
 import { missingFigures } from "@/lib/tax/rules";
 import { federalSkeleton } from "@/lib/tax/rulesets/federal";
-import { californiaSkeleton } from "@/lib/tax/rulesets/california";
+import { washingtonSkeleton } from "@/lib/tax/rulesets/washington";
 
 /**
  * Drafting next year's tax constants from the published source.
@@ -30,7 +30,7 @@ import { californiaSkeleton } from "@/lib/tax/rulesets/california";
 
 /** Where the annual numbers live. `{year}` is substituted. */
 const SOURCES: Record<
-  "federal" | "ca",
+  "federal" | "wa",
   { label: string; url: string }[]
 > = {
   federal: [
@@ -43,10 +43,10 @@ const SOURCES: Record<
       url: "https://www.irs.gov/tax-professionals/standard-mileage-rates",
     },
   ],
-  ca: [
+  wa: [
     {
-      label: "FTB tax rate schedules",
-      url: "https://www.ftb.ca.gov/forms/{year}/{year}-california-tax-rate-schedules.html",
+      label: "Washington DOR — capital gains tax",
+      url: "https://dor.wa.gov/taxes-rates/other-taxes/capital-gains-tax",
     },
   ],
 };
@@ -125,7 +125,7 @@ const MAX_CHARS = 30_000;
  */
 export async function draftRuleSetFor(
   taxYear: number,
-  jurisdiction: "federal" | "ca",
+  jurisdiction: "federal" | "wa",
 ): Promise<string> {
   const existing = await db.taxRuleSet.findFirst({
     where: { taxYear, jurisdiction, status: "verified" },
@@ -138,7 +138,7 @@ export async function draftRuleSetFor(
   const skeleton =
     jurisdiction === "federal"
       ? federalSkeleton(taxYear)
-      : californiaSkeleton(taxYear);
+      : washingtonSkeleton(taxYear);
   const wanted = missingFigures(skeleton);
 
   const sources = SOURCES[jurisdiction];

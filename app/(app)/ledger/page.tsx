@@ -293,7 +293,7 @@ export default async function LedgerPage({
                   constants nobody has looked up yet. §6. */}
               <div className="mb-5 grid grid-cols-1 gap-3 lg:grid-cols-2">
                 <RuleSetCard ruleSet={tax.federal} />
-                <RuleSetCard ruleSet={tax.california} />
+                <RuleSetCard ruleSet={tax.state} />
               </div>
 
               {tax.pendingFigures.length > 0 && (
@@ -413,8 +413,7 @@ export default async function LedgerPage({
                     "Moving between states part-way through a year",
                     "Converting a rental to personal use, or back",
                     "Most state credits",
-                    "California's separate passive-loss bookkeeping",
-                  ].map((item) => (
+                                      ].map((item) => (
                     <li key={item} className="flex gap-2">
                       <span className="text-faint">·</span>
                       {item}

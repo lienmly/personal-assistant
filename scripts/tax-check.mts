@@ -26,7 +26,7 @@ import {
   taxOnPreferential,
 } from "../lib/tax/rules";
 import { federalSkeleton } from "../lib/tax/rulesets/federal";
-import { californiaSkeleton } from "../lib/tax/rulesets/california";
+import { washingtonSkeleton } from "../lib/tax/rulesets/washington";
 
 let failed = 0;
 let passed = 0;
@@ -84,16 +84,27 @@ section("the rule sets ship empty — this is the point, not an omission");
     missing.some((path) => path.includes("specialAllowanceCents")),
   );
 
-  const ca = californiaSkeleton(2026);
-  const caMissing = missingFigures(ca);
-  ok("California too", caMissing.length > 5, `${caMissing.length}`);
-  // Booleans are standing facts about non-conformity, not figures to look up.
+  const wa = washingtonSkeleton(2026);
+  const waMissing = missingFigures(wa);
+  // Washington is a much shorter file, and for a reason: no income tax means no
+  // brackets, no standard deduction and no exemption credits to look up.
+  ok("Washington has some too", waMissing.length >= 3, `${waMissing.length}`);
   ok(
-    "but its conformity booleans are not 'missing'",
-    !caMissing.some((path) => path.includes("conformsTo")),
+    "and far fewer than federal",
+    waMissing.length < missing.length / 3,
+    `${waMissing.length} vs ${missing.length}`,
   );
-  eq("California has no QBI", ca.hasQbi, false);
-  eq("and does not conform to bonus", ca.conformsToBonus, false);
+  // Standing facts about the state, not figures — so they ship with values.
+  ok(
+    "its standing facts are not 'missing'",
+    !waMissing.some((path) => path.includes("has")),
+  );
+  eq("no personal income tax", wa.hasIncomeTax, false);
+  eq("but a capital gains tax", wa.hasCapitalGainsTax, true);
+  ok(
+    "whose rate is still to be confirmed",
+    waMissing.includes("capitalGains.rate"),
+  );
 }
 
 section("mid-month convention");

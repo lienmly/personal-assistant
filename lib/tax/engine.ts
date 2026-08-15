@@ -1,12 +1,12 @@
 import { moneyLabel, signedMoneyLabel } from "@/lib/money";
-import { californiaEstimate, type CaliforniaEstimate } from "@/lib/tax/california";
+import { washingtonEstimate, type WashingtonEstimate } from "@/lib/tax/washington";
 import { niit, type NiitResult } from "@/lib/tax/niit";
 import { applyPassiveLimits, type PassiveResult } from "@/lib/tax/passive";
 import { qbiDeduction, type QbiResult } from "@/lib/tax/qbi";
 import {
-  type CaliforniaRules,
   type FederalRules,
   type FilingStatusKey,
+  type WashingtonRules,
   taxOnOrdinary,
   taxOnPreferential,
 } from "@/lib/tax/rules";
@@ -75,7 +75,7 @@ export type TaxEstimate = {
   niit: NiitResult;
   federalTotalCents: number;
 
-  california: CaliforniaEstimate | null;
+  state: WashingtonEstimate | null;
 
   withheldCents: number;
   estimatedPaidCents: number;
@@ -105,8 +105,9 @@ export type EstimateInput = {
   /** Per property, net Schedule E and whether actively participated in. */
   properties: { netCents: number; activeParticipation: boolean }[];
   passiveCarryforwardCents: number;
-  /** Federal depreciation California does not allow. */
-  depreciationDifferenceCents: number;
+  /** Of the long-term gain, how much came from selling real estate.
+   *  Washington exempts it outright, so it has to be told apart. */
+  realEstateGainCents: number;
 
   hsaContributionCents: number;
   traditionalRetirementCents: number;
@@ -116,6 +117,9 @@ export type EstimateInput = {
   primaryMortgageInterestCents: number;
   primaryPropertyTaxCents: number;
   stateIncomeTaxPaidCents: number;
+  /** Sales tax paid. In a state with no income tax this is the SALT election
+   *  you would actually make — see the note where it is used. */
+  salesTaxPaidCents: number;
 
   federalWithheldCents: number;
   stateWithheldCents: number;
@@ -125,7 +129,7 @@ export type EstimateInput = {
   realEstateProfessional: boolean;
 
   federal: FederalRules;
-  california: CaliforniaRules | null;
+  state: WashingtonRules | null;
 };
 
 export function estimate(input: EstimateInput): TaxEstimate | null {
@@ -181,7 +185,16 @@ export function estimate(input: EstimateInput): TaxEstimate | null {
   const standardCents = federal.standardDeduction[input.filingStatus];
   if (standardCents === null) return null;
 
-  const saltPaid = input.primaryPropertyTaxCents + input.stateIncomeTaxPaidCents;
+  // **State and local tax is income *or* sales, never both, plus property.**
+  // That election barely matters in a state with an income tax, where income tax
+  // always wins. In Washington it is the whole of the deduction: state income
+  // tax is zero by construction, so sales tax is what goes on Schedule A, and
+  // treating it as zero would understate the itemized total by thousands.
+  const electedCents = Math.max(
+    input.stateIncomeTaxPaidCents,
+    input.salesTaxPaidCents,
+  );
+  const saltPaid = input.primaryPropertyTaxCents + electedCents;
   const saltCents =
     federal.saltCapCents === null
       ? null
@@ -264,27 +277,28 @@ export function estimate(input: EstimateInput): TaxEstimate | null {
   const federalTotalCents =
     federalBeforeCreditsCents + se.totalCents + niitResult.taxCents;
 
-  // ── 11. California ────────────────────────────────────────────────────────
-  const california = input.california
-    ? californiaEstimate({
-        federalAgiCents: agiCents,
-        qbiDeductionCents: qbi.deductionCents,
-        depreciationDifferenceCents: input.depreciationDifferenceCents,
+  // ── 11. The state ─────────────────────────────────────────────────────────
+  // Washington has no personal income tax, so nothing above this line has a
+  // state counterpart — no state brackets, no separate depreciation basis, no
+  // state passive-loss bookkeeping. What it does have is a tax on long-term
+  // capital gains, and **real estate is exempt from it**, which is why the
+  // rental's gain is passed separately rather than being inferred.
+  const state = input.state
+    ? washingtonEstimate({
         longTermGainCents: input.longTermGainCents,
-        filingStatus: input.filingStatus,
-        dependents: input.dependents,
-        itemizedCents,
-        rules: input.california,
+        realEstateGainCents: input.realEstateGainCents,
+        charitableCents: input.charitableCents,
+        rules: input.state,
       })
     : null;
 
-  // A California rule set that exists but cannot be computed is a failure, not
-  // a reason to quietly report federal-only.
-  if (input.california && !california) return null;
+  // A state rule set that exists but cannot be computed is a failure, not a
+  // reason to quietly report federal-only.
+  if (input.state && !state) return null;
 
   // ── 12. Payments ──────────────────────────────────────────────────────────
   const withheldCents = input.federalWithheldCents + input.stateWithheldCents;
-  const totalTaxCents = federalTotalCents + (california?.totalCents ?? 0);
+  const totalTaxCents = federalTotalCents + (state?.totalCents ?? 0);
   const balanceCents =
     totalTaxCents - withheldCents - input.estimatedPaidCents;
 
@@ -292,7 +306,7 @@ export function estimate(input: EstimateInput): TaxEstimate | null {
 
   const unmodelled: string[] = [
     ...(qbi.unmodelled ? [qbi.unmodelled] : []),
-    ...(california?.unmodelled ?? []),
+    ...(state?.notes ?? []),
   ];
 
   return {
@@ -325,7 +339,7 @@ export function estimate(input: EstimateInput): TaxEstimate | null {
     niit: niitResult,
     federalTotalCents,
 
-    california,
+    state,
 
     withheldCents,
     estimatedPaidCents: input.estimatedPaidCents,
@@ -344,7 +358,7 @@ export function estimateLabels(result: TaxEstimate) {
   return {
     totalTaxLabel: moneyLabel(result.totalTaxCents),
     federalLabel: moneyLabel(result.federalTotalCents),
-    californiaLabel: moneyLabel(result.california?.totalCents ?? 0),
+    stateLabel: moneyLabel(result.state?.totalCents ?? 0),
     agiLabel: moneyLabel(result.agiCents),
     taxableLabel: moneyLabel(result.taxableIncomeCents),
     deductionLabel: moneyLabel(result.deductionCents),

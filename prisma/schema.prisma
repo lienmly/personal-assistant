@@ -1798,7 +1798,7 @@ model TaxProfile {
 
   filingStatus     FilingStatus
   dependents       Int          @default(0)
-  stateOfResidence String       @default("CA")
+  stateOfResidence String       @default("WA")
 
   w2WagesCents         Int?
   spouseW2WagesCents   Int?
@@ -1821,6 +1821,15 @@ model TaxProfile {
   primaryMortgageInterestCents Int?
   primaryPropertyTaxCents      Int?
   stateIncomeTaxPaidCents      Int?
+  /// State and local tax on Schedule A is income **or** sales, never both. In a
+  /// state with an income tax the election is academic because income always
+  /// wins; in Washington, which has none, this is the whole of it — and treating
+  /// it as zero understates the itemized deduction by thousands.
+  salesTaxPaidCents            Int?
+  /// Of `longTermGainCents`, how much came from selling real estate.
+  /// Washington's capital gains tax exempts real estate outright, so it has to
+  /// be told apart from a stock sale rather than inferred.
+  realEstateGainCents          Int?
 
   /// The safe harbour for next year's estimated payments needs last year's
   /// numbers, and there is nowhere else to get them.

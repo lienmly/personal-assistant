@@ -194,6 +194,12 @@ function ProfilePanel({
                 <Money name="estimatedPaid" label="Estimated payments made" />
               </Group>
 
+              <p className="-mb-2 text-xs leading-relaxed text-faint">
+                Washington has no income tax, so the state line on Schedule A is
+                <strong className="font-medium"> sales tax</strong> rather than
+                income tax — leaving it blank understates the deduction.
+              </p>
+
               <Group title="Other income">
                 <Money name="selfEmploymentNet" label="Self-employment profit" />
                 <Money name="interestIncome" label="Interest" />
@@ -201,7 +207,15 @@ function ProfilePanel({
                 <Money name="qualifiedDividends" label="of which qualified" />
                 <Money name="shortTermGain" label="Short-term gains" />
                 <Money name="longTermGain" label="Long-term gains" />
+                <Money name="realEstateGain" label="of which from real estate" />
               </Group>
+
+              <p className="-mb-2 text-xs leading-relaxed text-faint">
+                Washington taxes long-term gains at 7% above a threshold, but
+                <strong className="font-medium"> exempts real estate</strong> —
+                so a gain from selling the rental has to be told apart from a
+                stock sale.
+              </p>
 
               <Group title="What comes off">
                 <Money name="hsaContribution" label="HSA contributions" />
@@ -211,6 +225,7 @@ function ProfilePanel({
                 <Money name="primaryMortgageInterest" label="Home mortgage interest" />
                 <Money name="primaryPropertyTax" label="Home property tax" />
                 <Money name="stateIncomeTaxPaid" label="State income tax paid" />
+                <Money name="salesTaxPaid" label="Sales tax paid" />
               </Group>
 
               <Group title="Last year, for the safe harbour">

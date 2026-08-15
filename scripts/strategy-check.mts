@@ -16,7 +16,7 @@
 import { PrismaClient } from "@prisma/client";
 
 import { estimate, type EstimateInput } from "../lib/tax/engine";
-import type { CaliforniaRules, FederalRules } from "../lib/tax/rules";
+import type { FederalRules, WashingtonRules } from "../lib/tax/rules";
 import { missingFigures } from "../lib/tax/rules";
 import { STRATEGIES, surfaceStrategies } from "../lib/tax/strategies";
 import { federalSkeleton } from "../lib/tax/rulesets/federal";
@@ -119,7 +119,7 @@ const base: EstimateInput = {
   longTermGainCents: 0,
   properties: [],
   passiveCarryforwardCents: 0,
-  depreciationDifferenceCents: 0,
+  realEstateGainCents: 0,
   hsaContributionCents: 0,
   traditionalRetirementCents: 0,
   studentLoanInterestCents: 0,
@@ -127,13 +127,14 @@ const base: EstimateInput = {
   primaryMortgageInterestCents: 0,
   primaryPropertyTaxCents: 0,
   stateIncomeTaxPaidCents: 0,
+  salesTaxPaidCents: 0,
   federalWithheldCents: 0,
   stateWithheldCents: 0,
   estimatedPaidCents: 0,
   reSafeHarbourHours: null,
   realEstateProfessional: false,
   federal: FEDERAL,
-  california: null as CaliforniaRules | null,
+  state: null as WashingtonRules | null,
 };
 
 const emptyContext = {

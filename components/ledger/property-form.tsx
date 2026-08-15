@@ -151,7 +151,7 @@ function PropertyPanel({ onClose }: { onClose: () => void }) {
                   <input
                     name="state"
                     className={`${fieldBase} w-16`}
-                    placeholder="CA"
+                    placeholder="WA"
                     maxLength={2}
                     required
                   />

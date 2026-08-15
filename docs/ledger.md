@@ -153,7 +153,7 @@ downstream contradicts it, and you find out when it has cost money.
 
 ### Confirming the constants
 
-Past mid-October the app fetches the published IRS and FTB pages and files a **draft** — each
+Past mid-October the app fetches the published IRS and Washington DOR pages and files a **draft** — each
 number beside the verbatim sentence it was read from. Confirming is then *reading*: compare the
 number to the quoted line, correct it if the extraction misread a digit, press confirm.
 
@@ -162,9 +162,24 @@ no "mark as done" button, because the engine's refusal is keyed on there being n
 
 ### What it works out
 
-Schedule E per property, self-employment tax, the §469 passive-loss limit, §199A, NIIT,
-federal brackets and California. Every figure carries a small `est.` mark, and figures built on
-unconfirmed constants carry a second badge.
+Schedule E per property, self-employment tax, the §469 passive-loss limit, §199A, NIIT and
+federal brackets. Every figure carries a small `est.` mark, and figures built on unconfirmed
+constants carry a second badge.
+
+**Washington has no personal income tax**, so salary, self-employment, interest, dividends and
+rental income are untouched by the state — which is why there is no state bracket table to
+confirm. What it *does* have is a **7% tax on long-term capital gains** above a threshold, and
+two things about it are worth knowing before the year you need them:
+
+- **Real estate is exempt outright.** Selling the rental does not trigger it, however large the
+  gain. So is anything in a retirement account.
+- **It only reaches securities**, so the profile asks how much of a long-term gain came from
+  real estate — the app cannot tell a house sale from a stock sale otherwise.
+
+One knock-on worth catching: on the federal Schedule A, state and local tax is **income or
+sales, never both**. In a state with an income tax that election is academic. Here your state
+income tax is zero, so **sales tax is the whole of it** — leaving that box empty understates
+your itemized deduction by thousands.
 
 **Refusals you will meet, and they are working as intended:**
 
@@ -179,8 +194,8 @@ unconfirmed constants carry a second badge.
 ### What it does not model
 
 Listed permanently at the bottom of the tab: AMT, K-1s, 1031 exchanges, installment sales,
-moving states part-way through a year, converting a rental to personal use, most state credits,
-and California's separate passive-loss bookkeeping.
+moving states part-way through a year, converting a rental to personal use, and most state
+credits.
 
 **Nothing here is a return and nothing here is advice.** The strategy list is phrased as
 questions for your accountant, and the only button on any of them is *Mark as raised*. There is
