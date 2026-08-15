@@ -1029,10 +1029,246 @@ the first structural change to `Task` since the checklist. The panel could say w
 - [ ] **Not seen on a real phone**, unchanged since Phase 4.8 — the section is one column of
       full-width rows inside a panel that was already checked at 390px
 
-### Phase 6 — Ledger (money)
-- [ ] Bank account connections
-- [ ] Property management statement ingestion + audit
-- [ ] Slots in as a sixth surface — no IA change required
+### Phase 6 — Ledger (money) ✅
+_Started 2026-08-12, finished 2026-08-14. The Home & Money area has existed since the first seed and held
+**nothing** — no projects, no docs, no tasks — while the money side of life sat across four
+bank apps, an AppFolio owner portal and a shoebox for April. Four asks: link the banks and
+see analysis per account; add the rental properties; sum it all into a net worth with a
+real breakdown; and a place to see how to use the tax rules to minimise what comes out of
+pocket._
+
+_**The standing requirement, given emphatically, is "automate everything — I don't want to
+do anything manual."** That drives every decision below, and where something genuinely
+cannot be automated it is named rather than quietly left as a form._
+
+**Decided with the user before any code**: Plaid for bank data (transactions, investments,
+liabilities); net worth covers banks, brokerage, retirement, cards and loans but
+**deliberately not** crypto or vehicles; AppFolio statements arrive **through Gmail**
+because there is no owner-facing AppFolio API; RentCast for the property valuation;
+a **real** tax estimate engine; built in ordered layers.
+
+#### Layer 1 — accounts, balances, net worth ✅ _(2026-08-12)_
+- [x] **`/ledger` is the fifth surface** — one entry in `lib/nav.ts`, which is exactly what
+      §6 predicted ("slots in as one more surface without disturbing anything… the test the
+      IA is built to pass"). The icon rail, the mobile tab bar and `surfaceForPath` all read
+      that array, so none of them changed
+- [x] **`lib/money.ts`** — integer cents, and the argument against `Decimal` (§8)
+- [x] **`lib/ledger-rules.ts`** — client-safe; `netWorthSideFor`, `netWorthGroupFor`,
+      `kindFromPlaid`. The sign convention lives here and nowhere else
+- [x] **`lib/crypto-box.ts` + `lib/secret-store.ts`** — AES-256-GCM, and the
+      `lib/media-store.ts` seam applied to secrets: **exactly one module names
+      `accessTokenEnc`**
+- [x] **`lib/plaid.ts`** hand-rolled, no SDK (§8); `lib/plaid-sync.ts` is the ingest boundary
+- [x] **`LedgerJob`** and `ensureLedgerJobs()` — the materialise-on-read bargain, plus the
+      thing `ensureSeriesSlots` never needed: a visible failure. §6, "Automation that stops
+      without saying so"
+- [x] **Net worth + Accounts tabs, and `/ledger/connections`** — the `/studio` +
+      `/studio/channels` shape
+- [x] **`--color-bad`** in both themes, with a usage rule (§8)
+- [x] **`scripts/ledger-check.mts`** (54 golden cases) and **`scripts/ledger-smoke.mts`**
+      (end-to-end against the real database, cleaning up after itself)
+- [x] **`proxy.ts` exempts `api/ledger/jobs/run`** — found by curling it. See §9
+- [ ] **Not seen in a browser.** The Chrome extension has no host permission for
+      `localhost:3100`, so the surface has been verified by build, typecheck, lint, both
+      check scripts and curl — and not by looking at it. Unchanged in kind from the phone
+      gap every phase since 4.8 has recorded, but this one is a desktop gap too
+- [ ] **Plaid Production is an application and a bill.** Layer 1 is built against Sandbox
+
+#### Layer 2 — transactions, holdings, liabilities ✅ _(2026-08-12)_
+- [x] **`Transaction`, `Security`, `Holding`, `LoanDetail`** — migration `_ledger_transactions`,
+      17 statements, every one a CREATE
+- [x] **`/transactions/sync`, cursor-based** — and **the cursor is not advanced if any row was
+      skipped.** §6, "A cursor you advance past a row you did not write"
+- [x] **The sign inversion**, once, in `lib/plaid-sync.ts`. Plaid reports a debit as positive
+- [x] **A pending row is deleted when the posted one arrives** — Plaid issues a *new* id and
+      points back at the old one rather than modifying it, so both sit there and every total
+      counts the purchase twice
+- [x] **A hand-set `category` or `note` survives a re-sync** — the seed's `update: {}` rule,
+      one noun over. Verified against live sandbox
+- [x] **Holdings are replaced wholesale**, so a sold position leaves the net worth
+- [x] **`LoanDetail.ytdInterestCents`** — the Schedule E mortgage-interest line, arriving
+      monthly instead of on a 1098 in February. Sandbox reports **$12,300.40** and an address,
+      which is what Layer 3 will match a property against
+- [x] **The webhook, with ES256 verification** — `dsaEncoding: "ieee-p1363"`, the body hash
+      over raw bytes, a five-minute `iat` window, `alg` pinned rather than read. Enqueues and
+      returns 200; never works inline
+- [x] **`proxy.ts` exempts the webhook too** — one path, not a prefix. Verified that
+      `/api/ledger/statements/[id]` still 302s
+- [x] **The transfer matcher** — equal and opposite, different accounts, within four days.
+      Un-marks a pair that stops matching
+- [x] **Spending analysis** — twelve months in/out, this month by category, and a single
+      recurring figure (a merchant within 15% of its median in three of four months)
+- [x] **Three chart shapes, hand-built** (§8). Two of them turned out not to want SVG at all
+- [x] **`scripts/ledger-live.mts`** — the whole stack against real Plaid sandbox, cleaning up
+      after itself
+- [ ] **The webhook has never received a real delivery.** It needs a public URL, so it is
+      verified by unit-testing the verifier and by curling the endpoint — not by Plaid calling
+      it. Safe, because the read-triggered catch-up makes it an optimisation
+- [ ] **Sandbox never produces a matched transfer pair** (one institution), so the matcher is
+      exercised against synthetic rows in `scripts/ledger-smoke.mts` instead
+
+#### Layer 3 — property ✅ _(2026-08-13)_
+- [x] **`Property`, `PropertyValuation`, `PropertyLoan`, `Lease`** and `Transaction.propertyId`
+      (`SetNull`). Migration `_ledger_property` — one nullable `ADD COLUMN` on an existing
+      table, everything else a CREATE
+- [x] **A property mints a companion Project** in Home & Money, with `cadenceDays: null` so it
+      can never "drift". §6, "A property is money; its project is the work"
+- [x] **A property with no valuation contributes nothing to net worth** — never its purchase
+      price. §6
+- [x] **The mortgage is suggested, never assigned** — `getLoanCandidates` scores the
+      servicer's address and stops. §6
+- [x] **`--color-bad` earns its second use**: the owed bar against the value
+- [x] **RentCast**, hand-rolled, with the quota guard *inside the job* — a refusal is a
+      recorded result, not a retry against a limit that resets on the 1st
+- [x] **The range is stored and shown**, never the point estimate alone
+- [x] **`lib/property-rules.ts`** — client-safe parsing and the two guards, extracted because
+      a `"use server"` module cannot be called from a script at all. §9
+- [x] **The Property tab does not require a bank** — an address is the one fact no aggregator
+      can supply, so it is the one form on the surface
+- [x] `scripts/property-check.mts` — parsing, both guards, and the read path against real rows
+- [ ] **RentCast has never been called.** No `RENTCAST_API_KEY` yet; the client, the quota
+      guard and the job are written and the network call is unexercised
+- [ ] **The loan-address matcher scored 0.67 on a synthetic pair** and has never seen a real
+      servicer string
+
+#### Layer 4 — statements ✅ _(2026-08-13)_
+- [x] **`PropertyStatement`, `StatementDocument`, `StatementLineItem`** — migration
+      `_ledger_statements`, every statement a CREATE
+- [x] **A statement cannot be accepted until it reconciles to the cent.** §6, "The document
+      carries its own checksum". Verified against a real PDF, and verified to *fail* when a
+      row is removed
+- [x] **`unpdf`** — the one dependency this phase adds, and it has **zero of its own**
+      (18 lines in the lockfile). §8
+- [x] **`lib/deepseek.ts`** — moved out of `lib/montblanc/`, since the Ledger is its second
+      consumer and "swapping providers is a one-file change" only survives if there is one
+      file. Gained `completeJson` with `response_format: json_object` and `temperature: 0`
+- [x] **The Gmail grant is separate from sign-in** — its own row, its own consent, its own
+      lifetime. §6
+- [x] **The hash, not the message id, is what makes ingestion idempotent** — a forwarded copy
+      or a re-scan after a failure is the same document
+- [x] **Uploading is a first-class path**, which is what made the pipeline testable before
+      any OAuth existed
+- [x] **`app/api/ledger/statements/[id]`** — auth-gated, `private, immutable`, and confirmed
+      to still 307 while the webhook and job runner 401
+- [x] **`scripts/statement-check.mts`** builds a **real PDF** — actual bytes, text operators,
+      correct xref offsets — and runs it through `unpdf`, the model, and the reconciliation
+- [x] **`scripts/ledger-reset.mts`** — clears Ledger rows only, so a crashed check does not
+      block the next one
+- [ ] **Gmail has never been connected.** The grant flow, the poll, the query and the
+      attachment decode are written and unexercised — it needs a consent screen and a second
+      redirect URI on the Google OAuth client
+- [ ] **The test PDF uses a standard font**, so it exercises `unpdf`'s easy path. A real
+      AppFolio statement embeds a subset font, which is exactly the case §8 said a
+      hand-written extractor could not handle — and exactly what this fixture cannot prove
+- [ ] **Reconciliation cannot catch a mislabelled row.** A repair booked as insurance adds up
+      perfectly and is wrong on the Schedule E. Hence no auto-accept, and `rawText` on every
+      row
+
+#### Layer 5 — tax rule sets, depreciation, Schedule E ✅ _(2026-08-14)_
+- [x] **`TaxRuleSet`, `TaxProfile`, `DepreciableAsset`, `TaxCarryforward`, `TaxStrategyNote`**
+      — migration `_ledger_tax`; the only change to an existing table is a nullable
+      `Transaction.assetId`
+- [x] **The rule sets ship with every numeric leaf `null`.** No tax constant in this app comes
+      from a model's memory. §6, "A tax figure that is wrong looks exactly like one that is
+      right"
+- [x] **A rule set with any unconfirmed number is unusable** — not "used with defaults". The
+      engine reports *not computed*; `missingFigures` walks the payload so a newly added
+      constant cannot be forgotten
+- [x] **`FEDERAL_SOURCES` / `CALIFORNIA_SOURCES`** name the document each group comes from, so
+      confirming is looking one thing up rather than searching for it
+- [x] **MACRS 27.5-year straight line, mid-month** — and the number of full years **depends on
+      the start month**, which is where the one real bug was
+- [x] **5- and 15-year MACRS derived from the declining-balance formula**, not transcribed —
+      there is no table to mistype, and the output is checkable against Pub 946
+- [x] **`buildingBasisCents` refuses without the land split.** The gap between a 15% and a 30%
+      allocation on a $985,000 property is ~$2,700 a year, in a figure that looks equally
+      authoritative either way
+- [x] **Schedule E from three sources, each labelled** — accepted statements, claimed
+      transactions, and the servicer's YTD interest. Only `accepted` statements count
+- [x] **A capital improvement is excluded from expenses** once promoted to an asset, or it
+      would be deducted twice — in full now and again over 27.5 years
+- [x] **Preferential rates stack on ordinary income** — the part people get wrong
+- [x] **The tab is called "Tax estimate"**, the rule-set card sits above the figures, and
+      "What this does not model" is permanent and enumerated. §6
+- [x] `scripts/tax-check.mts` — 49 golden cases, no network, no database
+- [ ] **Not one tax constant has been confirmed yet.** The skeletons are empty by design, so
+      the Tax tab currently computes nothing and says so. Filling them in is Layer 7's draft
+      flow plus a person
+- [ ] **`TaxProfile` has no editor yet** — the model exists and nothing writes it
+
+#### Layer 6 — the estimate pipeline ✅ _(2026-08-14)_
+- [x] **SE tax, §469, §199A, NIIT, federal brackets, California** — one file each, pure
+- [x] **The ordering is the design**, and two steps that look circular are not. §6
+- [x] **Wages consume the OASDI wage base first** — the commonest way an SE figure comes out
+      far too high
+- [x] **A disallowed rental loss suspends rather than vanishing**, and `TaxCarryforward` is
+      what makes the app a planning tool rather than one that understates what you own
+- [x] **§199A returns a checklist, never a computed yes.** Rev. Proc. 2019-38's safe harbour
+      is three conditions and the app can only see one of them
+- [x] **Above the §199A threshold the W-2/UBIA limits are declared unmodelled**, so the figure
+      is labelled an upper bound rather than presented as the answer
+- [x] **California is a different tax, not a percentage** — no QBI, no bonus depreciation,
+      gains as ordinary income, credits not exemptions. Its separate passive-loss bookkeeping
+      is declared unmodelled rather than approximated
+- [x] **A broken California rule set refuses** rather than quietly reporting federal-only
+- [x] **An incomplete Schedule E withdraws the whole estimate** — the rental's net feeds AGI,
+      so a missing depreciation line would silently overstate it
+- [x] **`EstimateFigure` puts the caveat on the number**, at every one of ~40 sites, and
+      badges every figure derived from draft constants
+- [x] **`TaxProfile` has an editor**, and blank ≠ zero in it
+- [x] `scripts/engine-check.mts` (58 cases) and `scripts/tax-view-check.mts` (refusals in
+      context, against the real database)
+- [ ] **The estimate has never run on confirmed constants**, because none are confirmed. The
+      checks fill a skeleton with invented values to exercise the path
+- [ ] **AMT, K-1s, 1031 exchanges, a mid-year move and most state credits are not modelled**,
+      and are enumerated permanently on the tab
+
+#### Layer 7 — strategies and rule updates ✅ _(2026-08-14)_
+- [x] **`lib/tax/strategies.ts` — hand-written, in git, never LLM output.** Nine entries, each
+      a predicate plus a sentence. §6
+- [x] **Every entry is a question addressed to a third party**, and the only action anywhere
+      is *Mark as raised*. There is no button that says "Do this"
+- [x] **`applies` returns three answers**, because `maybe` is where most of the value is — the
+      ones that clearly fit you have usually already done
+- [x] **The amount is an order of magnitude, not a promise**, and the card says so
+- [x] **A declined strategy is per-year**, so it stops resurfacing now and returns when the
+      facts have changed
+- [x] **`lib/tax/rules-update.ts`** — fetches the published source, extracts with a per-figure
+      **verbatim source line**, and files a `draft`. A value arriving without its source line
+      is discarded
+- [x] **A source covering the wrong year is discarded entirely**, not merged — last year's
+      numbers filed as this year's would look completely normal
+- [x] **The draft writes to `provenance`, never to `payload`.** Confirming is what moves a
+      value across, so nothing is live until a person reads it
+- [x] **Confirming the last figure flips the set to `verified` automatically** — there is no
+      button declaring a rule set finished while it still holds a null
+- [x] **`RuleSetDiff` puts the number beside the sentence it came from**, and the number is
+      editable. Confirming is reading, not looking up
+- [x] Drafting is queued only past **15 October**, when the IRS has actually published
+- [x] `scripts/strategy-check.mts` — 27 cases, predicates and the confirm round trip
+- [ ] **The updater has never fetched a real page.** The URLs, the extraction contract and the
+      wrong-year guard are written and unexercised against live IRS or FTB HTML
+- [ ] **Unrealised losses are not known**, so the harvesting strategy sizes itself without one
+      — Plaid reports cost basis only where the institution supplies it
+
+#### Layer 8 — Montblanc, and the guide ✅ _(2026-08-14)_
+- [x] **Four tools, and none of them creates money** — `find_transaction`,
+      `claim_transaction`, `categorise_transaction`, `mark_strategy_raised`. §6
+- [x] **Undoing a filing releases the claim; it never deletes the transaction** — a bank row is
+      a payment that really happened
+- [x] **`claim_transaction` refuses a row already filed elsewhere**, which is what makes the
+      undo safe: the state before is always unclaimed
+- [x] **Two prompt rules**: never invent an amount, a transaction date or a tax figure; never
+      state a tax conclusion
+- [x] **The context names accounts and properties and carries no figures** — a number in the
+      prompt is one the model can repeat back stale
+- [x] **`ReceiptKind` gained `transactionClaim`**, and the drawer's exhaustive maps caught it
+      at compile time
+- [x] **`docs/ledger.md`** — the guide §9 requires for every surface
+- [x] `scripts/montblanc-ledger-check.mts` — 25 cases
+- [ ] **The tools have not been driven through the drawer against the live model.** They are
+      exercised at the schema, registry and database level; what is untested is the model
+      choosing them
 
 ### Phase 7+ — Future / "as I think of it"
 - [ ] Multi-user: log in as my daughter to see her own activities
@@ -2214,6 +2450,384 @@ deliberate correction (§6, "Stages and tracks answer different questions"). Tha
 layout decision on three tight surfaces rather than a lookup, so it is written down here
 rather than guessed at.
 
+### A balance is a magnitude; whether it counts against you is a decision — 2026-08-12
+
+The Ledger's first real design decision, and it is the one every figure on the surface
+depends on. `Account.currentCents` stores what the institution reports: **always a positive
+magnitude**, so a credit card with $2,300 outstanding stores `230000` and a current account
+with $2,300 in it stores exactly the same number.
+
+The reflexive alternative is to flip the sign at ingest, so a liability is stored negative
+and the roll-up is a plain `SUM`. It is shorter and it is wrong, because **it puts an
+interpretation in the database.** Two things follow from storing the magnitude instead:
+
+1. **The column says what the statement says**, so a row can be checked against a bank
+   screen without knowing anything about this app's conventions, and a re-fetch produces the
+   same value it produced last time.
+2. **Changing your mind is a function, not a backfill.** `netWorthSideFor(kind)` in
+   `lib/ledger-rules.ts` is the only place that decides, and it is client-safe — so the
+   account list, the composition bar and the snapshot writer cannot disagree about what a
+   mortgage means. Had the sign been baked in, deciding that a HELOC should be netted
+   against the property rather than listed as debt would be a migration.
+
+`scripts/ledger-smoke.mts` exists mostly to hold this in place: five accounts, two of them
+liabilities, asserting that $250,000 of assets and $403,000 of debt come out at −$153,000
+rather than at $653,000. That is the failure a sign convention produces, and it is not one
+you notice by looking — the number is plausible.
+
+**Plaid's transaction amounts get the opposite treatment**, and the asymmetry is
+deliberate. Plaid reports a debit as a *positive* number, which is right from the
+institution's side of the ledger and backwards from ours; every sum, category roll-up and
+Schedule E line reads naturally when positive means money in. So that one **is** inverted at
+ingest, in `lib/plaid-sync.ts`, once. The rule underneath both is the same: a convention is
+fixed at exactly one boundary, and it is written down at that boundary.
+
+### The automation stops one step before the number goes live — 2026-08-14
+
+"The engine will auto-update its rules and laws" was the ask, and the honest version of it
+splits cleanly in two. **Fetching and extracting can be automated. Confirming cannot, and
+will not be.**
+
+`lib/tax/rules-update.ts` fetches the published source past 15 October, extracts what it can,
+and files a `draft` beside the verified set. What it does *not* do is write into `payload` —
+the extraction lands in `provenance`, and `confirmRuleFigure` is the only thing that moves a
+value across. So a drafted number is visible, attributed, and **inert**.
+
+The reason is the same one the whole tax layer rests on: a tax engine that silently rewrote
+its own constants and got one wrong would be the worst failure this app could produce. Every
+figure downstream would move, all of them would look authoritative, and nothing would
+contradict them. So the automation ends one step early, on purpose.
+
+Four details that make the remaining human step small enough to actually happen:
+
+1. **Every figure carries the verbatim sentence it came from**, and a value arriving without
+   one is discarded rather than kept. That is what turns confirming into *reading* — the
+   reviewer compares a number against a quoted line instead of searching a 40-page Revenue
+   Procedure for where it might be.
+2. **A source covering the wrong year is discarded entirely**, not merged. Last year's numbers
+   filed as this year's is the single most plausible-looking way this could go wrong, and the
+   extraction prompt is told so in those words.
+3. **The number is editable on the confirm row.** An extraction that misread a digit should be
+   corrected by the person already looking at the source line, not re-run.
+4. **Confirming the last outstanding figure flips the set to `verified` automatically.** There
+   is deliberately no button that declares a rule set finished, because the engine's refusal
+   to compute is keyed on there being no nulls left — a button would let the two disagree.
+
+### A strategy is a question, never an instruction — 2026-08-14
+
+`lib/tax/strategies.ts` is **hand-written, in git, and never LLM output**. A hallucinated §179
+threshold is bad; an invented *election* is worse, because a bracket is a number somebody
+might sanity-check and "you can elect X" is a sentence people act on. A strategy is a
+predicate plus a sentence — which is code, and code belongs somewhere it can be reviewed.
+
+**Every entry is phrased as a question to a third party.** The field is called `question`,
+each begins "Ask your accountant whether…", and the only action anywhere on the card is *Mark
+as raised*. There is no button that says *Do this*. That is structural rather than cautious:
+the gap between "here is something worth asking about" and "here is what you should do" is the
+gap between a tool and an unlicensed adviser, and the second is not what was asked for.
+
+Three smaller decisions:
+
+- **`applies` returns three answers, not two.** `maybe` is where most of the value is — the
+  strategies that clearly fit are usually the ones already done, and the useful list is the
+  near-misses. A `no` is not shown at all, so an always-on list cannot form.
+- **The amount is an order of magnitude, not a promise**, and the card says so in those words.
+  Every one of these turns on facts the app cannot see; the figure exists to say "worth an
+  hour of somebody's time".
+- **A declined strategy is declined *for the year*.** It stops resurfacing now and comes back
+  next year, when the facts have changed. A permanent dismissal would quietly delete a
+  question that becomes right later.
+
+### Two orderings that look circular and are not — 2026-08-14
+
+The tax pipeline's sequence is not a style choice, and in two places the obvious fix — iterate
+to a fixed point — would produce a **different and wrong** answer. Both are worth stating
+because both look, on first reading, like they need a loop.
+
+**§469's phase-out tests a MAGI computed *without* the passive loss.** The special allowance
+for a rental you actively participate in phases out over income; income is reduced by the
+rental loss you are allowed to deduct. Statute settles it: the MAGI the phase-out looks at
+excludes the loss itself. With $120,000 of salary and a $20,000 loss, the allowance is reduced
+to $15,000 and $5,000 suspends. Fold the loss into MAGI and it becomes $100,000, the allowance
+is the full $25,000, and the whole loss deducts — a different answer, arrived at reasonably.
+
+**§199A's limitation is measured against taxable income *before* the QBI deduction.** The
+deduction is capped at 20% of taxable income; taxable income is reduced by the deduction.
+Again statute settles it, and again iterating converges somewhere lower.
+
+Both have direct assertions in `scripts/engine-check.mts` rather than being left to the
+totals, because a total is exactly the thing that would still look plausible.
+
+**Self-employment tax runs before AGI** for the same family of reason: half of it is an
+above-the-line deduction, so AGI depends on it and it does not depend on AGI. And within it,
+**W-2 wages consume the OASDI wage base first** — $150,000 of salary against a $160,000 base
+leaves $10,000 of room, so the SE charge on a $100,000 profit is a fraction of what it looks
+like. That is the commonest way an SE figure comes out far too high.
+
+### What the estimate refuses to do — 2026-08-14
+
+Three refusals, and each is a place where producing *something* would have been easy and
+wrong.
+
+1. **An incomplete Schedule E withdraws the whole estimate.** A property whose depreciation
+   cannot be computed has no net, and that net feeds AGI — so a missing line would not
+   produce a gap, it would produce an AGI that is too high and a tax bill that is too large,
+   with nothing on screen to say so. The blocker names the property.
+2. **A broken California rule set refuses rather than reporting federal-only.** Quietly
+   dropping a state is the difference between an estimate and half of one, and half of one
+   looks complete.
+3. **§199A reports a checklist, never a computed yes.** Whether a rental is a §162 trade or
+   business is a judgement; Rev. Proc. 2019-38's safe harbour has three conditions and the app
+   can only observe one of them — hours, if they were recorded. It says what it can see and
+   who decides the rest. Above the threshold, where W-2 wages and property basis limit the
+   deduction further, the figure is labelled **an upper bound** rather than presented as the
+   answer.
+
+**California is a different tax, not a percentage of the federal one**, and all four modelled
+differences push the same way: no QBI deduction, no bonus depreciation, long-term gains as
+ordinary income, and credits rather than exemptions. What is *not* modelled is its separate
+passive-loss bookkeeping — CA tracks suspended losses on its own depreciation basis, and
+reproducing that means a parallel §469 calculation with its own carryforward table. The engine
+says so on the tab rather than using the federal figure, which would be wrong in a direction
+nobody could see.
+
+**And `EstimateFigure` puts the caveat on the number.** A banner saying "these are estimates"
+is read once and scrolled past for the rest of the year; a hairline `est.` beside every one of
+forty figures cannot be. A figure computed from unconfirmed constants carries a second badge,
+and one that could not be computed reads "not computed" rather than zero.
+
+### A wrong tax number looks exactly like a right one — 2026-08-14
+
+**No tax constant in this app comes from a model's memory.** The rule sets in
+`lib/tax/rulesets/` ship with every numeric leaf `null` — brackets, standard deduction, the
+SE wage base, the §469 allowance, the §199A thresholds, all of it — and the engine computes
+**nothing** until each has been read off its published source.
+
+This is §6's oldest rule under maximum pressure. The seeded tasks of 2026-08-04 were a
+nuisance because they were rows nobody wrote; a wrong standard deduction is worse in kind,
+because **the seeded task announced itself by existing and the wrong constant announces
+nothing.** A tax figure that is 4% out looks precisely as authoritative as one that is
+right, nothing downstream contradicts it, and the moment you find out is the moment it has
+already cost money.
+
+Four things follow:
+
+1. **A rule set with any unconfirmed number is unusable — not "used with defaults".** A
+   default is the same lie one indirection further away. The Tax tab reports "not computed",
+   names how many figures are missing, and lists them.
+2. **`missingFigures` walks the payload** rather than checking a maintained list, because the
+   failure mode of a hand-kept list is that the newest constant is the one nobody added to
+   it. The top bracket's `null` ceiling is exempted by shape, not by name.
+3. **Booleans are not figures.** California's `conformsToBonus: false` is a standing fact
+   about non-conformity, not a number to look up, so it ships with a value. It still wants an
+   annual check — conformity is a thing legislatures change — but it has a defensible default
+   in a way a bracket rate does not.
+4. **Arithmetic defined by statute may live in code; rates may not.** The mid-month
+   convention, the half-year convention, the declining-balance formula and the stacking of
+   preferential rates on ordinary income are all *procedures*, checkable by anyone against
+   Publication 946. The 5- and 15-year MACRS percentages are therefore **derived rather than
+   transcribed** — there is no table to mistype.
+
+**The land split is the sharpest instance.** `buildingBasisCents` returns `null` without it,
+so depreciation is not estimated at all. On a $985,000 property the difference between a 15%
+and a 30% land allocation is about $2,700 of deduction every year for 27 years — and both
+numbers render identically. The ratio comes off the county assessor and the app cannot derive
+it, so it asks, and refuses until answered.
+
+### The month a rental became rentable is not a detail — 2026-08-14
+
+`Property.placedInServiceOn` is **the date it was first available to rent**, never the
+purchase date, and the mid-month convention is why. Depreciation starts from the middle of
+that month: a house rentable on 2 August and one rentable on 30 August get identical first
+years, both 4.5 months. Buying in June and finishing the work in September is a three-month
+difference in the first year's deduction, and it survives for 27 years because nothing
+contradicts it.
+
+**The one real bug in this layer lived here.** How many *complete* years follow the first
+partial one depends on the start month — 27.5 years measured from mid-month leaves
+`27.5 − firstYearShare`, and only the whole part of that is taken at the full rate. January
+takes 11.5 months up front, so 26 full years follow and the tail lands in year 27; August
+takes 4.5, so 27 full years follow and the tail lands in year 28. Hardcoding `floor(life)`
+produced a "final" year **larger than a full one**, which `scripts/tax-check.mts` caught by
+asserting the tail is a partial. Both months are now golden cases, along with the property
+depreciating to exactly its basis and not a cent more.
+
+### The document carries its own checksum — 2026-08-13
+
+**This is the only reason a language model is allowed to read a financial document
+in this app**, and everything else about statement ingestion follows from it.
+
+An owner statement prints its own totals: income, expenses, the distribution, the closing
+balance. So the extractor is asked for two things **separately** — the individual rows, and
+the totals from the summary block — and `reconciles()` requires them to agree **to the
+cent**. A hallucinated row, a dropped row or a misread digit fails arithmetic rather than
+passing review. The model is only ever being asked to transcribe something that can check
+itself.
+
+The prompt says this out loud, because it is the instruction most worth obeying: *"Never add
+up the line items to produce them. They are checked against the line items later, and that
+check is the only thing making this transcription trustworthy — if you compute them, the
+check becomes meaningless."* A model that helpfully sums the rows into the totals field
+defeats the whole design while appearing to do a better job.
+
+Four rules fall out:
+
+1. **To the cent, with no tolerance.** A tolerance is the obvious kindness and it is exactly
+   wrong: every figure here is a printed dollar amount, so rounding error does not exist and
+   any discrepancy means something was read incorrectly. The failures a tolerance hides are
+   the *small* ones — and a small error in a repair is the same shape as a large one in a fee.
+2. **A statement that prints no totals is refused, not passed.** Nothing to check against is
+   not the same as nothing wrong.
+3. **Distributions and reserves are excluded from both sides.** An owner draw is money moving
+   between the manager's trust account and yours — not income, and certainly not an expense.
+   Counting it is how a rental appears to deduct its own profit.
+4. **Nothing is ever auto-accepted.** Not even a statement that reconciles perfectly.
+
+**The honest limit, and it is the important half:** reconciliation catches every error that
+changes a total and **no error that does not**. A repair mislabelled as insurance adds up
+exactly right and is wrong on the Schedule E. That is why every row keeps its `rawText` — the
+verbatim source line, shown under it — why a row the extractor was unsure about is tinted,
+and why the accept button is a person's.
+
+### A property is money; its project is the work — 2026-08-13
+
+`Property` holds an address, a basis, a valuation and a mortgage. It holds **no tasks, no
+docs and no journal** — those hang off a `Project` the Ledger mints alongside it, filed in
+Home & Money like every other project.
+
+§6's own table of nouns has given "Rental 4B" as an example **Project** since 2026-07-30, and
+that turns out not to be a coincidence to work around. A property genuinely has tasks (chase
+the plumber), docs (the lease terms, the CPA's notes) and a journal (what the tenant reported
+in March) — and all three already exist, already work, and already have a page at
+`/projects/[slug]`. Inventing property-tasks and property-docs would be the parallel-system
+mistake `AreaDoc` was refused for, three times over.
+
+Three details:
+
+1. **`cadenceDays` is null on the minted project**, so it can never report drift. A rental is
+   responded to, not pushed forward on a schedule — a fortnightly warning that you have not
+   "touched" a house is exactly the untrue line that got the Multilingual Baby project
+   deleted (§6, "The Baby area is a journal, not a backlog").
+2. **`Property.projectId` is `@unique`**, so two properties cannot share one project: "the
+   disposal is broken" has to be about a specific unit. Postgres treats NULLs as distinct, so
+   any number of properties may have none.
+3. **Deleting the property leaves the project alone.** By then it may hold work somebody did,
+   and cascading into it from a money row is what `deleteProject`'s own guard exists to stop.
+
+### Three kinds of number, and they must not blur — 2026-08-13
+
+The Property card shows figures of three different kinds and the whole design of `lib/property.ts`
+is about keeping them apart:
+
+| | |
+|---|---|
+| **Value** | an *estimate*, with real error bars — shown with its range and its age |
+| **Debt** | a *statement* from the servicer — exact |
+| **Cash flow** | *bank transactions*, exact, but only over what has been claimed — which the card says |
+
+Equity is the one derived figure, and it inherits the estimate's uncertainty. It is shown
+anyway, because it is the number people actually want — but next to the range, never alone.
+
+Two refusals fall out, and both are the same rule this file keeps arriving at:
+
+- **A property with no valuation contributes nothing to net worth.** Not its purchase price.
+  A house bought in 2019 is not worth what it cost, and a fallback would be the app asserting
+  a number nobody gave it — with the particular nastiness that it would look completely
+  reasonable. So the card says "no valuation yet", names what was paid, and says plainly that
+  the figure is *deliberately* not being used.
+- **Depreciation is not estimated without the land split.** The ratio comes off the county
+  assessor and cannot be derived; a plausible guess is wrong by thousands of dollars a year
+  and is indistinguishable from a real figure. The card states what is missing as a prompt
+  rather than an error, and Layer 5 refuses to compute.
+
+**And the mortgage is suggested, never assigned.** Plaid's Liabilities product hands back a
+`property_address` string — "2992 Cameron Road, Malakoff, NY" — and the obvious move is to
+match it and attach the loan. `getLoanCandidates` scores candidates by shared address tokens,
+orders the list, and stops there. A mortgage on the wrong property moves the depreciation,
+the interest deduction *and* the cash flow, and a Schedule E is not somewhere to discover an
+inference was wrong. The scoring is deliberately crude for the same reason: it orders a short
+list and nothing more, so a cleverer metric would buy precision nobody acts on.
+
+### A cursor you advance past a row you did not write — 2026-08-12
+
+The load-bearing line in `lib/plaid-sync.ts`, and the bug it prevents is one that
+**nothing in the app could ever detect**.
+
+`/transactions/sync` is cursor-based: it reports what *changed* since the cursor and then
+gives you a new one. That is what makes it cheap to re-run and what makes a missed webhook a
+delay rather than a hole. It also means a row offered once and not written is **never offered
+again.**
+
+A transaction is skipped when its `Account` does not exist yet. That is not hypothetical: a
+new item queues a balance refresh (which creates the accounts) and a transaction sync
+together, and `drain` orders by `runAfter` — jobs enqueued in the same millisecond share one,
+so Postgres decides which runs first. Insertion order is not a guarantee.
+
+So the sync counts what it skipped and, if the count is not zero, **throws before saving the
+cursor.** The job retries with backoff, the balance refresh has run by then, and Plaid
+re-offers every row. The alternative — advance anyway, log a warning — loses a week of
+transactions permanently, in the data the tax figures are computed from, with no gap visible
+anywhere: the ledger simply has fewer rows than the bank, and nothing compares the two.
+
+Two smaller notes from the same file:
+
+- **`drain` also orders by `createdAt` then `id`**, which approximates insertion order
+  because cuids are monotonic within a process. That is belt and braces, not the fix — a
+  correctness property that depends on a queue happening to order itself is not one.
+- **The failure is deliberately loud.** It reads "50 transactions belong to an account that
+  has not synced yet", appears on the connections page, and clears itself on the retry. A
+  silent skip would have been the same code with one line removed.
+
+This is the third time this file has arrived at the same shape: **an operation that cannot be
+undone must refuse rather than approximate.** A statement that will not reconcile is not
+accepted (Layer 4); an unverified tax constant is not computed with (Layer 5); a cursor is
+not advanced past a row that was not written.
+
+### Automation's failure mode is that it stops without saying so — 2026-08-12
+
+Every surface built before this one shows you data you entered, so a bug is obvious: the
+task is not there. **The Ledger shows numbers that arrive on their own, and a Ledger whose
+last successful sync was eleven days ago looks exactly like one that synced this morning.**
+The numbers are all still there. They are just wrong, and nothing on screen says so.
+
+That is why "automate everything" produced *more* visible machinery rather than less:
+
+- **`LedgerJob`** — every outbound call gets a row, with its result in a sentence
+  ("Refreshed 4 accounts") or its error. This app has no cron and keeps the
+  materialise-on-read bargain `ensureSeriesSlots` has run on since Phase 2 — but that
+  pattern swallowing an exception is *worse* than a cron, because with a cron there is at
+  least a log. Now there is one, and `/ledger/connections` is it.
+- **The sync strip**, on every Ledger page: "4 accounts · synced 2 hours ago". It turns
+  crimson for the one case no amount of engineering fixes — a bank that wants a person and
+  a phone — and that is §9's one accent per region spent on the only thing here needing a
+  human.
+- **Backoff lives on the row**, not in a retry loop, so a bank down for an hour is not
+  hammered once per page load, and a request is never held open through five retries.
+- **Failures sort first in the log** regardless of age. A job that failed on Tuesday matters
+  more than one that succeeded this morning, and a strictly chronological list is precisely
+  how three weeks of stale balances go unnoticed.
+
+**The webhook is an optimisation, never a dependency.** `ensureLedgerJobs()` queues a
+refresh for any item nobody has heard from in a day, so a webhook that never arrived costs a
+delay and not a hole — Plaid's sync cursor does not expire. That is also what let Layer 1 be
+built and verified before a public URL for the webhook existed.
+
+### Disconnecting a bank must not delete the ledger — 2026-08-12
+
+`Account.itemId` is nullable and `SetNull`, and this is the one relation in the Ledger worth
+arguing. §6's rule is cascade when the child is *part of* the parent and SetNull when it has
+a home elsewhere, and an account has a home elsewhere: the ledger itself.
+
+The cost of getting it wrong is asymmetric in the way this file keeps rediscovering. Two
+years of transactions are what the tax numbers are computed from, and **a Schedule E that
+silently loses a quarter because a credential expired in March is worse than no Schedule E**
+— you would not know to look. So a disconnected account keeps everything it has and stops
+updating, reading "Disconnected" where the bank's name was.
+
+`disconnectItem` also calls Plaid's `/item/remove` **before** deleting the row, and fails
+loudly if that call fails. The other order leaves the grant live at the bank with nothing in
+the app pointing at it: still authorised, still billing, and now invisible.
+
 ### "While you're in it" — added 2026-08-02, **removed 2026-08-04**
 
 A card that appeared only on days a weekly or monthly recurring task had already put you
@@ -3324,6 +3938,60 @@ originally — shifts every publish time by the machine's offset.
       the grid could adopt `animate-rise`, the crimson today-pill and the accent now-line
       without a single override. ~600 lines, no new dependencies. The cost is that
       drag-to-move doesn't come for free; see Phase 4's open box.
+- [x] **Money representation** — resolved 2026-08-12: **integer cents**, `Int`, every column
+      suffixed `…Cents`. Not `Decimal @db.Decimal(14,2)`. Four reasons, in order of weight.
+      (1) **The RSC boundary**: Prisma's `Decimal` is a class instance, Next refuses to
+      serialize one into a client component's props, and it fails at *runtime* on the page
+      nobody tested — the "format server-side into `…Label` strings" rule mitigates it and
+      does not remove it, because a chart needs raw numbers for geometry. `BigInt` has the
+      mirror defect: `JSON.stringify` throws on it. (2) **The tax engine is hundreds of
+      multiplications**, each of which in Decimal.js is `a.times(b).dividedBy(c)` *and still*
+      needs an explicit rounding decision; in cents it is `applyRate`, one function, one
+      rounding rule. (3) **Every source already speaks decimal-dollar floats** — Plaid sends
+      `12.34` — so constructing a `Decimal` from one has already lost the accuracy Decimal
+      exists to protect; the conversion is the thing to get right, once. (4) Zero decimals
+      exist in this schema, so adopting one leaks Decimal.js semantics everywhere forever.
+      **The cost, stated:** `Int` caps a column at $21,474,836.47; sums are computed in JS,
+      never in Postgres, so only a single line item could cross it, and the escape is
+      `BigInt` plus a `.toString()` at the read layer — a wider column, not a redesign.
+- [x] **Charting library** — resolved 2026-08-12: **neither. Hand-built.** The calendar
+      decision one surface over, with smaller arithmetic: the Ledger needs three shapes, each
+      forty to eighty lines against a fixed `viewBox`. Every candidate fails the same three
+      tests the calendar libraries failed. **They bring their own DOM and stylesheet**, and a
+      chart is *more* design-sensitive than a month grid, not less. **They force
+      `"use client"`**, because they measure the DOM to lay out — so a chart with no state
+      and no handlers would ship to the browser to re-derive what the server already knew,
+      and formatting would have to move into the bundle with it. **And they cannot see the
+      tokens**: a canvas library needs a JS bridge to read `--color-accent`, and a hex passed
+      to a chart is a bug in two themes rather than a shortcut in one (§11).
+      `components/today/done-map.tsx` is the year-old precedent. The cost: no hover tooltips,
+      no zoom, no free legend — `<title>` and a rendered legend row cover it, exactly as the
+      contribution grid does. _Note added on building it: the composition bar turned out not
+      to want SVG **either**. A stacked bar is four widths that add to 100%, which is a
+      layout, not geometry — flex percentages keep it responsive, server-rendered and painted
+      through the tokens. Reaching for SVG there would have been the charting-library mistake
+      in miniature._
+- [x] **A loss colour** — resolved 2026-08-12: **`--color-bad` / `--color-bad-soft`**, in both
+      themes. `--color-good` has existed since Phase 1 and nothing needed its opposite until a
+      P&L did. Two existing tokens were candidates and both are wrong. **Crimson is the
+      emphasis token**, budgeted at one per region — if crimson also means "loss", the single
+      highlighted metric and every negative number compete for one meaning and the budget
+      stops being enforceable. **`--color-warn` means "attention"** — overdue, drifting,
+      expiring — a claim about *time*, not about sign; a −$40 month is not a warning. Plus a
+      usage rule, because the failure mode of a loss colour is a screen of red: **a number is
+      coloured only when its sign is the point**. Balances are never coloured. Neither are
+      expenses — an expense is not a loss.
+- [x] **The Plaid SDK** — resolved 2026-08-12: **refused, hand-rolled.** Plaid's HTTP surface
+      is a POST with credentials in the JSON body and the Ledger uses eight endpoints of it.
+      The official package's real product is its generated types, and it pulls `axios` to
+      deliver them — a third of this repo's entire dependency count, for typings of fields we
+      mostly do not read. Same trade `deepseek.ts` made. **The cost, stated:** a Plaid schema
+      change is caught at runtime by `lib/plaid.ts`'s narrowing helpers rather than at build
+      time by the SDK's types, which is the same bet, failing the same way. `react-plaid-link`
+      (a hook around a CDN script), `jose` (ES256 verification is two built-in calls) and
+      `googleapis` (three `fetch`es against a metapackage shipping every Google API) are
+      refused alongside it. **`unpdf` is the one dependency this phase adds**, in Layer 4, and
+      it is zero-dependency itself.
 - [ ] Notifications channel (push vs email) — Phase 7
 
 ---
@@ -3528,6 +4196,42 @@ originally — shifts every publish time by the machine's offset.
   expression — `` {`${open ? "Hide" : "Show"} what’s next`} `` — with a real character
   instead of the entity. Cost half an hour on 2026-07-31.
 
+- **A route handler that authenticates itself still has to be let *through* the proxy.**
+  `proxy.ts` is an optimistic gate and every route re-checks `auth()` behind it, so it is
+  easy to assume an endpoint with its own check is fine either way. It is not: gated, a
+  caller holding a valid **bearer token** gets a 302 to `/login`, follows it, receives HTML,
+  and reports success while having run nothing. Found 2026-08-12 by curling
+  `/api/ledger/jobs/run` with a token and getting `307` — the endpoint would have looked
+  fine forever from a browser, because a browser has a session cookie and takes the other
+  branch. This is the manifest bug of Phase 4.21 in a second costume, and the tell is the
+  same: **a 302 is not an error anywhere in this app**, so nothing logs it.
+
+  The fix is one path in the matcher's negative lookahead, and it must be **one path, not a
+  prefix**. `api/ledger/statements/[id]` serves the bytes of a property statement and has to
+  keep 302ing; exempting `api/ledger` wholesale would make it the one genuinely public thing
+  in the app. The same exemption is owed to the Plaid webhook, which is unauthenticated by
+  necessity and verifies a signature instead.
+
+  The general rule: **anything that can be called without a session cookie needs a matcher
+  exemption, and the check to run is a `curl` asserting `401` rather than `307`.**
+
+- **A `"use server"` module cannot be called from a script, so the logic worth testing must
+  not live in one.** Every action starts with `auth()`, which reads `next/headers` and throws
+  `` `headers` was called outside a request scope `` outside a request. There is no supported
+  way to fake one. Found 2026-08-13 trying to exercise `saveProperty` from
+  `scripts/property-check.mts`.
+
+  The fix is not a mock, it is a split — and it is the one `lib/media-rules.ts` already makes
+  against `lib/media-store.ts`, arrived at from a different direction. Field parsing and
+  refusal messages go in a **client-safe rules module**; the action keeps the auth check and
+  the database call. That buys three things: the form and the action refuse the same input in
+  the same words, the parsers get golden cases, and what is left in the action is thin enough
+  to read. `lib/property-rules.ts` is the reference.
+
+  What this does **not** cover, stated rather than glossed: the action wrapper itself — the
+  session check, the `revalidatePath`, the ordering of writes — is exercised only in a
+  browser.
+
 - **User docs live in `/docs`.** Guides written for *me reading later*, not for agents:
   - `docs/studio-guide.md` — how to use the Studio (brands, channels, content items, series,
     the board, repurposing). Written 2026-07-30. Update it when Studio behaviour changes.
@@ -3545,6 +4249,8 @@ originally — shifts every publish time by the machine's offset.
     location, and why it doesn't follow the OS setting. Written 2026-08-06.
   - `docs/montblanc.md` — what to say to the assistant, the rules it follows and
     why, Undo, and what it deliberately can't do. Written 2026-08-09.
+  - `docs/ledger.md` — the four tabs, the two forms, what refuses to compute and why,
+    and what to do when a figure stops moving. Written 2026-08-14.
   - `docs/install.md` — putting it on a phone's home screen, per platform; what changes
     once it's installed and what deliberately doesn't; and the custom-domain steps,
     including the `AUTH_URL` change that is easy to forget and takes sign-in down.
@@ -3838,7 +4544,564 @@ Three rules inside it:
 
 ---
 
-_Last updated: 2026-08-11 · Status: **Phase 5.6 — a task keeps a log.**_
+_Last updated: 2026-08-14 · Status: **Phase 6 is done — the Ledger.**_
+
+_**2026-08-14 — Layer 8, and the phase closes.** Montblanc's Ledger tools and `docs/ledger.md`._
+
+_**Nothing here creates money, and the asymmetry is the point.** Every other surface's tools
+make rows; these do not. Balances and transactions come from a bank, statements come from
+email, a tax constant comes from a published source somebody confirms — there is nothing on
+this surface a sentence ought to be able to invent. What a command bar is actually useful for
+here is the small tedious act of **filing**: "that $340 was a plumbing repair for the rental",
+said while looking at the charge on a phone rather than after navigating to the Property tab._
+
+_**Undoing a filing releases the claim and never deletes the transaction.** A bank row is a
+payment that really happened, and "undo" cannot mean "pretend it never left the account". That
+is safe to do outright because `claim_transaction` **refuses a row already filed against
+another property** — so the state before is always unclaimed. Same shape as §6's "an existing
+item never moves on its own", one noun over._
+
+_**Two prompt rules and one context block.** Never invent an amount, a transaction date or any
+tax figure; never state a tax conclusion — point at the Tax estimate tab instead, the one
+exception being recording what the user says *they* decided. The context names accounts and
+properties and **carries no figures at all**, because a number in the prompt is a number the
+model can repeat back stale._
+
+_Verified: 25 cases. `find_transaction` matches by merchant and by amount in either direction,
+says so plainly when nothing matches rather than guessing at a different search, and refuses an
+empty search. A claim files against the property with the right Schedule E line, and undoing it
+leaves the transaction and its amount untouched. The context names the account and the property
+and carries no balance. All nine check scripts pass, with `npx tsc --noEmit`, `eslint` and
+`npx next build`._
+
+_**The compiler caught the one thing I would have missed**: `ReceiptKind` is used as an
+exhaustive `Record` key in the drawer's icon and noun maps, so adding a kind failed the build
+until both were filled in. That is the kind of place a receipt silently renders blank._
+
+---
+
+## Phase 6, closed
+
+**Eight layers, one new dependency, and the IA held.** Adding a whole life area cost exactly
+one entry in `lib/nav.ts` — which is the claim §6 has been making since 2026-07-30, and the
+test it said it was built to pass.
+
+What the four asks became:
+
+| Ask | Where it landed |
+|---|---|
+| Link the banks, see analysis | Plaid, with the webhook as an optimisation rather than a dependency |
+| Add the rental properties | A property holds the money; a Project holds the work |
+| Sum it into a net worth | The default tab, with property counted only when genuinely valued |
+| Somewhere to see the tax rules | An engine that computes nothing until its constants are confirmed |
+
+**Nine check scripts, 300-odd assertions**, because almost everything this feature does is
+arithmetic that is wrong *silently*. Four real bugs came out of running them rather than reading
+them: the depreciation tail that depended on the start month, the cursor that would have
+advanced past unwritten transactions, the HSA counted as spendable cash, and a rule set that
+called itself usable with empty bracket tables.
+
+**The through-line is the same refusal in eight costumes.** A cursor is not advanced past a row
+that was not written. A statement is not accepted until it reconciles to the cent. A property
+with no valuation contributes nothing rather than its purchase price. Depreciation is not
+estimated without the land split. An incomplete Schedule E withdraws the whole estimate. A tax
+constant nobody confirmed computes nothing. A strategy is a question, never an instruction. And
+a filing is undone by releasing it, never by deleting what happened.
+
+**What is genuinely not done**, and none of it is code: Plaid Production is an application and
+a bill; Gmail needs a consent screen and a redirect URI; RentCast needs a key; the tax constants
+need a person and an afternoon. And **the surface has never been looked at** — the Chrome
+extension has no host permission for `localhost:3100`, so every layer here is verified by build,
+typecheck, lint, nine scripts and curl, and not by a screenshot.
+
+---
+
+_Previously: **Phase 6, Layer 7 — the tax layer keeps itself current.**_
+
+_**2026-08-14, later still — the strategies and the rules updater.** The two halves of "a
+place to see how to use the rules", and the layer where the ask and the honest answer needed
+separating most carefully._
+
+_**"The engine will auto-update its rules and laws" splits cleanly in two: fetching and
+extracting can be automated, confirming cannot.** `rules-update.ts` fetches the published
+source past 15 October, extracts what it can, and files a draft — into `provenance`, **never
+into `payload`**. A drafted number is visible, attributed and inert until somebody moves it
+across. The reason is the one this whole layer rests on: an engine that silently rewrote its
+own constants and got one wrong would move every figure downstream, all of them looking
+authoritative, with nothing to contradict them. §6._
+
+_**What makes the remaining human step small enough to happen is the source line.** Every
+figure carries the verbatim sentence it came from, and a value arriving without one is
+discarded rather than kept — so confirming is *reading*, comparing a number against a quoted
+line, instead of searching a 40-page Revenue Procedure for where it might be. The confirm row
+puts the two side by side and lets the number be edited, because an extraction that misread a
+digit should be fixed by the person already looking at the source. **A source covering the
+wrong year is discarded entirely**, which is the most plausible-looking way this could have
+gone wrong._
+
+_**The strategy catalogue is hand-written, in git, and never LLM output.** A hallucinated §179
+threshold is bad; an invented *election* is worse, because a bracket is a number somebody
+might sanity-check and "you can elect X" is a sentence people act on. Nine entries, each a
+predicate plus a sentence — **every one phrased as a question to an accountant**, and the only
+action on any card is *Mark as raised*. There is no button that says "Do this", and that is
+structural: the gap between "worth asking about" and "what you should do" is the gap between a
+tool and an unlicensed adviser._
+
+_**`applies` returns three answers rather than two**, and `maybe` is where the value is — the
+strategies that clearly fit are usually the ones already done, so the useful list is the
+near-misses. A `no` is never shown, which is what stops an always-on list forming. The figure
+beside each is **an order of magnitude, not a promise**, and the card says so. A declined
+strategy is declined *for the year* and returns next year, because a permanent dismissal
+quietly deletes a question that becomes right later._
+
+_Verified: 27 cases covering both halves. The predicates stay quiet on a salary and nothing
+else, and fire correctly on self-employment, suspended losses, a brokerage, a large basis, a
+near-miss on itemizing, a withholding shortfall, and 200 hours against the safe harbour's 250.
+The drafting window opens on 20 October and not on the 1st. And the confirm round trip removes
+a figure from the missing list while leaving the other 63 — which is what "nothing is live
+until confirmed" means in practice. All eight check scripts pass, with `npx tsc --noEmit`,
+`eslint` and `npx next build`._
+
+_Outstanding: **the updater has never fetched a real page** — the URLs, the extraction contract
+and the wrong-year guard are written and unexercised against live IRS or FTB HTML, and the
+first honest test of it is October. **Unrealised losses are unknown**, so the harvesting
+strategy sizes itself without one; Plaid reports cost basis only where the institution supplies
+it. And **the surface has still not been looked at**._
+
+---
+
+_Previously: **Phase 6, Layer 6 — the Ledger estimates the tax.**_
+
+_**2026-08-14, later — the pipeline.** Self-employment tax, §469, §199A, NIIT, federal
+brackets and California, one file each and all pure. Plus a `TaxProfile` editor, which is the
+second and last form in the Ledger after the property address._
+
+_**The ordering is the design, and two steps that look circular are not.** §469's phase-out
+tests a MAGI computed **without** the passive loss; §199A's limitation is measured against
+taxable income **before** the deduction. In both cases statute settles what looks like a
+mutual dependency, and the obvious fix — iterate to a fixed point — converges somewhere
+plausible and wrong. Both have direct assertions rather than being left to the totals, because
+a total is exactly the thing that would still look right. §6._
+
+_**Three refusals, each somewhere producing *something* would have been easy.** An incomplete
+Schedule E withdraws the whole estimate, because the rental's net feeds AGI and a missing
+depreciation line would not leave a gap — it would leave a tax bill that is too large with
+nothing on screen to say so. A broken California rule set refuses rather than quietly
+reporting federal-only. And §199A returns a **checklist, never a computed yes**: whether a
+rental is a §162 trade or business is a judgement, the Rev. Proc. 2019-38 safe harbour has
+three conditions and the app can observe one of them, so it says what it can see and who
+decides the rest._
+
+_**Two things I would have got wrong without writing them down.** Wages consume the OASDI wage
+base before self-employment income does, so the SE charge on a $100,000 profit alongside a
+$150,000 salary is a fraction of what it looks like. And **a disallowed rental loss suspends
+rather than vanishing** — it offsets rental profit later or is released on sale, so writing it
+to `TaxCarryforward` is the difference between a planning tool and one that understates what
+you own._
+
+_**California is a different tax rather than a percentage**, and all four modelled differences
+push the same way — no QBI, no bonus depreciation, gains as ordinary income, credits not
+exemptions. Its separate passive-loss bookkeeping is **declared unmodelled** on the tab rather
+than approximated from the federal figure, which would be wrong in a direction nobody could
+see._
+
+_**`EstimateFigure` puts the caveat on the number**, at every one of about forty sites. A
+banner is read once and scrolled past for a year; a hairline `est.` beside each figure cannot
+be. A figure from unconfirmed constants carries a second badge, and one that could not be
+computed reads "not computed" rather than zero._
+
+_**One real gap found by running it.** A rule set whose scalar fields were all confirmed
+reported itself `usable` while the engine refused to compute — because its **bracket tables
+were empty arrays**, which `missingFigures` walked straight past. An empty table cannot tax
+anything, so it is a missing figure, and the two halves now agree. Caught by
+`scripts/tax-view-check.mts`, which exercises the refusals in context rather than in
+isolation._
+
+_Verified: 58 engine cases and 49 depreciation cases, both pure; and the full path through
+`getTaxView` against the real database — empty rules refuse, confirmed rules plus no profile
+still refuse and say which answers are missing, a profile unblocks it, a property with no land
+split withdraws it again and names the property, supplying the split restores it, and a draft
+rule set computes but badges every figure. Database confirmed back to zero rows. All seven
+check scripts pass, along with `npx tsc --noEmit`, `eslint` and `npx next build`._
+
+_Outstanding: **the estimate has never run on confirmed constants**, because none are
+confirmed — the checks fill a skeleton with invented values to exercise the path, and Layer 7
+plus a person is what fills the real ones. **AMT, K-1s, 1031 exchanges, a mid-year move and
+most state credits are not modelled**, enumerated permanently on the tab. And **the surface has
+still not been looked at**._
+
+---
+
+_Previously: **Phase 6, Layer 5 — the Ledger has a Schedule E.**_
+
+_**2026-08-14 — the tax layer's foundation.** `TaxRuleSet`, `TaxProfile`, `DepreciableAsset`,
+`TaxCarryforward`, `TaxStrategyNote`, MACRS depreciation, and a per-property Schedule E. The
+only change to an existing table is a nullable `Transaction.assetId`._
+
+_**The rule sets ship with every numeric leaf `null`, and that is the layer's whole
+character.** No bracket, no standard deduction, no wage base, no §469 allowance comes from a
+model's memory — the files carry the *structure* and the name of the document each number is
+published in, and nothing else. A set with any unconfirmed figure is **unusable**, not "used
+with defaults", so the Tax tab currently computes nothing and says so in as many words. §6._
+
+_This is the app's oldest rule under the most pressure it has faced. The seeded tasks of
+2026-08-04 were a nuisance because they were rows nobody wrote; **a wrong standard deduction
+is worse in kind, because the seeded task announced itself by existing and a wrong constant
+announces nothing.** It looks exactly as authoritative as a right one, nothing downstream
+contradicts it, and you find out when it has already cost money._
+
+_**What may live in code is arithmetic defined by statute; what may not is a rate.** The
+mid-month convention, the half-year convention, the declining-balance formula and the stacking
+of preferential rates on ordinary income are all procedures anyone can check against
+Publication 946 — so the 5- and 15-year MACRS percentages are **derived rather than
+transcribed**, and there is no table to mistype. `missingFigures` walks the payload rather
+than a maintained list, because the newest constant is the one a list forgets._
+
+_**The land split is the sharpest instance of the refusal.** `buildingBasisCents` returns
+`null` without it, so depreciation is not estimated at all. On a $985,000 property the gap
+between a 15% and a 30% allocation is about $2,700 of deduction a year for 27 years, and both
+figures render identically. The ratio comes off the county assessor; the app asks, and waits._
+
+_**The one real bug was in the depreciation tail, and the month is why.** How many complete
+years follow the first partial one depends on when the property became rentable — January
+takes 11.5 months up front so 26 full years follow, August takes 4.5 so 27 do. Hardcoding
+`floor(life)` produced a "final" year **larger than a full one**, caught by the golden case
+asserting the tail is a partial. Both months are now covered, along with the property
+depreciating to exactly its basis and not a cent more, and the 39-year commercial path going
+through the same code._
+
+_**The Schedule E draws on three sources and labels each**: accepted statements, claimed
+transactions, and the servicer's year-to-date interest. Only `accepted` statements count — a
+statement that has not reconciled is not a fact. A capital improvement promoted to an asset is
+**excluded from expenses**, or it would be deducted twice, in full now and again over 27.5
+years. And the tab is called **"Tax estimate"** rather than "Tax", so the word is in the
+navigation and cannot be scrolled past; the rule-set card sits above the figures rather than
+beside them; and "What this does not model" is permanent and enumerated — AMT, K-1s, 1031
+exchanges, a mid-year move, personal-use conversion, most state credits, California's separate
+passive bookkeeping._
+
+_Verified by `scripts/tax-check.mts` — 49 golden cases, no network and no database, which is
+possible precisely because `DepreciableAsset` stores no schedule. `npx tsc --noEmit`, `eslint`
+and `npx next build` all pass; the other four check scripts still pass._
+
+_Outstanding: **not one tax constant has been confirmed**, so the Tax tab computes nothing
+today — by design, and Layer 7's draft flow plus a person is what fills it. **`TaxProfile` has
+no editor yet.** **The Schedule E has never been run against real accepted statements**, since
+none exist. And **the surface has still not been looked at**._
+
+---
+
+_Previously: **Phase 6, Layer 4 — the Ledger reads statements.**_
+
+_**2026-08-13, later — the owner statements.** `PropertyStatement`, `StatementDocument`,
+`StatementLineItem`, the Gmail grant, `unpdf`, and the extractor. This is the layer the tax
+work needs: **a Schedule E computed from bank transactions alone misses the management fee**,
+which is netted out of the deposit and appears as a debit nowhere._
+
+_**The design turns on one thing: the document carries its own checksum.** A statement prints
+its own income and expense totals, so the extractor is asked for the rows and for those
+totals **separately**, and `reconciles()` requires them to agree to the cent. That is the only
+reason a language model is allowed near a financial document here — a hallucinated row, a
+dropped row or a misread digit fails arithmetic rather than passing review. The prompt says so
+in as many words, because a model that helpfully sums the rows into the totals field defeats
+the whole design while appearing to do a better job. **No tolerance**: every figure is a
+printed dollar amount, so rounding error does not exist and any discrepancy means something
+was read wrong. §6._
+
+_**The honest limit is stated on the screen, not just here.** Reconciliation catches every
+error that changes a total and **no error that does not** — a repair mislabelled as insurance
+adds up perfectly and is wrong on the Schedule E. So nothing is ever auto-accepted, every row
+shows the verbatim line it was read from, and a row the extractor was unsure about is tinted
+with its confidence beside it._
+
+_**`unpdf` is the one dependency this phase adds and it has zero of its own** — 18 lines in
+the lockfile. §8's argument held exactly: the hand-written alternative gets ~60% of the way on
+`node:zlib` and then meets the font's `/ToUnicode` CMap, which is what decides between text
+and mojibake._
+
+_**`lib/montblanc/deepseek.ts` became `lib/deepseek.ts`.** That file's own header has claimed
+since Phase 5 that swapping providers stays a one-file change, and the Ledger is its second
+consumer — the claim only survives if there genuinely is one file. It gained `completeJson`
+with `response_format: json_object` and `temperature: 0`, because extraction is transcription
+and a creative reading of a statement is not a thing anybody wants._
+
+_**The Gmail grant is deliberately separate from signing in**, and §6 gives the four reasons —
+the front door must not gain a failure mode, there is nowhere in a JWT session to put a
+refresh token, the two have different lifetimes, and disconnecting should be one row deleted.
+It reuses the existing Google client, so it is **no new secret**: just a second authorised
+redirect URI. `gmail.readonly` is the narrowest scope that can read an attachment, so the
+mitigation is to look at as little as possible — sender, attachment, sixty days — and **no
+message body is ever stored**, only the PDF and the rows read out of it._
+
+_**Uploading is a first-class path rather than a fallback**, and it is what made this layer
+testable before any OAuth existed. **The hash, not the message id, is what makes ingestion
+idempotent** — the same attachment forwarded to yourself, or picked up again by a re-scan
+after a failure, is one document._
+
+_Verified end to end: `scripts/statement-check.mts` builds a **real PDF** — actual bytes, text
+operators, correct xref offsets — stores it, and runs it through `unpdf` and the live model.
+It extracted 439 characters, read all five rows with the right kinds, got the signs right
+(rent +$4,200.00, management fee −$342.00), read the summary totals **from the summary block**
+rather than by summing, reconciled, and stopped at `needs_review`. Then removing a row was
+confirmed to break the reconciliation. The isolated cases cover a dropped row, an invented
+row, a one-cent discrepancy, a distribution that must not count, and a statement with no
+totals at all. Route gating re-checked: statements, Gmail connect and Gmail callback all 307,
+while the webhook and job runner 401 — the two exemptions are exactly the two that need them._
+
+_**One `tsx` limit worth recording.** `unpdf` was imported lazily, which reads better, and
+could not be run from a script at all: `tsx` transpiles the module to CommonJS and the dynamic
+specifier fails to resolve against a `data:` URL. Made static — it is server-only either way,
+so pdf.js never reaches a browser bundle — which cost nothing and bought back the only place
+the extraction is exercised end to end. **`scripts/ledger-reset.mts`** was added in the same
+pass, because the check scripts refuse to run when rows exist and a crash before cleanup
+blocks the next run; it touches Ledger tables only, and deliberately not the OAuth grant or
+the projects minted alongside a property._
+
+_Outstanding: **Gmail has never actually been connected** — the flow, the poll, the query and
+the base64url attachment decode are written and unexercised, and it needs a consent screen and
+a redirect URI on the Google client. **The test PDF uses a standard font**, so it proves
+`unpdf` on the easy path; a real AppFolio statement embeds a subset font, which is precisely
+the case §8 said a hand-written parser could not handle and precisely what this fixture cannot
+prove. **RentCast is still uncalled.** And **the surface has still not been looked at**._
+
+---
+
+_Previously: **Phase 6, Layer 3 — the Ledger has property.**_
+
+_**2026-08-13 — the rental.** `Property`, `PropertyValuation`, `PropertyLoan`, `Lease`, and
+`Transaction.propertyId`. One nullable `ADD COLUMN` on an existing table; everything else a
+CREATE._
+
+_**A property holds the money and a Project holds the work**, and the Ledger mints that
+project when you add the property. §6's own table of nouns has given "Rental 4B" as an
+example **Project** since the first week, which turns out not to be a coincidence to work
+around: a property has tasks, docs and a journal, all three already exist, and inventing
+property-shaped copies of them would be the `AreaDoc` mistake for the fourth time. The minted
+project gets `cadenceDays: null` so it can never report drift — a fortnightly warning that
+you have not "touched" a house is the untrue line that got the Multilingual Baby project
+deleted._
+
+_**The card shows three different kinds of number and the whole file is about not letting
+them blur.** The value is an estimate with real error bars, so it is shown with its range and
+its age. The debt is a statement from the servicer, exact. The cash flow is bank
+transactions, exact but only over what has been claimed — which the card says out loud.
+Equity is the one derived figure; it is shown because it is what people want, and shown
+beside the range rather than alone._
+
+_**Two refusals, and they are the same rule this file keeps arriving at.** A property with no
+valuation contributes **nothing** to net worth — not its purchase price, because a house
+bought in 2019 is not worth what it cost and the fallback would look entirely reasonable
+while being a number nobody gave us. And **depreciation is not estimated without the land
+split**: that ratio comes off the county assessor, cannot be derived, and a plausible guess is
+wrong by thousands a year and indistinguishable from a real figure. Both are stated on the
+card as prompts rather than errors._
+
+_**The mortgage is suggested, never assigned.** Plaid hands back a `property_address` string
+and the obvious move is to match it and attach the loan. `getLoanCandidates` scores by shared
+address tokens, orders the list, and stops — a mortgage on the wrong property moves the
+depreciation, the interest deduction and the cash flow at once, and a Schedule E is not
+somewhere to find out an inference was wrong. The scoring is crude on purpose: it orders a
+short list, so precision nobody acts on would be wasted._
+
+_**RentCast's quota guard lives inside the job, not at the call site**, because that is the
+only place that knows how many calls have gone out this month — and because a refusal there
+is recorded as a job result, which is where somebody would look to find out why a value
+stopped updating. It returns a sentence rather than throwing: a `failed` job with backoff
+would keep retrying against a limit that only resets on the 1st._
+
+_**One real limit found, and it changed the design.** `scripts/property-check.mts` could not
+call `saveProperty` at all — every action begins with `auth()`, which reads `next/headers` and
+throws outside a request scope, and there is no supported way to fake one. The fix is not a
+mock but a **split**, and it is the one `lib/media-rules.ts` already makes against
+`lib/media-store.ts`: parsing and refusal messages moved into a client-safe
+`lib/property-rules.ts`, leaving the action as the auth check and the database call. The form
+and the action now refuse the same input in the same words, and the parsers have golden cases
+— including that **140% is refused rather than clamped**, since silently storing 100% would
+produce a confidently wrong depreciation figure. §9._
+
+_Verified: parsing, both guards and the whole read path against real rows — equity, the value
+range, YTD interest surfacing at $12,300.40, the rent gap, the cap rate, and net worth
+counting the valuation rather than the purchase price. The candidate matcher scored 0.67 on a
+synthetic address pair and dropped to zero candidates once linked. Database confirmed back to
+zero rows. `npx tsc --noEmit`, `eslint` and `npx next build` all pass; 56 golden cases and
+both earlier check scripts still pass._
+
+_Outstanding: **RentCast has never actually been called** — no API key yet, so the client, the
+quota guard and the job are written and the network call is unexercised. **The address matcher
+has never seen a real servicer string.** **The action wrappers are exercised only in a
+browser**, which is still not possible here. And **the surface has still not been looked at**._
+
+---
+
+_Previously: **Phase 6, Layer 2 — the Ledger has transactions.**_
+
+_**2026-08-12, later — Plaid sandbox keys arrived, so Layer 2 was built and every layer so
+far was run against the real API.** Transactions, holdings, loan details, the webhook, the
+transfer matcher and the spending analysis. `scripts/ledger-live.mts` mints a public token
+through `/sandbox/public_token/create` — Link is a browser modal, and this is the only way to
+prove `lib/plaid.ts` matches Plaid's wire format rather than matching what I remembered of
+it._
+
+_**The load-bearing decision is that the sync refuses to advance its cursor if it skipped
+anything.** `/transactions/sync` only ever reports what *changed*, so a row offered once and
+not written is never offered again — and a row is skipped when its account does not exist
+yet, which genuinely happens because the balance and sync jobs are queued together and
+`drain` orders by a timestamp they share. Advancing anyway loses a week of transactions
+permanently, in the data the tax figures come from, **with no gap visible anywhere**. The
+guard was exercised by deleting every account and re-running: it refused, named the count,
+and left the cursor `null`. §6._
+
+_**Two conventions, each fixed at exactly one boundary, and they point opposite ways.** A
+*balance* is stored as the institution reports it — always positive — because a magnitude is
+a fact and which side it falls on is an interpretation. A *transaction* is inverted at ingest,
+because Plaid reports a debit as positive and every downstream sum reads naturally when
+positive means money in. Both verified against live data: 44 debits negative, 6 credits
+positive._
+
+_**A hand-set category survives a re-sync**, which is the seed's `update: {}` rule one noun
+over: once a column is editable in the app it is a decision, and a sync that reverted it is
+the failure the editor exists to prevent. **A pending row is deleted when its posted twin
+arrives** — Plaid issues a new id and points back at the old one rather than modifying it, so
+without this every total counts the purchase twice, which is the commonest way a spending
+figure goes quietly wrong._
+
+_**`LoanDetail` is why `liabilities` is requested at all.** Sandbox's mortgage reports
+`$12,300.40` of year-to-date interest and a property address. That figure is the largest
+deduction on a rental and the one number the transaction feed genuinely cannot recover — a
+mortgage payment leaves the account as a single amount with the split nowhere in it — so it
+arrives monthly instead of on a 1098 in February. The address is what Layer 3 will match a
+property against, as a **suggestion**, never an assignment._
+
+_**The webhook verifies properly**: `dsaEncoding: "ieee-p1363"` (an ES256 JWT signature is
+raw `r‖s` and Node defaults to DER, so without it verification fails silently and every
+webhook 401s), the hash over the raw body bytes, a five-minute `iat` window, and `alg` pinned
+rather than read — `alg: none` is refused by name. It enqueues and returns 200; doing the work
+inline would mean Plaid retrying a slow sync into several concurrent ones. **`proxy.ts` gained
+its exemption as one path, not a prefix**, verified by confirming `/api/ledger/statements/[id]`
+still 302s — that route will serve the bytes of a property statement._
+
+_**The charts are hand-built and two of the three turned out not to want SVG.** A stacked
+composition bar and a month-by-month column are *layouts* — widths and heights as percentages
+— and expressing them as flex keeps them responsive, keeps them server components, and paints
+them straight through the tokens. Only the net-worth line needs path geometry. **Carried
+points are drawn dashed**: a snapshot exists only for a day the Ledger was opened, so a flat
+line across a fortnight nobody looked at is a claim rather than a measurement._
+
+_Verified end to end against live Plaid sandbox, twice, with the database confirmed back to
+zero rows each time: 12 accounts mapped with none falling through to `other`, 50 transactions
+with correct signs and UTC-midnight dates, 13 holdings replaced rather than appended on a
+second run, 3 loans, and forged webhooks refused. `npx tsc --noEmit`, `eslint` and
+`npx next build` all pass; the golden cases are at 56._
+
+_**One real inconsistency found by the live run**: `depository/hsa` mapped to `savings` and
+therefore into **liquid**, whose label is "spendable this afternoon", while `investment/hsa`
+mapped to retirement. An HSA is not spendable this afternoon. Both go to retirement now,
+through a `KIND_BY_SUBTYPE` table for the subtypes whose meaning does not depend on Plaid's
+type. Overstating liquidity is the dangerous direction, which is the same argument that keeps
+Plaid's `other` bucket out of it._
+
+_Outstanding from this layer: **the webhook has never received a real delivery** — it needs a
+public URL, so it is verified by unit-testing the verifier and curling the endpoint. Safe,
+because the read-triggered catch-up makes it an optimisation. **The transfer matcher cannot be
+exercised by sandbox** (one institution, so no equal-and-opposite pair exists) and is tested
+against synthetic rows instead. **And the surface still has not been looked at** — the Chrome
+extension has no host permission for `localhost:3100`._
+
+---
+
+_Previously: **Phase 6, Layer 1 — the Ledger has accounts.**_
+
+_**2026-08-12 — "for Home & Money there are 2 things I wanna add… and I leave it up to you
+to design and add any useful info so I can manage my finances."** Four asks — link every
+bank and see analysis per account, add the rental properties, sum it all into a net worth
+with a real breakdown, and somewhere to see how to use the tax rules to minimise what comes
+out of pocket. The Home & Money area has existed since the first seed and held **nothing**.
+Planned as eight layers; this is the first._
+
+_**The standing requirement is emphatic and it shaped everything: "automate everything, I
+don't want to do anything manual."** So: Plaid rather than CSV import, Gmail rather than
+typing the owner statement in, RentCast rather than a value you remember to update. Where
+something genuinely cannot be automated it is **named on screen** rather than left as a
+quiet form — bank re-authentication after a credential expires is a person and a phone, and
+the sync strip says which bank, in crimson, on every Ledger page._
+
+_**One entry in `lib/nav.ts` was the whole cost of a sixth surface**, which is the claim §6
+has been making since 2026-07-30 ("slots in as one more surface without disturbing
+anything — that's the test the IA is built to pass"). The icon rail, the mobile tab bar and
+`surfaceForPath` all read that array; none of them changed._
+
+_**Money is integer cents, and the reason is the RSC boundary rather than precision.**
+Prisma's `Decimal` is a class instance that Next refuses to serialize into a client
+component, and it fails at runtime on the page nobody tested. The full argument is in §8,
+including the honest cost: `Int` caps one column at $21,474,836.47. `centsFromDollars` uses
+`toPrecision(15)` before rounding, because `1.005 * 100` is `100.49999999999999` and the
+naive version rounds a half-cent **down**, silently, on about one value in two hundred —
+that case is in `scripts/ledger-check.mts` and fails without it._
+
+_**A balance is stored as the institution reports it — always positive — and
+`netWorthSideFor` decides whether it counts against you.** The reflexive alternative, flip
+the sign at ingest, puts an interpretation in the database where changing your mind is a
+backfill. Plaid's transaction amounts get the opposite treatment and are inverted once, at
+ingest, because "positive is money in" is what every downstream sum wants. The rule under
+both: a convention is fixed at exactly one boundary and written down there. §6._
+
+_**Disconnecting a bank keeps the accounts** — `SetNull`, not cascade. Two years of
+transactions are what tax numbers are computed from, and a Schedule E that silently loses a
+quarter because a credential expired in March is worse than none, because you would not know
+to look. `disconnectItem` calls Plaid's `/item/remove` **first** and fails loudly if that
+fails; the other order leaves the grant live at the bank with nothing pointing at it._
+
+_**The two secrets get the `lib/media-store.ts` seam.** A Plaid access token reads balances
+and two years of transactions, does not expire, and unlike a password the bank cannot change
+it. AES-256-GCM via `node:crypto`, and **exactly one module in the codebase names
+`accessTokenEnc`** — the property that makes a leak have one place to happen. The AAD is a
+per-column label, so a ciphertext cannot be moved between columns; verified, along with
+tamper detection. **What this protects against is a database dump** — a downloaded backup, a
+leaked `DATABASE_PUBLIC_URL`, a Prisma Studio session left open. Not a compromised host,
+which holds the key by necessity. Saying so is the point._
+
+_**"Automate everything" produced more visible machinery, not less**, because automation
+fails by going quiet. Every surface built before this shows data you entered, so a bug is
+obvious; a Ledger whose last sync was eleven days ago looks exactly like one that synced this
+morning. Hence `LedgerJob` — a row per outbound call, with backoff on the row rather than in
+a retry loop — the sync strip on every page, and failures sorting first in the log
+regardless of age. §6._
+
+_Verified without a browser, which is the gap in this layer. **`scripts/ledger-check.mts`,
+54 golden cases**, including the float trap and the fact that `"0.00"` and `"n/a"` must not
+collapse into each other. **`scripts/ledger-smoke.mts`** runs the whole data path against the
+real database: five accounts across both sides, asserting that $250,000 of assets and
+$403,000 of debt come out at −$153,000 rather than $653,000 — the failure a sign convention
+produces, and not one you spot by looking, because the number is plausible. It also confirms
+the token round-trips as ciphertext, that excluding an account drops it from the total while
+leaving it listed, that the snapshot is one row per day however often it runs, and that
+deleting an item nulls `itemId` rather than cascading. **It deletes everything it made and
+asserts the database is back where it started**, which it was. `npx tsc --noEmit`, `eslint`
+and `npx next build` all pass._
+
+_**One real bug found, and only by curling it.** `/api/ledger/jobs/run` accepts a session
+**or** a `LEDGER_JOB_TOKEN` bearer, and the proxy cannot see the second one — so a Railway
+cron holding a valid token got a `307` to `/login`, followed it, received HTML, and would
+have reported success while running nothing. It would have looked fine forever from a
+browser, which has a cookie and takes the other branch. This is Phase 4.21's manifest bug in
+a second costume and the tell is identical: **a 302 is not an error anywhere in this app.**
+Exempted as **one path, not a prefix** — `api/ledger/statements/[id]` will serve the bytes of
+a property statement and must keep 302ing. Now curl-verified at 401 with no token, 401 with a
+wrong token, 200 with the right one, while `/ledger` and `/api/journal/media/[id]` still
+302. §9._
+
+_Outstanding from this layer: **the surface has not been looked at.** The Chrome extension
+has no host permission for `localhost:3100`, so everything above is build, typecheck, lint,
+two check scripts and curl — and not a screenshot. **Plaid Production is an application with
+a review and bills per linked bank per month**; this is built against Sandbox, and the
+application should be in flight while Layer 2 is built. **Renaming an account is overwritten
+by the next sync** — a nickname that survives needs its own column, which belongs to a layer
+with a reason for one. **Property is a column on `NetWorthSnapshot` that is always zero**
+until Layer 3._
+
+---
+
+_Previously: **Phase 5.6 — a task keeps a log.**_
 
 _**2026-08-11 — "add comments section to task — make sure have time and date for the comment
 as well."** The panel could say everything about what a task **is** — its title, its due

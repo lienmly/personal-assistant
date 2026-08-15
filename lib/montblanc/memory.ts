@@ -28,7 +28,7 @@
 
 import { db } from "@/lib/db";
 
-import { complete, isConfigured } from "./deepseek";
+import { complete, isConfigured } from "@/lib/deepseek";
 import type { NoteView } from "./types";
 
 /** How many live notes reach the prompt. Fifteen is ~700 characters, which is a

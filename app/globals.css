@@ -36,6 +36,26 @@
   --color-warn-soft: #fbf0dd;
   --color-good: #2f8f5b;
 
+  /* The loss colour, added with the Ledger (Phase 6). `--color-good` has
+     existed since Phase 1 and nothing needed its opposite until a P&L did.
+
+     Two existing tokens were candidates and both are wrong. **Crimson is the
+     emphasis token**, budgeted at one per region (§9) — if crimson also means
+     "loss", then the single highlighted metric on a screen and every negative
+     number on it are competing for one meaning, and the budget stops being
+     enforceable. **`--color-warn` means "attention"** — overdue, drifting,
+     expiring — which is a claim about *time*, not about sign; a −$40 month is
+     not a warning about anything.
+
+     So a desaturated brick, deliberately unlike the accent crimson so the two
+     never read as the same signal. And a usage rule, because the failure mode
+     of a loss colour is a screen of red: **a number is coloured only when its
+     sign is the point** — a month's net change, a P&L line, a return, a balance
+     due. Balances are never coloured. Neither are expenses: an expense is not a
+     loss. */
+  --color-bad: #b5453a;
+  --color-bad-soft: #f8e7e5;
+
   /* The dimmer behind a side panel or the mobile drawer. Carries its own alpha
      rather than being written `bg-obsidian/25` at the call site, because
      obsidian is the *hero tile* colour and in the dark theme a hero tile has to
@@ -211,6 +231,11 @@
   --color-warn: #e59b34;
   --color-warn-soft: #372611;
   --color-good: #4cb37d;
+  /* Lifted the same way and for the same reason as the two above: a brick mixed
+     for white paper goes to mud on near-black. Still warm, still clearly not
+     the accent. */
+  --color-bad: #ef6a5c;
+  --color-bad-soft: #3a1a17;
 
   /* A dim needs to be genuinely dark here, and heavier: there is less contrast
      between a panel and its backdrop to begin with */

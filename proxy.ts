@@ -36,7 +36,21 @@ export const config = {
   // silently, with no error anywhere except a line in devtools nobody is
   // reading. None of them is private; they are a name, a moogle and a
   // twenty-line cache policy.
+  //
+  // **`api/ledger/jobs/run` is exempt for the same shape of reason** (added with
+  // the Ledger, Phase 6). It accepts a session *or* a `LEDGER_JOB_TOKEN` bearer,
+  // and this proxy cannot see the second one — so gated here, a caller holding a
+  // valid token gets a 302 to /login, follows it, receives HTML, and reports
+  // success while having run nothing. Exactly the silent failure the manifest
+  // had. The handler re-checks `auth()` itself and compares the token in
+  // constant time, which is what makes exempting it safe rather than merely
+  // convenient: this is a hole in the *optimistic* gate, not in the real one.
+  //
+  // It is deliberately this one path and not `api/ledger`. Everything else under
+  // that prefix is private and must keep 302ing — `api/ledger/statements/[id]`
+  // serves the bytes of a property statement, and a prefix exemption would make
+  // it the one genuinely public thing in the app.
   matcher: [
-    "/((?!api/auth|_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|offline.html|.*\\.svg$|.*\\.png$).*)",
+    "/((?!api/auth|api/ledger/jobs/run|api/ledger/plaid/webhook|_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|offline.html|.*\\.svg$|.*\\.png$).*)",
   ],
 };

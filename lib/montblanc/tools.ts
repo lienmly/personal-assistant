@@ -1,12 +1,20 @@
 import { db } from "@/lib/db";
 import { saveEvent } from "@/lib/event-actions";
+import {
+  categoriseTransaction,
+  claimTransactionForProperty,
+} from "@/lib/ledger-actions";
+import { centsFromText, signedMoneyLabel } from "@/lib/money";
+import { SCHEDULE_E_LINES } from "@/lib/statement-rules";
+import { setStrategyState } from "@/lib/tax-actions";
+import { strategyBySlug } from "@/lib/tax/strategies";
 import { saveJournalEntry } from "@/lib/journal-actions";
 import { saveProject } from "@/lib/project-actions";
 import { saveContentItem } from "@/lib/studio-actions";
 import { addSubtask, saveTask, setTaskStatus } from "@/lib/task-actions";
 import { todayKey } from "@/lib/utils";
 
-import type { ToolSchema } from "@/lib/montblanc/deepseek";
+import type { ToolSchema } from "@/lib/deepseek";
 import type { Hit, MontblancEvent, Receipt } from "@/lib/montblanc/types";
 
 /**
@@ -819,6 +827,297 @@ const navigate: Tool = {
   },
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// The Ledger — Phase 6, Layer 8
+//
+// **Nothing here creates money.** Every other surface's tools make rows;
+// these do not, and that asymmetry is the point. Balances and transactions come
+// from a bank, statements come from email, and a tax constant comes from a
+// published source that a person confirms. There is nothing on this surface that
+// a sentence ought to be able to invent — so what a command bar is actually
+// useful for here is the small tedious act of **filing**: "that $340 was a
+// plumbing repair for the rental", said while you are looking at the charge on
+// your phone rather than after navigating to the Property tab.
+//
+// The one write is `claim_transaction`, and its receipt undoes by *releasing*
+// the claim rather than deleting anything — a bank row is a payment that really
+// happened.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const findTransaction: Tool = {
+  step: "Looking through the transactions",
+  schema: {
+    type: "function",
+    function: {
+      name: "find_transaction",
+      description:
+        "Search recent bank transactions by merchant, description or amount. Use this before claiming or categorising one, so the user can see which row you mean.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description:
+              "Part of the merchant name or description. Case-insensitive.",
+          },
+          amount: {
+            type: "string",
+            description:
+              "The amount as the user said it, e.g. '340' or '$340.50'. Matches either direction of money.",
+          },
+          days: {
+            type: "integer",
+            description: "How far back to look. Defaults to 90.",
+          },
+        },
+        required: [],
+      },
+    },
+  },
+  async run(args) {
+    const query = text(args, "query");
+    const amountText = text(args, "amount");
+    const amountCents = amountText ? centsFromText(amountText) : null;
+    const days = Math.min(730, Math.max(1, Number(args.days) || 90));
+
+    if (!query && amountCents === null) {
+      return {
+        summary: "FAILED: needs something to search for — a merchant or an amount.",
+        events: [],
+      };
+    }
+
+    const since = new Date(Date.now() - days * 86_400_000);
+
+    const rows = await db.transaction.findMany({
+      where: {
+        postedOn: { gte: since },
+        ...(query
+          ? {
+              OR: [
+                { name: { contains: query, mode: "insensitive" } },
+                { merchantName: { contains: query, mode: "insensitive" } },
+              ],
+            }
+          : {}),
+        // Amounts are matched on magnitude, because the user says "the $340
+        // charge" without meaning a sign.
+        ...(amountCents !== null
+          ? {
+              OR: [
+                { amountCents: Math.abs(amountCents) },
+                { amountCents: -Math.abs(amountCents) },
+              ],
+            }
+          : {}),
+      },
+      orderBy: { postedOn: "desc" },
+      take: 8,
+      select: {
+        id: true,
+        name: true,
+        merchantName: true,
+        amountCents: true,
+        postedOn: true,
+        account: { select: { name: true } },
+        property: { select: { label: true } },
+      },
+    });
+
+    if (rows.length === 0) {
+      return {
+        summary: `No transactions matched in the last ${days} days. Say so; do not guess at a different search.`,
+        events: [],
+      };
+    }
+
+    const hits: Hit[] = rows.map((row) => ({
+      id: row.id,
+      title: row.merchantName ?? row.name,
+      where: row.account.name,
+      href: "/ledger?tab=accounts",
+      note: `${signedMoneyLabel(row.amountCents)} · ${row.postedOn.toISOString().slice(0, 10)}${row.property ? ` · filed under ${row.property.label}` : ""}`,
+    }));
+
+    return {
+      summary: `Found ${rows.length}: ${rows
+        .map(
+          (row) =>
+            `${row.merchantName ?? row.name} ${signedMoneyLabel(row.amountCents)} on ${row.postedOn.toISOString().slice(0, 10)} (id ${row.id})${row.property ? ` [already filed under ${row.property.label}]` : ""}`,
+        )
+        .join("; ")}`,
+      events: [{ type: "hits", title: "Transactions", hits }],
+    };
+  },
+};
+
+const claimTransaction: Tool = {
+  step: "Filing it against the property",
+  schema: {
+    type: "function",
+    function: {
+      name: "claim_transaction",
+      description:
+        "File a bank transaction against a rental property so it lands on that property's Schedule E. Call find_transaction first and use the id it returned. Never invent an id.",
+      parameters: {
+        type: "object",
+        properties: {
+          transactionId: {
+            type: "string",
+            description: "The id from find_transaction. Required.",
+          },
+          propertySlug: {
+            type: "string",
+            description: "Which property, from the PROPERTIES list. Required.",
+          },
+          taxCategory: {
+            type: "string",
+            description:
+              "Which Schedule E line it belongs on: repairs, insurance, taxes, utilities, management_fees, commissions, supplies, advertising, auto_travel, cleaning_maintenance, legal_professional, other. Omit if genuinely unclear — a human can set it.",
+          },
+        },
+        required: ["transactionId", "propertySlug"],
+      },
+    },
+  },
+  async run(args) {
+    const transactionId = text(args, "transactionId");
+    const propertySlug = text(args, "propertySlug");
+    if (!transactionId || !propertySlug) {
+      return {
+        summary: "FAILED: needs both a transaction id and a property.",
+        events: [],
+      };
+    }
+
+    const property = await db.property.findFirst({
+      where: {
+        OR: [
+          { slug: propertySlug },
+          { label: { equals: propertySlug, mode: "insensitive" } },
+        ],
+      },
+      select: { id: true, slug: true, label: true },
+    });
+    if (!property) return unknown("property", propertySlug);
+
+    const category = text(args, "taxCategory");
+    const taxCategory =
+      category && (SCHEDULE_E_LINES as readonly string[]).includes(category)
+        ? category
+        : null;
+
+    const result = await claimTransactionForProperty({
+      transactionId,
+      propertyId: property.id,
+      taxCategory,
+    });
+
+    if (!result.ok) {
+      return { summary: `FAILED: ${result.message}`, events: [] };
+    }
+
+    return {
+      summary: `Filed "${result.label}" against ${result.where}${taxCategory ? ` as ${taxCategory}` : " with no Schedule E line yet"}.`,
+      events: receiptEvent({
+        kind: "transactionClaim",
+        id: transactionId,
+        label: result.label,
+        where: `${result.where}${taxCategory ? ` · ${taxCategory}` : ""}`,
+        href: "/ledger?tab=property",
+      }),
+    };
+  },
+};
+
+const categoriseTransactionTool: Tool = {
+  step: "Categorising it",
+  schema: {
+    type: "function",
+    function: {
+      name: "categorise_transaction",
+      description:
+        "Give a transaction a spending category of your own — 'Groceries', 'Childcare'. This is separate from the tax category and is never overwritten by a bank sync. Call find_transaction first.",
+      parameters: {
+        type: "object",
+        properties: {
+          transactionId: { type: "string", description: "The id from find_transaction." },
+          category: {
+            type: "string",
+            description: "The category, in the user's own words. Free text.",
+          },
+        },
+        required: ["transactionId", "category"],
+      },
+    },
+  },
+  async run(args) {
+    const transactionId = text(args, "transactionId");
+    const category = text(args, "category");
+    if (!transactionId || !category) {
+      return { summary: "FAILED: needs a transaction id and a category.", events: [] };
+    }
+
+    const result = await categoriseTransaction(transactionId, category);
+    if (!result.ok) return { summary: `FAILED: ${result.message}`, events: [] };
+
+    return {
+      summary: `Categorised "${result.label}" as ${category}.`,
+      events: [],
+    };
+  },
+};
+
+const markStrategyRaised: Tool = {
+  step: "Noting it down",
+  schema: {
+    type: "function",
+    function: {
+      name: "mark_strategy_raised",
+      description:
+        "Record what the user decided about a tax strategy they were shown — that they raised it with their accountant, are doing it, have done it, or are leaving it this year.",
+      parameters: {
+        type: "object",
+        properties: {
+          slug: {
+            type: "string",
+            description:
+              "The strategy: cost-segregation, real-estate-professional, qbi-safe-harbour, bunching-deductions, solo-retirement, withholding-vs-quarterlies, de-minimis-election, tax-loss-harvesting, hsa-headroom.",
+          },
+          state: {
+            type: "string",
+            enum: ["raised", "doing", "done", "declined"],
+            description: "What the user said they had done about it.",
+          },
+          taxYear: {
+            type: "integer",
+            description: "Defaults to the current year.",
+          },
+        },
+        required: ["slug", "state"],
+      },
+    },
+  },
+  async run(args) {
+    const slug = text(args, "slug");
+    const state = text(args, "state");
+    if (!slug || !state) {
+      return { summary: "FAILED: needs a strategy and a state.", events: [] };
+    }
+    if (!strategyBySlug(slug)) return unknown("strategy", slug);
+
+    const taxYear = Number(args.taxYear) || new Date().getUTCFullYear();
+
+    const result = await setStrategyState(taxYear, slug, state, null);
+    if (!result.ok) return { summary: `FAILED: ${result.message}`, events: [] };
+
+    return {
+      summary: `Recorded ${slug} as ${state} for ${taxYear}.`,
+      events: [],
+    };
+  },
+};
+
 export const TOOLS: Record<string, Tool> = {
   create_task: createTask,
   create_content_item: createContentItem,
@@ -828,6 +1127,12 @@ export const TOOLS: Record<string, Tool> = {
   find_tasks: findTasks,
   complete_task: completeTask,
   navigate,
+
+  // The Ledger. Note what is absent: nothing that creates money.
+  find_transaction: findTransaction,
+  claim_transaction: claimTransaction,
+  categorise_transaction: categoriseTransactionTool,
+  mark_strategy_raised: markStrategyRaised,
 };
 
 export const TOOL_SCHEMAS: ToolSchema[] = Object.values(TOOLS).map(

@@ -17,6 +17,7 @@ import {
   Clapperboard,
   CornerDownLeft,
   FolderPlus,
+  Landmark,
   Loader2,
   RotateCcw,
   Swords,
@@ -100,6 +101,7 @@ const RECEIPT_ICON: Record<ReceiptKind, typeof Swords> = {
   project: FolderPlus,
   event: CalendarDays,
   journalEntry: BookOpen,
+  transactionClaim: Landmark,
 };
 
 const RECEIPT_NOUN: Record<ReceiptKind, string> = {
@@ -109,6 +111,9 @@ const RECEIPT_NOUN: Record<ReceiptKind, string> = {
   project: "Project",
   event: "Event",
   journalEntry: "Journal entry",
+  // "Filed", not "Created" — the transaction already existed; what Montblanc
+  // did was put it against a property.
+  transactionClaim: "Filed against",
 };
 
 type Entry =

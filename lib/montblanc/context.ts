@@ -91,5 +91,61 @@ export async function buildContext(): Promise<string> {
     `TRACKS (a task's workstream — free text, these are the established ones): ${TRACKS.join(", ")}.`,
   );
 
+  // The Ledger, when there is one. Kept to the *names* — accounts, properties,
+  // and whether the tax year is computable — for the same reason the projects
+  // are: they are what a sentence names, they change once a fortnight, and
+  // fetching them behind a tool would cost a round trip on every request.
+  //
+  // Deliberately no balances and no figures. Money is what the Ledger is for,
+  // and a number in the prompt is a number the model can repeat back stale.
+  const [accounts, properties, ruleSet] = await Promise.all([
+    db.account.findMany({
+      where: { closedAt: null },
+      orderBy: { sortOrder: "asc" },
+      select: { name: true, mask: true, kind: true },
+      take: 25,
+    }),
+    db.property.findMany({
+      where: { status: { not: "sold" } },
+      orderBy: { sortOrder: "asc" },
+      select: { slug: true, label: true, addressLine: true },
+    }),
+    db.taxRuleSet.findFirst({
+      where: { taxYear: new Date().getUTCFullYear(), jurisdiction: "federal" },
+      select: { status: true },
+    }),
+  ]);
+
+  if (accounts.length > 0 || properties.length > 0) {
+    lines.push("", "LEDGER:");
+  }
+
+  if (accounts.length > 0) {
+    lines.push(
+      `- accounts: ${accounts
+        .map((account) => `${account.name}${account.mask ? ` ···${account.mask}` : ""} (${account.kind})`)
+        .join(", ")}`,
+    );
+  }
+
+  if (properties.length > 0) {
+    lines.push(
+      `- properties (slug — name): ${properties
+        .map((property) => `${property.slug} — ${property.label}`)
+        .join(", ")}`,
+    );
+  }
+
+  if (ruleSet) {
+    lines.push(
+      ruleSet.status === "verified"
+        ? `- the ${new Date().getUTCFullYear()} tax constants are confirmed, so the estimate computes.`
+        : `- the ${new Date().getUTCFullYear()} tax constants are NOT confirmed yet, so there is no tax estimate. Never quote a tax figure; point at the Tax estimate tab.`,
+    );
+  }
+
+  lines.push(
+  );
+
   return lines.join("\n");
 }

@@ -5,7 +5,7 @@ import {
   isConfigured,
   MontblancNotConfigured,
   type ApiMessage,
-} from "@/lib/montblanc/deepseek";
+} from "@/lib/deepseek";
 import { getNotes, recordExchange, renderNotes } from "@/lib/montblanc/memory";
 import { systemMessage } from "@/lib/montblanc/prompt";
 import { TOOLS, TOOL_SCHEMAS } from "@/lib/montblanc/tools";

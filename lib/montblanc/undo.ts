@@ -6,6 +6,7 @@ import { deleteJournalEntry } from "@/lib/journal-actions";
 import { deleteProject } from "@/lib/project-actions";
 import { deleteContentItem } from "@/lib/studio-actions";
 import { deleteTask } from "@/lib/task-actions";
+import { releaseTransaction } from "@/lib/ledger-actions";
 
 import type { ReceiptKind } from "@/lib/montblanc/types";
 
@@ -57,6 +58,14 @@ export async function undoMontblanc(kind: ReceiptKind, id: string) {
       return;
     case "journalEntry":
       await deleteJournalEntry(id);
+      return;
+    case "transactionClaim":
+      // **Releases the claim; it does not delete the transaction.** A bank row
+      // is a payment that really happened, and undoing "file this against the
+      // rental" cannot mean "pretend it never left the account". Safe to clear
+      // outright because `claim_transaction` refuses a row that is already
+      // claimed — so the state before was always unclaimed.
+      await releaseTransaction(id);
       return;
   }
 }

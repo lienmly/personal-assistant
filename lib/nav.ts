@@ -1,11 +1,23 @@
 import type { LucideIcon } from "lucide-react";
-import { CalendarDays, Clapperboard, Sunrise, Swords } from "lucide-react";
+import {
+  CalendarDays,
+  Clapperboard,
+  Landmark,
+  Sunrise,
+  Swords,
+} from "lucide-react";
 
 /**
  * The surfaces from CLAUDE.md §6. This list is deliberately fixed —
  * navigation is by verb and time, never one entry per life area. Areas are a
- * filter that cuts across all of these. A further surface (Ledger) arrives in
- * Phase 6 without disturbing anything here.
+ * filter that cuts across all of these.
+ *
+ * **Ledger arrived in Phase 6, and it cost exactly this**: one entry. The line
+ * that used to sit here predicted it would ("a further surface arrives in Phase
+ * 6 without disturbing anything"), and §6 called that the test the whole
+ * information architecture was built to pass. It passed — the icon rail, the
+ * mobile tab bar and `surfaceForPath` all read this array, so none of them
+ * changed.
  *
  * **Projects came off on 2026-08-05.** It was the roster — a list of every
  * project with its counts and last-touched date — and once Today was rebuilt
@@ -46,6 +58,12 @@ export const SURFACES: Surface[] = [
     label: "Social Media",
     icon: Clapperboard,
     tagline: "Content moving toward publication",
+  },
+  {
+    href: "/ledger",
+    label: "Ledger",
+    icon: Landmark,
+    tagline: "What you have, what you owe, and what April will cost",
   },
 ];
 

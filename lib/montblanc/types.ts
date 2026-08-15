@@ -38,7 +38,13 @@ export type ReceiptKind =
   | "contentItem"
   | "project"
   | "event"
-  | "journalEntry";
+  | "journalEntry"
+  /** A bank row claimed for a property — the act that puts it on a Schedule E.
+   *  Not a row Montblanc *created*: nothing in the Ledger is created by asking,
+   *  because the money comes from a bank and the statements come from email.
+   *  Undoing it releases the claim rather than deleting a payment that really
+   *  happened. */
+  | "transactionClaim";
 
 /** A row Montblanc looked up and is offering, rather than one it created. */
 export type Hit = {

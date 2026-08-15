@@ -157,13 +157,16 @@ model Area {
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
 
-  projects Project[]
-  tasks    Task[]
-  events   Event[]
+  projects   Project[]
+  tasks      Task[]
+  events     Event[]
   /// Added 2026-08-05. An Area is now something you can open — `/areas/[slug]`,
   /// with Journal · Docs · Tasks — rather than only a filter and a colour.
-  docs     Doc[]
-  journal  JournalEntry[]
+  docs       Doc[]
+  journal    JournalEntry[]
+  /// Added with the Ledger (Phase 6). A property is filed in an area the same
+  /// way a project is, so it inherits the colour and the calendar grouping.
+  properties Property[]
 
   @@index([sortOrder])
 }
@@ -209,16 +212,20 @@ model Project {
   /// A list rather than a single `brandId` because splitting one project's
   /// voice in two (a Japanese and a Chinese Utaitai, say) should not need a
   /// migration. Today every project runs exactly one or none.
-  brands Brand[]
-  items  ContentItem[]
-  series Series[]
-  tasks  Task[]
-  events Event[]
-  docs   Doc[]
+  brands   Brand[]
+  items    ContentItem[]
+  series   Series[]
+  tasks    Task[]
+  events   Event[]
+  docs     Doc[]
+  /// The property this project holds the *work* for, when it is one. See
+  /// `Property` — that model holds the money and this one holds the tasks,
+  /// docs and journal, because all three already exist and already have a page.
+  property Property?
   /// Added 2026-08-09. A project's devlog — what already happened, as opposed
   /// to everything else on this model, which is what is owed. See
   /// `JournalEntry`.
-  journal JournalEntry[]
+  journal  JournalEntry[]
 
   @@index([areaId, sortOrder])
   @@index([status, lastTouchedAt])
@@ -368,7 +375,7 @@ model JournalMedia {
   byteSize Int
   caption  String?
 
-  kind MediaKind @default(photo)
+  kind       MediaKind @default(photo)
   /// Milliseconds, video only. Null on a photo.
   durationMs Int?
 
@@ -497,21 +504,21 @@ model Channel {
 /// Generates dated ContentItem slots so the daily cadence isn't 730 rows of manual
 /// data entry a year. Without this the Studio dies in a week.
 model Series {
-  id          String     @id @default(cuid())
+  id          String        @id @default(cuid())
   name        String
   format      ContentFormat
   cadence     Cadence
   /// For `weekly` / `custom`: ISO weekdays, 1 = Monday … 7 = Sunday.
-  daysOfWeek  Int[]      @default([])
+  daysOfWeek  Int[]         @default([])
   /// Local time of day the slot defaults to, "HH:mm".
   timeOfDay   String?
-  startsOn    DateTime   @db.Date
-  endsOn      DateTime?  @db.Date
-  isActive    Boolean    @default(true)
+  startsOn    DateTime      @db.Date
+  endsOn      DateTime?     @db.Date
+  isActive    Boolean       @default(true)
   /// How many days ahead to keep slots materialised.
-  horizonDays Int        @default(14)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  horizonDays Int           @default(14)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 
   brandId String
   brand   Brand  @relation(fields: [brandId], references: [id], onDelete: Cascade)
@@ -542,7 +549,7 @@ model SeriesChannel {
 /// about (nullable — pure brand-building posts belong to no project) and
 /// `brandId` is who publishes it.
 model ContentItem {
-  id          String     @id @default(cuid())
+  id          String        @id @default(cuid())
   title       String
   notes       String?
   /// The script / caption / article body — whatever "the words" are.
@@ -551,8 +558,8 @@ model ContentItem {
   stage       ContentStage  @default(idea)
   publishAt   DateTime?
   publishedAt DateTime?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 
   brandId String
   brand   Brand  @relation(fields: [brandId], references: [id], onDelete: Cascade)
@@ -575,8 +582,8 @@ model ContentItem {
   /// Threads thread). Kind 1 — same asset, more places — is just extra rows in
   /// `channels` below, and costs nothing.
   sourceItemId String?
-  source       ContentItem?   @relation("ContentDerivation", fields: [sourceItemId], references: [id], onDelete: SetNull)
-  derivatives  ContentItem[]  @relation("ContentDerivation")
+  source       ContentItem?  @relation("ContentDerivation", fields: [sourceItemId], references: [id], onDelete: SetNull)
+  derivatives  ContentItem[] @relation("ContentDerivation")
 
   channels ContentItemChannel[]
 
@@ -601,7 +608,7 @@ model ContentItemChannel {
   updatedAt    DateTime         @updatedAt
 
   itemId String
-  item   ContentItem   @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  item   ContentItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
   channelId String
   channel   Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
@@ -674,12 +681,12 @@ model Task {
   // actually do it last week" all read real rows — while the board still shows
   // exactly one "read to her" at a time.
 
-  recurrence Recurrence @default(none)
+  recurrence  Recurrence @default(none)
   /// For `weekly`: ISO weekdays, 1 = Monday … 7 = Sunday. Utaitai's batching is
   /// `[3, 7]`. Same convention as `Series.daysOfWeek` and `Event.daysOfWeek`.
-  daysOfWeek Int[]      @default([])
+  daysOfWeek  Int[]      @default([])
   /// Last day the rule fires, inclusive. Null means forever.
-  repeatUntil DateTime? @db.Date
+  repeatUntil DateTime?  @db.Date
 
   /// Set on a completed snapshot, pointing at the live row it was struck from.
   /// Cascade: the snapshots are the recurring task's own history and mean
@@ -916,4 +923,1014 @@ model MontblancNote {
   source   MontblancConversation? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
 
   @@index([supersededAt, createdAt])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Ledger — CLAUDE.md §5 Phase 6
+//
+// Money. The Home & Money area has existed since the first seed and held
+// nothing; this is what goes in it. Four questions, in the order the surface
+// asks them: what is everything worth, where did it go, what does the rental
+// actually make, and what will April cost.
+//
+// **Every money column is an `Int` of cents, suffixed `…Cents`.** See
+// `lib/money.ts` for the argument against `Decimal`, and for the one place a
+// rate is allowed to meet an amount. The 32-bit ceiling is $21,474,836.47 per
+// column; sums are computed in JS, never in Postgres.
+//
+// Two sign conventions, both fixed at the ingest boundary so that nothing
+// downstream has to know: an amount is **positive when money comes in**, and a
+// balance is stored as the institution reports it — always a positive
+// magnitude, with `netWorthSideFor()` in `lib/ledger-rules.ts` deciding whether
+// it adds or subtracts. One decision in one place, so the roll-up and the UI
+// cannot disagree about what a credit card means.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// What a balance *means*, which is a different question from Plaid's
+/// type/subtype pair.
+///
+/// Plaid's taxonomy describes the institution's product; this one describes
+/// which pile of the net worth the money is in, and it is the only thing the
+/// roll-up reads. The raw pair is kept verbatim on `Account` beside it, so a
+/// mapping that turns out to be wrong is a re-derive rather than a re-fetch.
+enum AccountKind {
+  checking
+  savings
+  cash
+  brokerage
+  retirement
+  credit_card
+  loan
+  mortgage
+  other
+}
+
+enum LedgerJobStatus {
+  pending
+  running
+  done
+  failed
+}
+
+/// One set of bank credentials at one institution, as Plaid holds it.
+///
+/// `accessTokenEnc` is the most dangerous string this app will ever store: a
+/// standing, non-expiring grant to read balances and two years of transactions
+/// which — unlike a password — the bank cannot change. So it follows the
+/// `JournalMedia.data` seam exactly: sealed with AES-256-GCM by
+/// `lib/crypto-box.ts`, and **`lib/secret-store.ts` is the only module in the
+/// codebase that names this column.** Every other query names its columns.
+model PlaidItem {
+  id String @id @default(cuid())
+
+  /// Plaid's own id for the (institution, credentials) pair.
+  itemId          String  @unique
+  institutionId   String?
+  institutionName String
+
+  /// `v1.<iv>.<tag>.<ciphertext>`, base64 parts.
+  accessTokenEnc String
+
+  /// `/transactions/sync`'s cursor. Null until the first sync — which Plaid also
+  /// requires before it will send a `SYNC_UPDATES_AVAILABLE` webhook at all, so
+  /// the first sync is kicked at link time rather than waited for.
+  txCursor String?
+
+  /// good | login_required | pending_expiration | revoked | removed. Free text
+  /// for the reason `Task.track` is: Plaid adds item states, and a new one
+  /// should not cost a migration in the middle of a bank outage.
+  status       String  @default("good")
+  statusDetail String?
+
+  consentExpiresAt DateTime?
+  lastSyncedAt     DateTime?
+  lastWebhookAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  accounts Account[]
+
+  @@index([status, lastSyncedAt])
+}
+
+/// A Google grant that is **not** a session.
+///
+/// Auth.js runs JWT sessions with no adapter and there is deliberately no User
+/// table (§6), so there is nowhere to hang a refresh token — and hanging one on
+/// the JWT would put a standing grant to read an entire mailbox inside a browser
+/// cookie. It is also a *separate consent* from signing in, on purpose: adding
+/// `gmail.readonly` to the Auth.js provider would make the front door the thing
+/// that breaks the day that consent is declined.
+///
+/// `provider` is unique because the app is single tenant — the same reason
+/// nothing else here carries an `ownerId`.
+model OAuthCredential {
+  id String @id @default(cuid())
+
+  provider     String @unique
+  accountEmail String
+
+  /// Sealed. Same seam and same sole reader as `PlaidItem.accessTokenEnc`.
+  refreshTokenEnc String
+  scope           String
+
+  obtainedAt  DateTime  @default(now())
+  lastUsedAt  DateTime?
+  lastErrorAt DateTime?
+  lastError   String?
+  revokedAt   DateTime?
+}
+
+/// Where an integration got to. `gmail:lastScanAt`, `gmail:lastMessageId`.
+///
+/// Three cursors do not each earn a table, and a typed column per integration
+/// would be a migration per integration.
+model LedgerCursor {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+/// One account at one institution.
+model Account {
+  id String @id @default(cuid())
+
+  plaidAccountId String  @unique
+  name           String
+  officialName   String?
+  mask           String?
+
+  kind         AccountKind
+  /// Plaid's own type/subtype, verbatim — see `AccountKind`.
+  plaidType    String
+  plaidSubtype String?
+
+  currency String @default("USD")
+
+  currentCents   Int?
+  availableCents Int?
+  /// A card's credit limit or a loan's original principal, whichever it has.
+  limitCents     Int?
+  /// A real instant: when the institution last reported, not a calendar day.
+  balanceAt      DateTime?
+
+  /// A hidden account still syncs; it is simply left out of the roll-up. For a
+  /// joint account already counted elsewhere, or a $0 legacy card.
+  includeInNetWorth Boolean @default(true)
+
+  sortOrder Int       @default(0)
+  closedAt  DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  /// **Nullable and `SetNull`, not `Cascade`** — the one relation here worth
+  /// arguing. §6's rule is cascade when the child is *part of* the parent and
+  /// SetNull when it has a home elsewhere, and an account has a home elsewhere:
+  /// the ledger. Disconnecting a bank must not erase two years of transactions,
+  /// because those transactions are what the tax numbers are computed from, and
+  /// a Schedule E that silently loses a quarter when a credential expires is
+  /// worse than no Schedule E at all. A disconnected account keeps everything it
+  /// has and stops updating.
+  itemId String?
+  item   PlaidItem? @relation(fields: [itemId], references: [id], onDelete: SetNull)
+
+  balances     AccountBalance[]
+  transactions Transaction[]
+  holdings     Holding[]
+  loan         LoanDetail?
+  propertyLoan PropertyLoan?
+
+  @@index([kind, sortOrder])
+  @@index([itemId])
+}
+
+/// One account's balance on one day.
+///
+/// `@db.Date` — it stands in for a calendar day, so UTC midnight and formatted
+/// `timeZone: "UTC"` (§6, "Dates are a trap here"). The instant it was
+/// *observed* is `Account.balanceAt`; this is the day it is filed under.
+///
+/// Per-account rather than only the roll-up, because "which account grew" is the
+/// question immediately after "did net worth grow", and it cannot be
+/// reconstructed from a total.
+model AccountBalance {
+  id String @id @default(cuid())
+
+  on           DateTime @db.Date
+  currentCents Int
+  createdAt    DateTime @default(now())
+
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, on])
+  @@index([on])
+}
+
+/// What the answer *was*, on a day.
+///
+/// Derivable from `AccountBalance`, and deliberately stored anyway. Recomputing
+/// the past from today's account list silently rewrites history: link a
+/// brokerage in November and every point back to January jumps, so the chart
+/// reports growth that did not happen. A snapshot records the composition and
+/// the account count as they actually stood.
+///
+/// Written by `ensureNetWorthSnapshot()` on `/ledger` load, idempotent on `on` —
+/// the same materialise-on-read bargain that has kept the posting cadence alive
+/// since Phase 2, and for the same reason: there is nothing here worth standing
+/// infrastructure up to run. The series therefore exists because you opened the
+/// page, and a gap is a day you did not look; `lib/ledger.ts` carries the
+/// previous point across a gap and marks it as carried, so the chart can draw it
+/// differently rather than pretend.
+model NetWorthSnapshot {
+  id String @id @default(cuid())
+
+  on DateTime @unique @db.Date
+
+  liquidCents     Int
+  investedCents   Int
+  retirementCents Int
+  propertyCents   Int
+  /// A positive magnitude of what is owed, not a negative asset.
+  liabilityCents  Int
+  totalCents      Int
+  accountCount    Int
+
+  createdAt DateTime @default(now())
+
+  @@index([on])
+}
+
+/// The one place an integration can fail visibly.
+///
+/// "Automate everything" is the requirement, and the failure mode of automation
+/// is that it stops without saying so. This app has no cron and no scheduler
+/// (§6: `ensureSeriesSlots`, `ensureDistilled`) and that pattern is kept — but a
+/// materialise-on-read that swallows an exception is *worse* than a cron,
+/// because then there is not even a log to look at. So every outbound call gets
+/// a row, and `/ledger/connections` is a list of them.
+///
+/// It also moves the slow half off the render: `ensureLedgerJobs()` enqueues
+/// during the page's data pass and returns immediately, and a small client
+/// component POSTs `/api/ledger/jobs/run` once the page has painted.
+model LedgerJob {
+  id String @id @default(cuid())
+
+  /// plaid_sync | plaid_balances | plaid_holdings | plaid_liabilities |
+  /// gmail_scan | statement_extract | rentcast_refresh | tax_rules_draft
+  kind  String
+  /// The row this is about, when it is about one.
+  refId String?
+
+  status   LedgerJobStatus @default(pending)
+  attempts Int             @default(0)
+  /// Backoff lives here rather than in a retry loop, so a bank that is down for
+  /// an hour is not hammered once per page load.
+  runAfter DateTime        @default(now())
+
+  startedAt  DateTime?
+  finishedAt DateTime?
+  /// One sentence, shown on the connections page. "Synced 34 transactions."
+  result     String?
+  error      String?
+
+  createdAt DateTime @default(now())
+
+  @@index([status, runAfter])
+  @@index([kind, createdAt])
+}
+
+/// One transaction, as Plaid reports it.
+///
+/// **Positive is money in.** Plaid reports a debit as a *positive* number, which
+/// is correct from the institution's side of the ledger and backwards from ours:
+/// every monthly sum, category roll-up and Schedule E line reads naturally the
+/// other way round. The inversion happens once, in `lib/plaid-sync.ts`, and
+/// nowhere else — the mirror of `Account.currentCents`, which is *not* inverted
+/// because a balance is a magnitude whose side is an interpretation. Two
+/// conventions, each fixed at one boundary.
+model Transaction {
+  id String @id @default(cuid())
+
+  plaidTransactionId String @unique
+
+  amountCents Int
+
+  /// `@db.Date`. Plaid sends "YYYY-MM-DD" in the institution's own timezone;
+  /// it lands on UTC midnight. Never `new Date(str)`, which is parsed as UTC
+  /// anyway for a bare date but shifts the moment a time is appended.
+  postedOn     DateTime  @db.Date
+  authorizedOn DateTime? @db.Date
+
+  pending        Boolean @default(false)
+  /// Plaid's `pending_transaction_id`: when a pending row posts, Plaid issues a
+  /// *new* id and points it at the old one. Without this the month is counted
+  /// twice — once pending, once posted — which is the single most common way a
+  /// spending figure goes wrong.
+  pendingPlaidId String?
+
+  name         String
+  merchantName String?
+  /// The logo and the website Plaid supplies, so a list of transactions is
+  /// readable without a lookup table of merchant names nobody maintains.
+  website      String?
+
+  /// Plaid's `personal_finance_category`, verbatim — the primary and the
+  /// detailed halves. Kept raw for the same reason `Account.plaidType` is: ours
+  /// is an interpretation of it, and an interpretation that turns out wrong
+  /// should be a re-derive rather than a re-fetch.
+  plaidCategory       String?
+  plaidCategoryDetail String?
+
+  /// Ours, and free text for the reason `Task.track` is (§6): categories differ
+  /// per household, and inventing one should not cost a migration.
+  category String?
+  note     String?
+
+  /// A transfer between two accounts you own is money that did not leave.
+  /// Set by the matcher in `lib/ledger.ts` — equal and opposite, within a few
+  /// days, both accounts ours — and excluded from every spending figure. Without
+  /// it, paying a credit card off looks like the largest purchase of the month.
+  isTransfer Boolean @default(false)
+
+  /// Claimed by a property, which is what puts it on a Schedule E line.
+  ///
+  /// `SetNull` rather than cascade: deleting a property must not delete the
+  /// bank's record of a payment that really happened. The row goes back to being
+  /// ordinary spending, which is what it was before anyone claimed it.
+  propertyId String?
+  property   Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+
+  /// Which Schedule E line this lands on. One of `SCHEDULE_E_LINES`.
+  taxCategory String?
+
+  /// A capital improvement is **not an expense** — it becomes an asset with a
+  /// depreciation schedule. Setting this is what moves it: the row stops being
+  /// deducted this year and starts being deducted over 27.5 of them. `SetNull`,
+  /// so deleting the asset returns the row to being an ordinary expense rather
+  /// than deleting a payment that really happened.
+  assetId String?
+  asset   DepreciableAsset? @relation(fields: [assetId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, postedOn])
+  @@index([postedOn])
+  @@index([category, postedOn])
+  @@index([pending, postedOn])
+  @@index([propertyId, postedOn])
+  @@index([taxCategory, postedOn])
+}
+
+/// A traded instrument, shared across accounts.
+///
+/// Never deleted. A security with no holdings is two rows of text, and deleting
+/// one would orphan whatever history points at it.
+model Security {
+  id String @id @default(cuid())
+
+  plaidSecurityId  String    @unique
+  tickerSymbol     String?
+  name             String?
+  /// equity | etf | mutual fund | fixed income | cash | derivative | other
+  type             String?
+  closePriceCents  Int?
+  closePriceOn     DateTime? @db.Date
+  /// A money-market sweep inside a brokerage is cash, and counting it as an
+  /// investment overstates what is actually at risk.
+  isCashEquivalent Boolean   @default(false)
+
+  updatedAt DateTime @updatedAt
+
+  holdings Holding[]
+}
+
+/// One position, in one account.
+///
+/// **Replaced wholesale on each sync**: the upsert runs over what Plaid returns
+/// and anything not returned is deleted. A holding is a *present fact*, not a
+/// log — the log is `AccountBalance` and `NetWorthSnapshot`, and keeping stale
+/// positions would mean a sold stock quietly staying in the net worth.
+model Holding {
+  id String @id @default(cuid())
+
+  /// `Float`, not cents. A share count is a measurement rather than money, and
+  /// 0.4271 shares is exact at double precision. Forcing it onto an integer
+  /// scale is how a codebase talks itself into `Decimal` for the wrong reason.
+  quantity Float
+
+  costBasisCents Int?
+  priceCents     Int?
+  valueCents     Int
+  asOf           DateTime
+
+  accountId  String
+  account    Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  securityId String
+  security   Security @relation(fields: [securityId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, securityId])
+  @@index([accountId])
+}
+
+/// What Plaid's Liabilities product knows about a loan.
+///
+/// **This model is the whole reason `liabilities` is in the product list.**
+/// `ytdInterestCents` is the Schedule E mortgage-interest line arriving monthly
+/// instead of on a Form 1098 in February — the single largest deduction on a
+/// rental, and the one number the transaction feed genuinely cannot recover,
+/// because a mortgage payment leaves the account as one figure with the split
+/// nowhere in it.
+model LoanDetail {
+  id String @id @default(cuid())
+
+  accountId String  @unique
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  /// mortgage | student | credit
+  kind String
+
+  originationOn             DateTime? @db.Date
+  originationPrincipalCents Int?
+  interestRatePercent       Float?
+  interestRateType          String?
+  maturityOn                DateTime? @db.Date
+
+  nextPaymentDueOn   DateTime? @db.Date
+  nextPaymentCents   Int?
+  escrowBalanceCents Int?
+
+  /// Year to date **as the servicer reports it**, not as we sum it.
+  ytdInterestCents  Int?
+  ytdPrincipalCents Int?
+
+  /// The servicer's own address string. Used to *suggest* which Property this
+  /// loan belongs to in Layer 3 — suggest, never assign, because matching an
+  /// address string is a guess and a mortgage attached to the wrong property is
+  /// a wrong Schedule E.
+  propertyAddress String?
+
+  refreshedAt DateTime
+}
+
+enum PropertyStatus {
+  rented
+  vacant
+  owner_occupied
+  sold
+}
+
+/// A property you own.
+///
+/// **It optionally points at a Project, and the Ledger creates one.** §6's own
+/// table of nouns gives "Rental 4B" as an example Project, and that is not a
+/// coincidence to work around: a property has tasks (fix the disposal), docs
+/// (the lease terms, the CPA's notes) and a journal (what the tenant reported in
+/// March) — and all three of those already exist, already work, and already have
+/// a page. Inventing property-tasks and property-docs would be the parallel
+/// system `AreaDoc` was refused for, three times over.
+///
+/// So the split is: **the Project holds the work, this holds the money.** The
+/// project is filed in the Home & Money area so it appears in the sidebar tree
+/// where every other project does.
+model Property {
+  id    String @id @default(cuid())
+  slug  String @unique
+  label String
+
+  addressLine String
+  city        String
+  state       String
+  postalCode  String
+
+  purchasedOn        DateTime @db.Date
+  purchasePriceCents Int
+  /// Closing costs that add to basis. Separate from the price because the two
+  /// are found in different places and one of them is always remembered late.
+  closingCostsCents  Int      @default(0)
+
+  /// Basis points of the total basis attributable to **land**, which does not
+  /// depreciate. 2000 = 20%.
+  ///
+  /// **The most consequential number in the tax engine, and the app cannot
+  /// derive it.** It comes off the county assessor's ratio of land to
+  /// improvement value. Until it is entered, depreciation is not estimated at
+  /// all — it is reported as "not computed, needs the land split", which is §6's
+  /// "an unverified date is a note, not a due date" applied to a number that
+  /// would otherwise be silently wrong by thousands of dollars a year and would
+  /// look exactly like a real figure.
+  landAllocationBasisPoints Int?
+  landAllocationSource      String?
+
+  /// When it was first *available to rent* — **not** the purchase date. Mid-month
+  /// MACRS keys off the month of this, so being a month out is a real error and
+  /// not a rounding one.
+  placedInServiceOn DateTime? @db.Date
+
+  status         PropertyStatus @default(rented)
+  soldOn         DateTime?      @db.Date
+  salePriceCents Int?
+
+  /// The automated valuation. **The range is stored and shown, never the point
+  /// estimate alone** — an AVM on anything that is not a cookie-cutter tract
+  /// house has real error bars, and a single number reads as a fact.
+  valueCents        Int?
+  valueLowCents     Int?
+  valueHighCents    Int?
+  rentEstimateCents Int?
+  /// A real instant. Refreshed roughly monthly; the free tier is 50 calls.
+  valuationAt       DateTime?
+  valuationSource   String?
+
+  /// The management company, so Layer 4's Gmail query knows what to look for.
+  managerName   String?
+  managerDomain String?
+
+  /// Drives the §469 $25,000 special allowance. A claim only a human can make,
+  /// which is why it is a column and not something inferred from activity.
+  activeParticipation Boolean @default(true)
+
+  notes String?
+
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  areaId    String?
+  area      Area?    @relation(fields: [areaId], references: [id], onDelete: SetNull)
+  /// The project that holds this property's tasks, docs and journal.
+  ///
+  /// `@unique`, so one project belongs to at most one property — `saveProperty`
+  /// mints a companion project *for* a property, and two properties sharing one
+  /// would make "the disposal is broken" ambiguous about which unit. Postgres
+  /// treats NULLs as distinct in a unique index, so any number of properties may
+  /// have no project at all.
+  projectId String?  @unique
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  loans         PropertyLoan[]
+  valuations    PropertyValuation[]
+  leases        Lease[]
+  transactions  Transaction[]
+  statements    PropertyStatement[]
+  assets        DepreciableAsset[]
+  carryforwards TaxCarryforward[]
+
+  @@index([status, sortOrder])
+}
+
+/// The valuation series.
+///
+/// Monthly, so twelve rows a year and a real line on the net-worth chart rather
+/// than a step that appears on whichever day someone happened to refresh.
+model PropertyValuation {
+  id String @id @default(cuid())
+
+  on             DateTime @db.Date
+  valueCents     Int
+  valueLowCents  Int?
+  valueHighCents Int?
+  rentCents      Int?
+  source         String
+  createdAt      DateTime @default(now())
+
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@unique([propertyId, on])
+  @@index([propertyId, on])
+}
+
+/// The mortgage — as a join rather than a column on either side.
+///
+/// Three reasons a nullable `accountId` on `Property` would have been wrong: a
+/// property can carry two loans (a HELOC behind a first), a loan can outlive the
+/// Plaid item that reported it, and the link between a servicer's address string
+/// and a property is a **guess that a human confirms**. Plaid hands back
+/// "2992 Cameron Road, Malakoff, NY" and matching that to a row by string
+/// similarity is exactly the kind of quiet inference this file keeps deleting —
+/// a mortgage attached to the wrong property is a wrong Schedule E.
+model PropertyLoan {
+  id    String @id @default(cuid())
+  label String
+
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  /// Null when the servicer is not on Plaid, in which case the manual balance
+  /// below is what was last entered by hand — visibly stale rather than absent.
+  accountId String?  @unique
+  account   Account? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+
+  manualBalanceCents Int?
+  manualRatePercent  Float?
+  manualBalanceOn    DateTime? @db.Date
+
+  sortOrder Int @default(0)
+
+  @@index([propertyId, sortOrder])
+}
+
+/// Who is in it and for how much.
+///
+/// Minimal on purpose. This is not a property management system — that is what
+/// AppFolio is, and it is where the tenant, the deposit and the renewal actually
+/// live. This exists as the **cross-check**: it is what lets the app say a
+/// month's rent did not arrive.
+model Lease {
+  id String @id @default(cuid())
+
+  tenantName       String?
+  startsOn         DateTime  @db.Date
+  endsOn           DateTime? @db.Date
+  monthlyRentCents Int
+  depositCents     Int?
+  notes            String?
+
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId, startsOn])
+}
+
+enum StatementStatus {
+  pending
+  needs_review
+  accepted
+  rejected
+}
+
+/// One monthly owner statement from the management company.
+///
+/// **It cannot be accepted until it reconciles**, and that single invariant is
+/// the entire reason a language model is allowed anywhere near this data.
+///
+/// An owner statement prints its own totals — income, expenses, the
+/// distribution, the closing balance. The extractor reads the line items *and*
+/// those totals separately, and `reconciles()` checks that the rows sum to what
+/// the document says about itself, **to the cent**. A hallucinated row, a
+/// dropped row or a misread digit fails arithmetic rather than passing review.
+/// The document carries its own checksum; the model is only being asked to
+/// transcribe it.
+///
+/// The honest limit, stated because it matters: reconciliation catches every
+/// error that changes a total, and **nothing else**. A repair mislabelled as
+/// insurance reconciles perfectly and is wrong on the Schedule E. That is why
+/// nothing is ever auto-accepted and why every row keeps its `rawText`.
+model PropertyStatement {
+  id String @id @default(cuid())
+
+  /// The month covered — first and last of it. `@db.Date`.
+  periodStart DateTime @db.Date
+  periodEnd   DateTime @db.Date
+
+  /// What the statement says about **itself**: read from its summary block
+  /// rather than summed from the rows. This is the reconciliation target, and
+  /// keeping it separate from the rows is what makes the check meaningful.
+  statedIncomeCents       Int?
+  statedExpenseCents      Int?
+  statedDistributionCents Int?
+  beginningBalanceCents   Int?
+  endingBalanceCents      Int?
+
+  status StatementStatus @default(needs_review)
+
+  /// 0–100: the **lowest** confidence of any line item, not the mean. A mean
+  /// lets nine certain rows hide the one guess, which is the row that matters.
+  confidence Int     @default(0)
+  /// Why it does not reconcile, in a sentence, when it does not.
+  problem    String?
+
+  /// gmail | upload
+  source          String
+  gmailMessageId  String?   @unique
+  gmailReceivedAt DateTime?
+
+  extractedAt    DateTime?
+  extractorModel String?
+  acceptedAt     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// `SetNull`: a statement can arrive before its property has been added, and
+  /// deleting a property must not destroy the document it came with.
+  propertyId String?
+  property   Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+
+  document  StatementDocument?
+  lineItems StatementLineItem[]
+
+  @@index([propertyId, periodStart])
+  @@index([status, periodStart])
+}
+
+/// The PDF itself, in Postgres.
+///
+/// `JournalMedia`'s decision exactly, and the size argument that made video
+/// expensive does not apply at all here: an owner statement is ~80KB and there
+/// are twelve a year per property. Bytes in the database are covered by whatever
+/// backs up the database, and behave identically in local dev and on Railway.
+///
+/// **Nothing reads `data` except `lib/statement-store.ts`.**
+model StatementDocument {
+  id String @id @default(cuid())
+
+  data     Bytes
+  mimeType String
+  byteSize Int
+  filename String?
+
+  /// SHA-256 of the bytes, unique. **This is what makes the Gmail poll
+  /// idempotent**: the same attachment fetched twice is one row whatever the
+  /// message id, so a statement forwarded to yourself, or a re-scan after a
+  /// failure, cannot double-count a month.
+  sha256 String @unique
+
+  /// The extracted text, kept so re-running the structurer never re-parses the
+  /// PDF — and so a bad extraction can be diffed against **what the parser
+  /// actually saw**, rather than against the PDF a human is reading. Those are
+  /// different documents when a layout goes wrong, and the difference is the
+  /// whole diagnosis.
+  text      String?
+  pageCount Int?
+
+  createdAt DateTime @default(now())
+
+  statementId String            @unique
+  statement   PropertyStatement @relation(fields: [statementId], references: [id], onDelete: Cascade)
+}
+
+/// One row off the statement.
+model StatementLineItem {
+  id String @id @default(cuid())
+
+  on          DateTime? @db.Date
+  description String
+  payee       String?
+  /// **Positive is money in to the owner** — the same convention as
+  /// `Transaction`, so a management fee is negative and the rent is positive.
+  amountCents Int
+
+  /// rent | other_income | management_fee | repair | capital | insurance |
+  /// property_tax | utilities | hoa | leasing_fee | distribution | reserve.
+  /// Free text; `STATEMENT_KINDS` in `lib/statement-rules.ts` lists the known
+  /// ones, for the reason `Task.track` is free text.
+  kind String
+
+  /// One of `SCHEDULE_E_LINES`. Null on a distribution or a reserve transfer,
+  /// which are movements of money rather than income or expense — and getting
+  /// that wrong is how an owner draw becomes a deduction.
+  taxCategory String?
+
+  /// The extractor's confidence in **this row**, 0–100.
+  confidence Int       @default(0)
+  reviewedAt DateTime?
+
+  /// The row verbatim, so a parse can always be checked against the page
+  /// without opening the PDF. Same argument as `MediaMeta` living beside its
+  /// encoder: the thing that was read, kept next to what was made of it.
+  rawText String?
+
+  sortOrder Int @default(0)
+
+  statementId String
+  statement   PropertyStatement @relation(fields: [statementId], references: [id], onDelete: Cascade)
+
+  @@index([statementId, sortOrder])
+  @@index([taxCategory])
+}
+
+/// Both a federal and a California method live on one asset, because California
+/// does not conform to federal bonus depreciation or to §179's federal limits —
+/// and the *difference* between the two schedules is itself a line on the CA
+/// return. One enum with two columns is cheaper than a parallel
+/// `CaDepreciableAsset`, and it is the `Doc`-over-`AreaDoc` argument (§6)
+/// applied to a number.
+enum DepreciationMethod {
+  /// Residential rental property. 27.5 years, straight line, mid-month.
+  sl_27_5_mid_month
+  /// Non-residential. 39 years, straight line, mid-month.
+  sl_39_mid_month
+  /// Appliances, carpet, furniture. 5-year MACRS, half-year convention.
+  macrs_5_hy
+  /// Land improvements — fencing, paving, landscaping. 15-year MACRS.
+  macrs_15_hy
+  section_179
+  bonus
+  /// Land. Never depreciates, and is here so the split can be recorded as an
+  /// asset rather than only as a percentage.
+  land
+}
+
+enum FilingStatus {
+  single
+  mfj
+  mfs
+  hoh
+  qw
+}
+
+/// A rule set is never edited in place. A draft is filed beside the verified one
+/// and only replaces it when every number in it has been confirmed against the
+/// quoted source — see `TaxRuleSet`.
+enum RuleSetStatus {
+  draft
+  verified
+  superseded
+}
+
+/// Something that depreciates, attached to a property.
+///
+/// **The schedule is not stored.** It is `depreciationFor(asset, year, rules)` —
+/// a pure function. A stored schedule is a cache that goes stale the instant a
+/// basis is corrected, and a basis *is* corrected, because it gets assembled
+/// from a closing statement nobody reads twice.
+model DepreciableAsset {
+  id    String @id @default(cuid())
+  label String
+
+  /// When it was first available for its intended use — **not** when it was
+  /// bought and not when it was paid for. Mid-month and half-year conventions
+  /// both key off this, so being a month out is a real error.
+  placedInServiceOn DateTime            @db.Date
+  basisCents        Int
+  method            DepreciationMethod
+  /// California's method when it differs. Null means "same as federal".
+  caMethod          DepreciationMethod?
+
+  disposedOn    DateTime? @db.Date
+  disposalCents Int?
+
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  /// The bank rows or statement lines that paid for it, when it was promoted
+  /// from an expense. `SetNull`, so deleting the asset returns them to being
+  /// ordinary expenses rather than deleting a payment that really happened.
+  transactions Transaction[]
+
+  @@index([propertyId, placedInServiceOn])
+}
+
+/// The answers only a human has.
+///
+/// Every field here is a claim the app cannot check, which is why they are all
+/// in one model with one `updatedAt` — the Tax tab shows how old the answers
+/// are, and a stale W-2 figure is the likeliest reason an estimate is wrong.
+///
+/// **A null on an income field means "derive it from the linked accounts if you
+/// can"; a zero means "there genuinely is none".** The two are different answers
+/// and collapsing them is how a missing 1099 silently becomes a $0 line.
+model TaxProfile {
+  id      String @id @default(cuid())
+  taxYear Int    @unique
+
+  filingStatus     FilingStatus
+  dependents       Int          @default(0)
+  stateOfResidence String       @default("CA")
+
+  w2WagesCents         Int?
+  spouseW2WagesCents   Int?
+  federalWithheldCents Int?
+  stateWithheldCents   Int?
+
+  selfEmploymentNetCents Int?
+
+  interestIncomeCents     Int?
+  ordinaryDividendsCents  Int?
+  qualifiedDividendsCents Int?
+  shortTermGainCents      Int?
+  longTermGainCents       Int?
+
+  hsaContributionCents       Int?
+  traditionalRetirementCents Int?
+  studentLoanInterestCents   Int?
+
+  charitableCents              Int?
+  primaryMortgageInterestCents Int?
+  primaryPropertyTaxCents      Int?
+  stateIncomeTaxPaidCents      Int?
+
+  /// The safe harbour for next year's estimated payments needs last year's
+  /// numbers, and there is nowhere else to get them.
+  priorYearTaxCents  Int?
+  priorYearAgiCents  Int?
+  estimatedPaidCents Int? @default(0)
+
+  /// §199A's rental safe harbour (Rev. Proc. 2019-38): 250 hours, separate
+  /// books, contemporaneous records. **Recorded, never asserted** — the engine
+  /// reports whether the safe harbour *appears* met and says who decides.
+  reSafeHarbourHours     Int?
+  realEstateProfessional Boolean @default(false)
+
+  updatedAt DateTime @updatedAt
+}
+
+/// Losses this year could not use.
+///
+/// `propertyId` is nullable, and **Postgres treats NULLs as distinct in a unique
+/// index** — so a null-property row is *not* protected by the constraint below.
+/// The aggregate kinds therefore go through one upsert helper in
+/// `lib/tax-actions.ts` that looks the row up first. Stated here because it is
+/// exactly the kind of thing that works for a year and then double-counts.
+model TaxCarryforward {
+  id String @id @default(cuid())
+
+  taxYear     Int
+  /// passive_loss | ca_passive_loss | capital_loss | qbi_loss
+  kind        String
+  amountCents Int
+  note        String?
+
+  propertyId String?
+  property   Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([taxYear, kind, propertyId])
+  @@index([taxYear, kind])
+}
+
+/// Every number the engine multiplies by, for one year and one jurisdiction.
+///
+/// **Nothing in the engine hardcodes a tax constant.** A bracket table written
+/// into a `.ts` file from memory is §6's festival-deadline mistake with money
+/// attached — a row you would have to stop and disprove, except that here you
+/// would not know to stop. So every number lives in `payload`, arrives flagged
+/// `draft`, and only becomes `verified` once it has been confirmed against the
+/// source quoted in `provenance`.
+///
+/// `Json` rather than a `TaxBracket` table and five friends, for two reasons: a
+/// rule set is read all at once and never queried by part, and a **draft is
+/// legitimately incomplete**, which typed columns would have to model as
+/// nullable everything. One parse function at the boundary (`parseTaxRules`) is
+/// the same shape as `decodeMediaMeta` — a wire format with exactly one
+/// definition.
+model TaxRuleSet {
+  id String @id @default(cuid())
+
+  taxYear      Int
+  /// federal | ca
+  jurisdiction String
+  version      Int           @default(1)
+  status       RuleSetStatus @default(draft)
+
+  payload    Json
+  /// Per field: the verbatim sentence it came from, the page, and who confirmed
+  /// it. A number with no provenance entry is unverified **by definition**,
+  /// which is what makes "3 numbers unverified" computable rather than
+  /// remembered.
+  provenance Json?
+
+  sourceUrl      String?
+  sourceLabel    String?
+  fetchedAt      DateTime?
+  extractorModel String?
+
+  verifiedAt   DateTime?
+  verifiedNote String?
+  supersededAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@unique([taxYear, jurisdiction, version])
+  @@index([jurisdiction, taxYear, status])
+}
+
+/// What you said about one strategy, for one year.
+///
+/// The catalogue itself is a versioned data file (`lib/tax/strategies.ts`), not
+/// rows — a strategy is a predicate plus a sentence, which is code, and code
+/// belongs in git where it can be reviewed. This model holds only the part a
+/// file cannot: what you decided about it.
+model TaxStrategyNote {
+  id String @id @default(cuid())
+
+  taxYear Int
+  slug    String
+  /// surfaced | raised | doing | declined | done
+  state   String  @default("surfaced")
+  note    String?
+
+  /// What the figure was when it was surfaced, so "you said this was worth
+  /// $4,100 in March" survives the estimate moving.
+  amountCents Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([taxYear, slug])
+  @@index([taxYear, state])
 }
