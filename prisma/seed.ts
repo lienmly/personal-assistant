@@ -75,6 +75,14 @@ const DOCS: SeedDoc[] = [
     file: "sleepy-cat-feedback.md",
     title: "Design feedback — the shared doc",
   },
+  // Links rather than prose — a resource list is structure in the same way the
+  // briefs are, and it is the page that says out loud which of them has actually
+  // been looked at.
+  {
+    projectSlug: "sleepy-cat",
+    file: "sleepy-cat-resources.md",
+    title: "Resources",
+  },
   {
     projectSlug: "utaitai",
     file: "utaitai-pricing.md",
