@@ -88,6 +88,13 @@ const DOCS: SeedDoc[] = [
     file: "utaitai-pricing.md",
     title: "What Utaitai charges",
   },
+  // The commands with a gotcha attached — the Stripe CLI's rotating webhook
+  // secret being the one that costs an evening every time it is forgotten.
+  {
+    projectSlug: "utaitai",
+    file: "utaitai-commands.md",
+    title: "Commands",
+  },
   { areaSlug: "baby", file: "baby-languages.md", title: "Languages" },
 ];
 
