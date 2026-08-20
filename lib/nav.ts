@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  BookHeart,
   CalendarDays,
   Clapperboard,
   Landmark,
@@ -26,6 +27,14 @@ import {
  * from the cards on Today and from the sidebar tree, which is where you were
  * already going for them. The roster's own jobs — create, edit, archive — moved
  * onto Today's cards, so nothing lost a home.
+ *
+ * **Journal arrived on 2026-08-19, and it is a verb surface rather than an area
+ * one.** The journal already existed on every area and every project; what did
+ * not exist was the day. "What happened on Tuesday" is not a question about the
+ * baby or about Sleepy Cat, and answering it meant opening five pages and
+ * merging them by eye. This entry is the merge — the same rows, one thread — so
+ * it obeys §6 rather than bending it: navigation by verb and time, with area as
+ * a filter across the top.
  */
 export type Surface = {
   href: string;
@@ -52,6 +61,12 @@ export const SURFACES: Surface[] = [
     label: "Calendar",
     icon: CalendarDays,
     tagline: "What actually happens at a time. Everything else is a layer.",
+  },
+  {
+    href: "/journal",
+    label: "Journal",
+    icon: BookHeart,
+    tagline: "What happened, everywhere, in the order it happened",
   },
   {
     href: "/studio",

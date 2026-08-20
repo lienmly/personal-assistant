@@ -70,6 +70,22 @@ function todayAsDate(): Date {
 type JournalOwner = { areaId: string } | { projectId: string };
 
 function ownerOf(form: FormData): JournalOwner {
+  // **The global journal posts one field, because a `<select>` holds one
+  // value.** An area or project page knows its owner and posts the column
+  // directly; `/journal` is asking which of the two it is, and a picker that
+  // posted into two fields would have to blank the other one on every change —
+  // which is the "both" case this union exists to make unspellable, reintroduced
+  // as a client-side invariant nobody would maintain.
+  const combined = str(form, "owner");
+  if (combined) {
+    const split = combined.indexOf(":");
+    const kind = combined.slice(0, split);
+    const id = combined.slice(split + 1);
+    if (kind === "area" && id) return { areaId: id };
+    if (kind === "project" && id) return { projectId: id };
+    throw new Error("Unrecognised journal owner");
+  }
+
   const areaId = str(form, "areaId");
   const projectId = str(form, "projectId");
 
@@ -98,6 +114,11 @@ function pathFor(entry: {
 
 function refresh(path: string) {
   revalidatePath(path);
+  // **Always the global journal too.** Every entry appears in exactly two
+  // places now — its owner's page and `/journal` — so revalidating only the one
+  // the write came from is how the other serves a copy that is missing the
+  // paragraph you just wrote, or still showing the one you just deleted.
+  revalidatePath("/journal");
 }
 
 /**
@@ -131,11 +152,19 @@ export async function saveJournalEntry(
   await requireSession();
 
   const id = str(form, "id");
-  // Read even when updating, because the owner is what says which page to
-  // revalidate — but never *written* on an update, for the same reason
-  // `saveDoc` refuses to re-own a doc: a stray field posted alongside an `id`
-  // should be inert rather than silently move the row.
-  const owner = ownerOf(form);
+  // **Only demanded when creating.** An update never writes the owner — the
+  // same reason `saveDoc` refuses to re-own a doc: a stray field posted
+  // alongside an `id` should be inert rather than silently move the row. And
+  // the page to revalidate comes from the row itself (`pathFor`), not from
+  // here, so an edit genuinely has no use for it. Requiring one anyway is what
+  // would force the global composer to post an owner it is not offering to
+  // change.
+  // Carried as "the columns only a create sets" rather than as a nullable
+  // owner, so the branch below narrows on the one value it needs instead of
+  // asserting that it is there.
+  const filing = id
+    ? null
+    : { ...ownerOf(form), happenedOn: todayAsDate() };
 
   const title = str(form, "title");
   // Not `str` — an emptied body is a legitimate save on an entry that has
@@ -195,7 +224,8 @@ export async function saveJournalEntry(
         select: { id: true, ...OWNER_SELECT },
       })
     : await db.journalEntry.create({
-        data: { ...owner, title, body, happenedOn: todayAsDate() },
+        // Non-null on this branch: `filing` is exactly "there was no `id`".
+        data: { ...filing!, title, body },
         select: { id: true, ...OWNER_SELECT },
       });
 

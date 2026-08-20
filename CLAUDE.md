@@ -134,7 +134,8 @@ dashboard/UI ecosystem, easy Google auth, and a clean path to embedding an AI as
 /components/tasks  → the by-track task list, shared by both too, and the checklist
                      a task's subtasks render as (board, Today and both pages)
 /lib/area-detail.ts → everything one area is, for /areas/[slug]
-/lib/journal.ts    → reading the journal (never selects media bytes)
+/lib/journal.ts    → reading the journal — one owner's, or everyone's for /journal
+                     (never selects media bytes)
 /lib/journal-actions.ts → server actions for entries and their photos/clips
 /lib/journal-filters.ts → the camera's colour grades (client-safe: no Prisma)
 /lib/media-store.ts → the **only** module that touches photo/video bytes (§6)
@@ -647,6 +648,7 @@ row. Left icon rail on desktop, bottom tab bar on mobile — same IA, no redesig
 | **Today** | The one screen opened 20×/day. "What have I got on." One card per project. |
 | **Hunt Board** | Every open Task, grouped by Project and track. The complete list, in full. |
 | **Calendar** | Time. Events only by default; Task due dates and content are layers. |
+| **Journal** | Every area's and project's journal on one thread, by day. Area is a filter. |
 | **Social Media** | Cross-project content pipeline. Kanban by stage. (Route is still `/studio`.) |
 | **Montblanc** | A drawer on every surface, so it always knows what you're looking at. |
 
@@ -2257,6 +2259,49 @@ genuinely lost. Something that happened on Tuesday and was not written on Tuesda
 be recorded as a Thursday entry that says so. That is the trade, and it is the right one
 for a journal — it is the wrong one for a diary you fill in on Sundays, which is a
 different product.
+
+### The journal became a surface — decided 2026-08-19
+
+The journal existed on every area and every project, and what did not exist was **the
+day**. A Tuesday is not about the baby or about Sleepy Cat; it is a Tuesday. Reading one
+back meant opening five pages and merging them by eye, which is the one thing this app has
+consistently refused to leave to the reader.
+
+So `/journal` is the seventh surface, and it is deliberately **not a new feature** — it is
+the same rows with the room dividers taken out. One component (`components/areas/journal.tsx`)
+still renders all three journals: a day is still one thread from morning to night, the
+composer is still its last node, and you still cannot write into a day that has gone.
+
+Four things fell out of building it:
+
+1. **Filing became a union, not two optional props.** `JournalFiling` is
+   `{ fixed }` — an owner the page already knows — or `{ choose, preferred }`, the list to
+   pick from. Same argument, in the same shape, as `JournalOwner` itself: "both" and
+   "neither" are unspellable rather than merely rejected. The picker posts one composite
+   field, `"area:<id>"` or `"project:<id>"`, because a `<select>` holds one value and a
+   picker writing into two columns would have to blank the other on every change — which
+   is the "both" case reintroduced as an invariant nobody would maintain.
+2. **An update no longer reads an owner at all.** It never *wrote* one, but it demanded
+   one, purely as a leftover; the page to revalidate comes from the row itself. So the
+   global composer omits the picker while editing rather than rendering a control that
+   silently does nothing. An edit fixes what an entry says; it does not move it.
+3. **Every write revalidates `/journal` as well as its owner's page.** An entry now appears
+   in exactly two places, and refreshing only the one the write came from is how the other
+   serves a copy missing the paragraph you just wrote.
+4. **Filtering to an area includes its projects.** Filtering to Work and not seeing that
+   morning's Utaitai entry would be the filter lying — everywhere else in this app an area
+   contains its projects. An unknown slug is a 404 rather than a silent fall-back to
+   everything, for the same reason: a filter that quietly ignores itself is one you trust
+   once.
+
+The owner chip appears **only** here. On an area or project page every entry shares one
+owner, so printing it on all of them says nothing and costs a line of chrome per row.
+
+One papercut was found and fixed while verifying: a form whose first control is a
+`<select>` submits on Enter, so tabbing to the picker and pressing Enter to open it filed a
+blank entry. The empty-entry guard refused it, so the cost was an error message rather than
+a dated nothing — but the headline field already carried exactly this guard, and now the
+picker does too.
 
 ### A day is a thread, and the composer is its last node — decided 2026-08-06
 

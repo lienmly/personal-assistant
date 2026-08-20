@@ -567,7 +567,7 @@ export default async function ProjectPage({
           is not a task, an event or a post. */}
       {tab === "journal" && (
         <Journal
-          owner={{ projectId: project.id }}
+          filing={{ fixed: { projectId: project.id } }}
           ownerName={project.name}
           days={days}
         />

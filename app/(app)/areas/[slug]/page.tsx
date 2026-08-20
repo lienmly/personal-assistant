@@ -182,7 +182,7 @@ export default async function AreaPage({
 
       {tab === "journal" && (
         <Journal
-          owner={{ areaId: area.id }}
+          filing={{ fixed: { areaId: area.id } }}
           ownerName={area.name}
           days={days}
         />

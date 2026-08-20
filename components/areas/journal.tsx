@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRef, useState, useTransition } from "react";
 import { BookHeart, Pencil, Play, Plus, Trash2, X } from "lucide-react";
 
@@ -19,6 +20,7 @@ import type {
   JournalDayView,
   JournalEntryView,
   JournalOwner,
+  JournalOwnerOption,
 } from "@/lib/journal";
 import { encodeMediaMeta } from "@/lib/media-rules";
 import { cn } from "@/lib/utils";
@@ -31,6 +33,19 @@ const fieldBase =
   "rounded-chip bg-inset px-3 py-2 text-[13px] text-ink outline-none transition-[background-color,box-shadow] duration-(--duration-base) ease-soft placeholder:text-faint hover:bg-line/60 focus:bg-card focus:ring-2 focus:ring-accent/25";
 
 const field = `w-full ${fieldBase}`;
+
+/**
+ * Where a new entry gets filed — known, or asked.
+ *
+ * A union rather than two optional props, so "both" and "neither" are
+ * unspellable rather than merely wrong: the same argument, in the same shape, as
+ * `JournalOwner` itself. An area or project page already knows the answer and
+ * passes `fixed`; the global journal does not and passes the list to choose
+ * from, with the one to start on.
+ */
+export type JournalFiling =
+  | { fixed: JournalOwner }
+  | { choose: JournalOwnerOption[]; preferred: string };
 
 /**
  * The Journal tab: one card per day, newest day first, and inside each card the
@@ -65,17 +80,19 @@ const field = `w-full ${fieldBase}`;
  * Nothing here can be overdue, ticked, or counted against a target. That is the
  * point of the noun (CLAUDE.md §6, "The Baby area is a journal, not a backlog").
  *
- * **`owner` is an area or a project**, and the component does not care which —
- * it hands the pair straight to the action, the same way `DocsTab` does. A
- * project's journal is its devlog; an area's is the Baby area's. Same noun, same
- * screen, one component.
+ * **`filing` is an area, a project, or a choice between all of them**, and the
+ * component does not care which — it hands the answer straight to the action,
+ * the same way `DocsTab` does. A project's journal is its devlog; an area's is
+ * the Baby area's; `/journal` is every one of them on one thread. Same noun,
+ * same screen, one component — which is the whole reason the global surface cost
+ * a picker and an owner chip rather than a second implementation of a day.
  */
 export function Journal({
-  owner,
+  filing,
   ownerName,
   days,
 }: {
-  owner: JournalOwner;
+  filing: JournalFiling;
   ownerName: string;
   days: JournalDayView[];
 }) {
@@ -119,7 +136,7 @@ export function Journal({
               >
                 {editing === entry.id ? (
                   <Composer
-                    owner={owner}
+                    filing={filing}
                     entry={entry}
                     onDone={() => setEditing(null)}
                   />
@@ -130,7 +147,7 @@ export function Journal({
             ))}
 
             {day.isToday && (
-              <AddNode owner={owner} startOpen={day.entries.length === 0} />
+              <AddNode filing={filing} startOpen={day.entries.length === 0} />
             )}
           </ol>
         </section>
@@ -212,14 +229,33 @@ function Entry({
           {/* The day is the heading above; what an entry adds is *when* in that
               day it was written. `timeLabel` is only a clock time when the two
               dates agree — see `lib/journal.ts`. */}
-          <span
-            className={cn(
-              "text-[12px] font-medium tabular-nums",
-              entry.sameDay ? "text-muted" : "text-faint",
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span
+              className={cn(
+                "text-[12px] font-medium tabular-nums",
+                entry.sameDay ? "text-muted" : "text-faint",
+              )}
+            >
+              {entry.timeLabel}
+            </span>
+
+            {/* Only on the global journal, where the days mix sources. Colour is
+                the area, as everywhere else — so the chip is a dot and a name,
+                not another crimson thing competing with the accent (§9). */}
+            {entry.owner && (
+              <Link
+                href={entry.owner.href}
+                className="inline-flex min-w-0 items-center gap-1.5 rounded-full bg-inset px-2 py-0.5 text-[11px] text-muted transition-colors duration-(--duration-quick) hover:text-ink"
+              >
+                <span
+                  aria-hidden
+                  className="size-1.5 shrink-0 rounded-full"
+                  style={{ background: entry.owner.color }}
+                />
+                <span className="truncate">{entry.owner.name}</span>
+              </Link>
             )}
-          >
-            {entry.timeLabel}
-          </span>
+          </div>
           {entry.title && (
             <h4 className="mt-0.5 text-[16px] font-semibold leading-snug tracking-tight text-ink">
               {entry.title}
@@ -281,10 +317,10 @@ function Entry({
  * middle of it is a form you have to scroll past.
  */
 function AddNode({
-  owner,
+  filing,
   startOpen,
 }: {
-  owner: JournalOwner;
+  filing: JournalFiling;
   startOpen: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -293,7 +329,7 @@ function AddNode({
     return (
       <Node connected={false} accent>
         <Composer
-          owner={owner}
+          filing={filing}
           // No cancel and no collapse on the always-open one: there is nothing
           // to go back to on a day with nothing in it.
           onDone={open ? () => setOpen(false) : undefined}
@@ -317,11 +353,11 @@ function AddNode({
 }
 
 function Composer({
-  owner,
+  filing,
   entry,
   onDone,
 }: {
-  owner: JournalOwner;
+  filing: JournalFiling;
   entry?: JournalEntryView;
   onDone?: () => void;
 }) {
@@ -376,18 +412,65 @@ function Composer({
       className={cn(pending && "pointer-events-none opacity-45")}
     >
       {/* Whichever half of the owner this journal has. The action reads the
-          pair as a union, so exactly one of these ever exists. */}
-      {"areaId" in owner ? (
-        <input type="hidden" name="areaId" value={owner.areaId} />
-      ) : (
-        <input type="hidden" name="projectId" value={owner.projectId} />
-      )}
+          pair as a union, so exactly one of these ever exists.
+
+          **Only on a new entry.** An edit never re-files — `saveJournalEntry`
+          does not read an owner once an `id` is posted, because fixing what an
+          entry says is not the same as moving it. Posting one anyway would be a
+          field that silently does nothing, which is worse than not sending it. */}
+      {!entry &&
+        ("fixed" in filing ? (
+          "areaId" in filing.fixed ? (
+            <input type="hidden" name="areaId" value={filing.fixed.areaId} />
+          ) : (
+            <input
+              type="hidden"
+              name="projectId"
+              value={filing.fixed.projectId}
+            />
+          )
+        ) : null)}
       {entry && <input type="hidden" name="id" value={entry.id} />}
 
       {/* No date field. A new entry lands on today, from the server's clock, and
           an edit never moves an existing one — the point of the journal is that
           its times are facts rather than choices. §6, "The date is not a field". */}
       <div className="flex flex-wrap items-center gap-2">
+        {/* The global journal's one extra control, and it sits *before* the
+            headline because it is the first thing you answer — "this is about
+            the baby" comes before what about her. It starts on wherever the last
+            entry went, so the common case (a run of entries about one thing) is
+            no taps at all. Absent while editing: see the note on the hidden
+            fields above. */}
+        {!entry && "choose" in filing && (
+          <select
+            name="owner"
+            defaultValue={filing.preferred}
+            aria-label="File this under"
+            // Enter moves on, it does not post — the same guard the headline
+            // below carries, and here for a sharper version of the same reason.
+            // A form whose first control is a `<select>` submits on Enter, so
+            // tabbing to the picker and pressing Enter to open it files a blank
+            // entry instead. (`saveJournalEntry` refuses that one, so the cost
+            // is an error message rather than a dated nothing — but an error
+            // message for pressing Enter on a picker is still wrong.) When the
+            // native dropdown is actually open Chrome consumes the key itself,
+            // so choosing an option with Enter is untouched.
+            onKeyDown={(event) => {
+              if (event.key !== "Enter") return;
+              event.preventDefault();
+              body.current?.focus();
+            }}
+            className={`${fieldBase} max-w-full shrink-0 cursor-pointer font-medium`}
+          >
+            {filing.choose.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        )}
+
         <input
           name="title"
           defaultValue={entry?.title ?? ""}
