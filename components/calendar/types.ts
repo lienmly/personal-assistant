@@ -4,7 +4,10 @@ import type { Recurrence } from "@prisma/client";
  *  must not pull `lib/db` into the bundle. Same rule as studio/, board/ and
  *  today/. */
 
-export type CalendarKind = "event" | "task" | "item";
+/** The fourth, `holiday`, has no row behind it — it is computed from the day
+ *  key by `lib/holidays.ts`. See there for why that is allowed where a seeded
+ *  event is not. */
+export type CalendarKind = "event" | "task" | "item" | "holiday";
 
 /**
  * One thing on one day of the grid.

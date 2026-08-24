@@ -299,7 +299,11 @@ function Entry({
 
       {entry.body && (
         <div className="mt-1.5">
-          <Markdown source={entry.body} />
+          {/* `breaks`, because this was typed rather than wrapped: a single Enter
+              in the composer is a person starting a new line, and Markdown's
+              own rule of joining them turned an entry written in three
+              thoughts into one run-on paragraph. */}
+          <Markdown source={entry.body} breaks />
         </div>
       )}
 

@@ -9,11 +9,15 @@ import { parseMarkdown, type Block, type Inline } from "@/lib/markdown";
  */
 export function Markdown({
   source,
+  breaks = false,
   skipLeadingHeading = false,
   className = "text-[13.5px] leading-relaxed text-ink/90",
   onLinkClick,
 }: {
   source: string;
+  /** Treat a single newline as a line break rather than joining the lines.
+   *  What a journal entry wants and a doc does not — see `parseMarkdown`. */
+  breaks?: boolean;
   /** Drop a heading that opens the document. A doc pasted from a file starts
    *  with its own title, and the reader already renders one above — without
    *  this the page says the same sentence twice, in two sizes. */
@@ -26,7 +30,7 @@ export function Markdown({
    *  opens a tab and leaves this page alone. */
   onLinkClick?: () => void;
 }) {
-  const parsed = parseMarkdown(source);
+  const parsed = parseMarkdown(source, { breaks });
   const blocks =
     skipLeadingHeading && parsed[0]?.kind === "heading"
       ? parsed.slice(1)
@@ -148,6 +152,8 @@ function InlineRun({
             );
           case "italic":
             return <em key={index}>{piece.text}</em>;
+          case "break":
+            return <br key={index} />;
           case "code":
             return (
               <code

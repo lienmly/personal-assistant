@@ -19,7 +19,10 @@ export type Inline =
   | { kind: "bold"; text: string }
   | { kind: "italic"; text: string }
   | { kind: "code"; text: string }
-  | { kind: "link"; text: string; href: string };
+  | { kind: "link"; text: string; href: string }
+  /** A single newline inside a paragraph, kept rather than collapsed. Only
+   *  ever emitted when `parseMarkdown` is asked for `breaks` — see there. */
+  | { kind: "break" };
 
 export type Block =
   | { kind: "heading"; level: 2 | 3 | 4; content: Inline[] }
@@ -90,15 +93,56 @@ function parseInline(source: string): Inline[] {
   return out;
 }
 
-/** Markdown source → blocks. Never throws: unparseable input is a paragraph. */
-export function parseMarkdown(source: string): Block[] {
+/**
+ * Split the newlines a `breaks` paragraph carries into real break tokens.
+ *
+ * Done after `parseInline` rather than before it so the inline grammar never
+ * has to know about them: a break can only ever appear between pieces, and the
+ * only piece that can contain one is plain text.
+ */
+function withBreaks(pieces: Inline[]): Inline[] {
+  const out: Inline[] = [];
+  for (const piece of pieces) {
+    if (piece.kind !== "text" || !piece.text.includes("\n")) {
+      out.push(piece);
+      continue;
+    }
+    const lines = piece.text.split("\n");
+    lines.forEach((line, index) => {
+      if (index > 0) out.push({ kind: "break" });
+      if (line !== "") out.push({ kind: "text", text: line });
+    });
+  }
+  return out;
+}
+
+/**
+ * Markdown source → blocks. Never throws: unparseable input is a paragraph.
+ *
+ * **`breaks` decides what a single Enter means**, and the two callers want
+ * opposite answers. A doc is *written in a file* and hard-wrapped at 80
+ * columns, so a line ending there is where the text ran out and joining is
+ * correct — that is the Markdown rule, and it is what makes a wrapped bullet
+ * one bullet. A journal entry is *typed into a textarea*: Enter is a person
+ * pressing Enter, and collapsing it turns three thoughts into one run-on
+ * paragraph. So the journal passes `breaks` and nothing else does.
+ */
+export function parseMarkdown(
+  source: string,
+  options: { breaks?: boolean } = {},
+): Block[] {
+  const breaks = options.breaks ?? false;
   const lines = source.replace(/\r\n/g, "\n").split("\n");
   const blocks: Block[] = [];
   let paragraph: string[] = [];
 
   const flush = () => {
     if (paragraph.length === 0) return;
-    blocks.push({ kind: "paragraph", content: parseInline(paragraph.join(" ")) });
+    const content = parseInline(paragraph.join(breaks ? "\n" : " "));
+    blocks.push({
+      kind: "paragraph",
+      content: breaks ? withBreaks(content) : content,
+    });
     paragraph = [];
   };
 

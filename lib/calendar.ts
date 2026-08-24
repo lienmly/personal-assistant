@@ -13,6 +13,7 @@ import {
   timeLabel,
 } from "@/lib/calendar-keys";
 import { db } from "@/lib/db";
+import { holidaysOn } from "@/lib/holidays";
 import { TOP_LEVEL_ONLY } from "@/lib/task-view";
 import { localDayKey } from "@/lib/utils";
 
@@ -224,7 +225,7 @@ export async function getCalendar(
   days: string[],
   options: { areaSlug?: string | null; kinds?: CalendarKind[] } = {},
 ): Promise<CalendarData> {
-  const kinds = options.kinds ?? ["event", "task", "item"];
+  const kinds = options.kinds ?? ["event", "task", "item", "holiday"];
   const wanted = new Set(kinds);
 
   const first = days[0];
@@ -368,16 +369,54 @@ export async function getCalendar(
     });
   }
 
+  /**
+   * The fourth source, and the only one with no table behind it.
+   *
+   * **Deliberately not area-filtered.** The other three carry an `areaId` and
+   * narrow with the pill row; a holiday belongs to no area, so filtering to
+   * Baby and losing Tết would be the filter answering a question nobody asked.
+   * Its colour is a token rather than an area's, which says the same thing on
+   * screen: this row is about the day, not about you.
+   */
+  if (wanted.has("holiday")) {
+    for (const holiday of holidaysOn(days)) {
+      push({
+        id: `holiday:${holiday.region}:${holiday.key}:${holiday.name}`,
+        sourceId: holiday.key,
+        kind: "holiday",
+        title: holiday.name,
+        day: holiday.key,
+        allDay: true,
+        startMinutes: 0,
+        endMinutes: 0,
+        timeLabel: null,
+        color: "var(--color-faint)",
+        meta: holiday.meta,
+        done: false,
+        span: "single",
+        repeats: false,
+      });
+    }
+  }
+
   for (const day of days) {
     byDay[day].sort(
       (a, b) =>
         Number(b.allDay) - Number(a.allDay) ||
+        // Holidays last among the all-day rows. They are the context a day sits
+        // in, not the first thing you need off it, and a month cell shows three.
+        Number(a.kind === "holiday") - Number(b.kind === "holiday") ||
         a.startMinutes - b.startMinutes ||
         a.title.localeCompare(b.title),
     );
   }
 
-  const counts: Record<CalendarKind, number> = { event: 0, task: 0, item: 0 };
+  const counts: Record<CalendarKind, number> = {
+    event: 0,
+    task: 0,
+    item: 0,
+    holiday: 0,
+  };
   for (const day of days) {
     for (const item of byDay[day]) counts[item.kind] += 1;
   }

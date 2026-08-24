@@ -1,7 +1,8 @@
 # The Calendar
 
 _Written 2026-08-01, when Phase 4 shipped. Updated 2026-08-04 — the grid now starts
-empty: events only, with tasks and social media content as layers you switch on. Update
+empty: events only, with tasks and social media content as layers you switch on. Updated
+2026-08-23 — US and Vietnamese holidays are a fourth layer, on by default. Update
 this when calendar behaviour changes._
 
 The Calendar is the only surface organised by **time** rather than by state. Everything
@@ -11,13 +12,14 @@ else in Clan Centurio answers "what needs doing"; this one answers "what is my d
 
 ## What's on it
 
-Three different things share one grid, and they are told apart by **shape**, not colour:
+Four different things share one grid, and they are told apart by **shape**, not colour:
 
 | Glyph | What it is | Clicking it |
 |---|---|---|
 | **▌ bar** | An **Event** — something that happens at a time | Opens the event panel |
 | **▪ square** | A **Task** due that day | Goes to the Hunt Board |
 | **● dot** | **Social media content** going out at that time | Goes to Social Media |
+| **◆ diamond** | A **holiday** — US or Vietnamese | Nothing. There is no row behind it |
 
 Colour is the **area** (or, for a content item, the brand) — orange for Baby, blue for Work, and
 so on. That's why shape carries the type: colour is already saying something else.
@@ -26,9 +28,29 @@ Only Events actually live on the calendar. Task due dates and Content item publi
 *shown* here but still belong to the Hunt Board and Studio, which is why clicking them
 takes you there. The calendar is not a second place to edit them.
 
+### Holidays
+
+US and Vietnamese holidays are on the grid by default. They are **computed, not stored** —
+nothing was seeded, so there is no year they run out in, and there is nothing to edit or
+delete. Tap the "holidays" count to hide them.
+
+The US list is the eleven federal holidays plus the days a household actually marks —
+Valentine's, Easter, Mother's and Father's Day, Halloween, Christmas Eve, New Year's Eve.
+A federal holiday falling at a weekend stays on its real date and says where it is
+observed ("observed Fri 3 Jul") rather than appearing twice.
+
+The Vietnamese list is the six public holidays plus the lunar days a family keeps: Ông
+Công Ông Táo, Rằm tháng Giêng, Tết Đoan Ngọ, Vu Lan and Trung Thu. Every lunar date is
+worked out from the moon rather than looked up in a table, in Vietnam's own timezone,
+which is what makes Tết land on the right day. **Tết is four rows** — the eve and the
+first three days — because that is the week as it is actually lived.
+
+Holidays ignore the area filter and are drawn in a neutral colour, because they belong to
+no area. They are about what day it is, not about you.
+
 ### Layers — and why the grid starts empty
 
-The three counts under the grid are also **switches**. Tap one to show or hide that layer.
+The four counts under the grid are also **switches**. Tap one to show or hide that layer.
 
 **Only events are on by default.** Social media content came off on 3 August 2026 — the
 two Utaitai dailies alone were putting 34 dots on an August grid, two a day, most of them

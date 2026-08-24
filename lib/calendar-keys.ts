@@ -39,11 +39,19 @@ export function isCalendarView(value: string | undefined): value is CalendarView
  * *happens at a time* is put in it. Off, not gone: a due date is still a date,
  * and the day you want the month laid out against your deadlines it is one tap
  * in the legend.
+ *
+ * **Holidays are on by default, and they are the exception that proves the
+ * rule** (2026-08-23). Everything above is about the app asserting things
+ * nobody told it — a task you owe drawn as an appointment, an in-law visit you
+ * never arranged. Tết is neither: it is not a claim about your life, it is what
+ * day it is, the same kind of fact as "Sunday". Nothing about it can be
+ * overdue, ticked or missed, and there is no row to delete. It is still a
+ * layer, because a month you want empty should be able to be empty.
  */
-export const DEFAULT_LAYERS: CalendarKind[] = ["event"];
+export const DEFAULT_LAYERS: CalendarKind[] = ["event", "holiday"];
 
 /** Canonical order, so the same set always serialises to the same URL. */
-const LAYER_ORDER: CalendarKind[] = ["event", "task", "item"];
+const LAYER_ORDER: CalendarKind[] = ["event", "holiday", "task", "item"];
 
 /**
  * A malformed `?layers=` falls back to the default rather than throwing — the

@@ -58,7 +58,7 @@ photo:
 | Field | Notes |
 |---|---|
 | Headline | Only when it deserves one. "First time she laughed" does; most days it doesn't. |
-| What happened | Markdown, same as docs — headings, lists, **bold**, links. |
+| What happened | Markdown, same as docs — headings, lists, **bold**, links. Enter starts a new line and stays one: unlike a doc, a single line break in an entry is kept exactly as you typed it. |
 
 **There is no date field, and that is deliberate.** An entry lands on today, at
 the time you wrote it, taken from the clock rather than from anything you typed.

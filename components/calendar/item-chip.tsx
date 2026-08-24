@@ -11,7 +11,8 @@ import { cn } from "@/lib/utils";
  *
  * The glyph is the whole legend: a **bar** is an event (it occupies time), a
  * **square** is a task due (a thing to finish), a **dot** is a content item going out
- * (an instant). Three shapes rather than three colours, because colour is
+ * (an instant), and a **diamond** is a holiday (a fact about the day, belonging
+ * to nobody). Four shapes rather than four colours, because colour is
  * already spoken for — it carries the *area* (or the brand), which is the other
  * thing you need to read off a cell at a glance. Encoding both in colour would
  * mean neither could be read.
@@ -34,7 +35,9 @@ export function ItemGlyph({
           ? "h-2.5 w-[3px] rounded-full"
           : kind === "task"
             ? "size-1.5 rounded-[2px]"
-            : "size-1.5 rounded-full",
+            : kind === "holiday"
+              ? "size-1.5 rotate-45 rounded-[1px]"
+              : "size-1.5 rounded-full",
         className,
       )}
       style={{ background: color }}
@@ -101,6 +104,13 @@ export function ItemChip({
     );
   }
 
+  // A holiday goes nowhere, because there is nothing behind it to open — no
+  // row, nothing to edit, nothing owed. It reads as a label on the day, which
+  // is what it is.
+  if (item.kind === "holiday") {
+    return <span className={cn(className, "text-muted")}>{body}</span>;
+  }
+
   return (
     <Link href={item.kind === "task" ? "/board" : "/studio"} className={className}>
       {body}
@@ -134,6 +144,7 @@ export function Legend({
 }) {
   const entries: Array<[CalendarItem["kind"], string]> = [
     ["event", "events"],
+    ["holiday", "holidays"],
     ["task", "tasks due"],
     ["item", "social media content"],
   ];

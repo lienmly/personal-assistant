@@ -154,6 +154,8 @@ dashboard/UI ecosystem, easy Google auth, and a clean path to embedding an AI as
 /lib/tracks.ts     → workstream names (client-safe: no Prisma import)
 /lib/calendar.ts   → the window query, recurrence expansion, the three-source merge
 /lib/calendar-keys.ts → day-key arithmetic (client-safe: no Prisma import)
+/lib/holidays.ts   → US + Vietnamese holidays, computed from the day key —
+                     no rows, no seed (client-safe: no Prisma import)
 /lib/event-actions.ts → server actions for events
 /lib/markdown.ts   → a small Markdown subset, parsed to a block tree
 /lib/doc-actions.ts → server actions for project docs
@@ -2260,6 +2262,78 @@ be recorded as a Thursday entry that says so. That is the trade, and it is the r
 for a journal — it is the wrong one for a diary you fill in on Sundays, which is a
 different product.
 
+### Enter is a line break, because it was typed — decided 2026-08-23
+
+A journal entry written in three lines rendered as one run-on paragraph.
+`parseMarkdown` joins consecutive lines with a space, which is **the Markdown
+rule and it is right for a doc**: a doc is written in a file, hard-wrapped at 80
+columns, so a line ending there is where the text ran out — that is the same fact
+`opensBlock` exists to establish, and what makes a wrapped bullet one bullet.
+
+**It is wrong for a textarea.** Nobody wrapping at 80 columns is typing into the
+composer at 3am; a newline there is a person pressing Enter, and collapsing it
+discards the only structure the entry had. Same asymmetry the journal keeps
+finding against the docs: one is composed, the other is recorded.
+
+So `parseMarkdown(source, { breaks })` and `<Markdown breaks />`, passed by the
+journal and by nothing else. Three details:
+
+1. **The break is an `Inline` token, split out after `parseInline` rather than
+   inside it.** A break can only ever fall between pieces, and the only piece
+   that can contain one is plain text — so the inline grammar never learns about
+   newlines and cannot get them wrong inside a link or a code span.
+2. **A per-caller option, not a change to the renderer.** Flipping it globally
+   would put a hard break at the end of every wrapped line of every doc in
+   `prisma/docs/`, which is the bug this file spent 2026-08-05 removing from list
+   runs and blockquotes, reintroduced at the paragraph level.
+3. **Lists and blockquotes still join**, in both modes. A bulleted entry is a
+   list either way, and a break inside one item is a thing nobody has typed.
+
+### A holiday is what day it is, not something you owe — decided 2026-08-23
+
+US and Vietnamese holidays are a **fourth calendar layer**, computed by
+`lib/holidays.ts` from the day key itself. No rows, no seed, no table.
+
+This looks like a straight contradiction of "nothing but you creates an event"
+(§6, 2026-08-03) and it is the one honest exception, for a reason that generalises
+the rule rather than bending it. That refusal is about the app **asserting things
+about your life** — an in-law visit you never arranged is a row you must stop and
+*disprove*. Tết is not a claim about your life. It is the same kind of fact as
+"Sunday": nothing about it can be overdue, ticked, missed or attended, and there
+is nothing to disprove because nobody said you were doing anything.
+
+Five decisions, each over an obvious alternative that fails:
+
+1. **Computed, never stored.** Every date is a fixed rule (4 July), an ordinal
+   weekday rule (fourth Thursday of November), or an astronomical one — the lunar
+   calendar and Easter's computus. **Not one is transcribed from memory**, which
+   is the same standard §6 sets for a tax constant and for a festival deadline: a
+   date this app cannot derive or check is a note, not a row. Seeding a table of
+   them would also mean the calendar quietly ran out in 2030.
+2. **The lunar conversion is Hồ Ngọc Đức's algorithm, resolved in UTC+7.** A
+   lunar day begins at midnight *in Vietnam*, and computing the new moon in any
+   other zone puts Tết a day out in roughly one year in three — the failure being
+   invisible, because a Tết on the 16th looks exactly as plausible as one on the
+   17th. Verified against 2025–2028: Tết on 29 Jan, 17 Feb, 6 Feb, 26 Jan.
+3. **On by default**, which no other optional layer is. Tasks and content came
+   off because they were things you owe drawn as things that happen; a holiday
+   *is* a thing that happens, and a calendar that has to be told to know it is
+   Christmas is not being restrained, it is being wrong. Still a layer, because a
+   month you want empty should be able to be empty.
+4. **Not area-filtered, and coloured with a token rather than an area's.**
+   Filtering to Baby and losing Tết would be the filter answering a question
+   nobody asked. The neutral colour says the same thing on screen: this row is
+   about the day, not about you. The glyph is a fourth shape — a diamond — for
+   the reason the other three are shapes (§6, the calendar's legend).
+5. **The chip goes nowhere.** No panel, no link, no hover target: there is no row
+   behind it to open. It is a label on the day, which is what it is.
+
+**Tết is four rows** — the eve and the first three days — because that is how the
+week is actually lived and how the country's leave is actually granted. One row
+saying "Tết" against a week nobody is working would be the calendar being tidier
+than the truth. Federal holidays that fall at a weekend stay on their real date
+and carry "observed Fri 3 Jul" as their second line, rather than appearing twice.
+
 ### The journal became a surface — decided 2026-08-19
 
 The journal existed on every area and every project, and what did not exist was **the
@@ -3736,4 +3810,4 @@ constants need a person and an afternoon. See "Known gaps" in §5.
 > recorded in §6 or a gap already listed in §5. Git history has them. **Record decisions in
 > §6 and gaps in §5; do not start a changelog at the bottom again.**
 
-_Last updated: 2026-08-16_
+_Last updated: 2026-08-23_
