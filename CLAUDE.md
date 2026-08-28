@@ -178,7 +178,9 @@ dashboard/UI ecosystem, easy Google auth, and a clean path to embedding an AI as
 /public/sw.js      → the service worker: installability + an offline page, nothing else
 /public/offline.html → what a failed page load shows. Entirely self-contained (§6)
 /public/icons      → home-screen icons, generated — never hand-edited
-/scripts/generate-icons.mjs → draws them from the moogle mark. No dependency (§6)
+/scripts/generate-icons.mjs → draws them from the moogle mark, and the tab icon too.
+                     No dependency (§6)
+/app/favicon.ico   → the browser tab, generated — never hand-edited
 /components/shell/service-worker.tsx → registers it; renders nothing
 /public            → static assets, icons, branding
 /assets            → styling reference screenshots — consult before building UI (§9)
@@ -725,10 +727,18 @@ Five decisions, each chosen over an obvious alternative that fails:
    has never supported SVG and Chrome's support for SVG manifest icons is patchy — and the
    failure mode is a blank square on the one screen this whole change exists to improve.
    `scripts/generate-icons.mjs` redraws the mark from three primitives and encodes the PNG
-   itself, because pulling in an image library to produce four files that change once a
+   itself, because pulling in an image library to produce five files that change once a
    year is the larger cost. A **maskable** copy exists separately and is drawn smaller:
    Android masks a home-screen icon to the launcher's shape, and an "any" icon fed through
    that mask loses the pom off the top.
+   **The browser tab came from the same script on 2026-08-28**, and until then was
+   still Create Next App's default — so the place the app is seen most often carried
+   somebody else's logo. `app/favicon.ico` is a directory of three PNGs (16, 32, 48),
+   which is legal in an .ico and saves writing a second encoder for the old
+   BMP-plus-AND-mask format. **The mark is drawn larger there — 0.82 of the tile
+   against 0.6** — because a home-screen icon's padding is supplied by the launcher
+   grid around it, and at 16px that same padding is a third of the picture spent on
+   nothing, leaving a few grey pixels where the moogle was.
 4. **The install files are exempt from the proxy.** The browser fetches the manifest, the
    icons and the worker *before* anyone has signed in. Gated, each one 302s to /login — a
    manifest that fails to parse costs the install prompt outright, silently, with no error
@@ -3810,4 +3820,4 @@ constants need a person and an afternoon. See "Known gaps" in §5.
 > recorded in §6 or a gap already listed in §5. Git history has them. **Record decisions in
 > §6 and gaps in §5; do not start a changelog at the bottom again.**
 
-_Last updated: 2026-08-23_
+_Last updated: 2026-08-28_

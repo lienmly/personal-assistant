@@ -223,3 +223,62 @@ for (const { file, size, artHeight, bgRadius } of OUTPUTS) {
   writeFileSync(path, encodePng(size, render(size, { artHeight, bgRadius })));
   console.log(`  ${file}  ${size}x${size}`);
 }
+
+// --- the browser tab --------------------------------------------------------
+
+/**
+ * `app/favicon.ico` — which until this was written was still Create Next App's
+ * default, so the place the app is seen most often carried somebody else's
+ * logo.
+ *
+ * An .ico is a directory of whole images and the browser picks the one nearest
+ * the size it needs: 16px for a tab, 32px for a bookmark bar, 48px for a
+ * desktop shortcut. Each entry here is a PNG, which is legal in an .ico and
+ * understood by everything since IE11 — and it means this reuses the encoder
+ * above rather than growing a second one for the ancient BMP-with-an-AND-mask
+ * format.
+ *
+ * The mark is drawn *larger* than on the home-screen icons — 0.82 of the tile
+ * against 0.6. That padding is right at 192px, where the icon sits in a
+ * launcher grid that supplies its own spacing; at 16px it is a third of the
+ * picture spent on nothing and what survives of the moogle is a few grey
+ * pixels. The corner radius shrinks with it for the same reason: 0.22 of a
+ * 16px tile rounds away most of the background it is meant to shape.
+ */
+const ICO_SIZES = [16, 32, 48];
+
+function encodeIco(images) {
+  const header = Buffer.alloc(6);
+  header.writeUInt16LE(0, 0); // reserved
+  header.writeUInt16LE(1, 2); // 1 = icon (2 would be a cursor)
+  header.writeUInt16LE(images.length, 4);
+
+  const entries = [];
+  let offset = header.length + images.length * 16;
+
+  for (const { size, png } of images) {
+    const entry = Buffer.alloc(16);
+    entry[0] = size === 256 ? 0 : size; // 0 means 256 — the field is one byte
+    entry[1] = size === 256 ? 0 : size;
+    entry[2] = 0; // palette entries: none, this is truecolour
+    entry[3] = 0; // reserved
+    entry.writeUInt16LE(1, 4); // colour planes
+    entry.writeUInt16LE(32, 6); // bits per pixel
+    entry.writeUInt32LE(png.length, 8);
+    entry.writeUInt32LE(offset, 12);
+    entries.push(entry);
+    offset += png.length;
+  }
+
+  return Buffer.concat([header, ...entries, ...images.map((i) => i.png)]);
+}
+
+{
+  const images = ICO_SIZES.map((size) => ({
+    size,
+    png: encodePng(size, render(size, { artHeight: 0.82, bgRadius: 0.12 })),
+  }));
+  const path = join(ROOT, "app/favicon.ico");
+  writeFileSync(path, encodeIco(images));
+  console.log(`  app/favicon.ico  ${ICO_SIZES.join(", ")}`);
+}
