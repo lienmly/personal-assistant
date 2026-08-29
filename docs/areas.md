@@ -160,6 +160,17 @@ away, which is what makes cropping them to a neat grid fair. A lone photo isn't
 cropped at all — one photo isn't a grid, it's *the* photo. A clip shows its first
 frame with a play button, and plays in the viewer.
 
+On a phone you can **flick sideways** to the next one, and you can **pinch a photo
+to zoom in** — or double-tap it, which jumps to about two and a half times and
+double-taps back out again. While it is zoomed a drag moves the picture around
+inside the screen instead of changing photo, so you can get to the corners; let it
+go back to normal size and the flick works again. Moving to another photo always
+starts it back at normal size. Clips don't zoom.
+
+A stored photo is around 1600 pixels wide and a phone shows it at about 400, so
+most of what the camera caught is genuinely there to be looked at — this is the
+difference between seeing that she is holding something and seeing what it is.
+
 ### Getting a copy into your camera roll
 
 Open a photo or clip full screen and there's a **download button** in the corner.

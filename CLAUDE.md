@@ -227,6 +227,7 @@ Ordered so each phase builds on the last. We ship and use each layer before movi
 | 6 | 2026-08-12/14 | **The Ledger**, in eight layers: accounts and net worth → transactions, holdings, liabilities → property → statements → tax rule sets and Schedule E → the estimate pipeline → strategies and rule updates → Montblanc's Ledger tools and `docs/ledger.md` |
 | 6.1 | 2026-08-28 | **The content idea came forward and the channel went back.** Hunt Board hidden (not retired); a project's Social media tab became the same stage board Studio shows, clickable into the same panel; channel handles demoted to platform labels inside an item |
 | 6.2 | 2026-08-28 | **Content cards drag between stages**, on a finger as well as a mouse — pointer events rather than HTML5 DnD, which is what made the long-standing refusal stop applying |
+| 6.3 | 2026-08-29 | **A photo pinches** — two-finger zoom, double-tap, and pan-instead-of-swipe once it is open. The second refusal that stopped applying, for the same reason as the first |
 
 Two things about Phase 6 worth carrying forward. **A whole life area cost one entry in
 `lib/nav.ts`**, which is the test §6 says the IA was built to pass. And it ships **nine check
@@ -292,8 +293,10 @@ repeated: *this has never been used on a real phone.*
       the sprint's failure: a thing that speaks unbidden about what you have not done.
 - [ ] **`prefers-color-scheme` is ignored.** Following the sun and following the OS are
       different answers, and wiring both needs a fourth mode. §11.
-- [ ] **No pinch to zoom** in the photo viewer, and **no face/AR filters** in the camera —
-      the latter needs a face-landmark model of several megabytes tracked per frame.
+- [ ] **No face/AR filters** in the camera — dog ears and sparkles need a face-landmark
+      model of several megabytes shipped into the page and tracked per frame, which is a
+      build in its own right rather than a detail of the camera. (Pinch to zoom *was* the
+      other half of this line and shipped 2026-08-29 — see §6.)
 - [ ] **No recurring posting task for Coding Mom.** A daily row nagging about an account that
       does not exist is the thing this app keeps deleting; the last row of the setup chain is
       what creates it.
@@ -314,6 +317,15 @@ repeated: *this has never been used on a real phone.*
 - [ ] **Never used on a real phone.** Every phase since 4.8 records this. The closest anything
       has come is §9's same-origin 390×844 iframe, which is a genuine phone *viewport* in a
       desktop Chrome — no touch inertia, no rubber-banding, no address bar.
+      **The photo viewer's pinch is the sharpest instance.** Every rule of it is verified in
+      that iframe — the focal point held to a tenth of a pixel through an off-centre pinch, the
+      pan clamped at the photo's own edges, the double tap in and out, the swipe suppressed
+      while zoomed and working again at rest, the reset on moving photo, the hand-over from two
+      fingers to one — but by **synthetic pointer events**, which are two fingers in arithmetic
+      and not two fingers. What that cannot show is whether iOS lets the gesture through at all
+      rather than zooming the page around it: `touch-action: none` on the slide is the whole
+      defence, and if it turns out not to be enough the fallback is a non-passive `touchmove`
+      calling `preventDefault`, exactly as §6's card drag needed.
 - [ ] **Never installed on a real phone.** Desktop Chrome proves the manifest, the worker and
       the offline page; it cannot show the iOS install flow or the standalone status bar.
 - [ ] **The Ledger has never been looked at in a browser at all.** The Chrome extension has no
@@ -2974,6 +2986,69 @@ and a neighbour slide is mounted long before it is the one you are looking at �
 effect is what pauses the clip you just swiped away from, which would otherwise carry on
 playing off screen.
 
+### A photo is larger than the screen showing it — decided 2026-08-29
+
+**No pinch to zoom** sat in §5's "Deliberately not built" from the day the viewer was written,
+and unlike everything else on that list it never carried a reason of its own — it was grouped
+with the camera's face filters, which are refused for a real one (a face-landmark model of
+several megabytes, tracked per frame). Pinching needs no model and no dependency. It was on
+that list because nobody had written it, which is a different thing from a decision.
+
+The case for writing it is arithmetic. A photo is downscaled to **1600px on the long edge**
+before it is stored (§6, "Photos live in Postgres") and a phone shows it in about 390 — so
+roughly three quarters of what the camera caught has never been on screen. On the one surface
+whose subject is a four-month-old, that is the difference between seeing that she is holding
+something and seeing *what*. Every other photo viewer on the device pinches, so one that does
+not reads as broken rather than as restrained — which is the argument the swipe was built on
+three weeks earlier, about the same screen.
+
+Six decisions, each chosen over an obvious alternative that fails:
+
+1. **A drag means one thing at a time, and the scale decides which.** At rest a drag is a
+   swipe; on a zoomed photo it pans, and there is no width at which it could be either. The
+   tempting version — pan until you reach the edge, then let the swipe take over — is how you
+   leave a photo by accident while trying to look at its left-hand side, and the recovery is
+   to swipe back and zoom in again. Getting out is a double tap or a pinch back down, which is
+   a gesture you performed on purpose. The **arrows and the arrow keys are untouched** and
+   still work while zoomed, exactly as they remained the keyboard's route through the swipe.
+2. **The pan bound is the photo's own box, not the viewport.** At `scale` the picture is
+   exactly that much larger than the box it was laid out in, so half the difference each way
+   reaches every part of it and one pixel further is empty ground being dragged into view.
+   Measuring against the window instead is wrong for a photo narrower than the screen — the
+   frame that has to stay covered is the picture's, not the display's.
+3. **Every pinch frame is computed from where the gesture started**, never accumulated onto
+   the last one, so nothing drifts over a long gesture. And the point under the fingers stays
+   under the fingers: scaling about the centre is what makes a zoom feel wrong, because
+   whatever you were looking at slides away and you spend the gesture chasing it back.
+4. **The photo's resting centre is read once, at the start of the gesture.** It is the fixed
+   frame every other number is measured against and it cannot change during a pinch;
+   `getBoundingClientRect` forces layout, and asking for one on every `pointermove` is the
+   camera's "read the crop once per capture, not per frame" in a second costume.
+5. **A double tap goes to 2.5×, not to the maximum.** It means "let me see that bit", and 5×
+   puts you somewhere you then have to pan your way back out of. It is measured on the clock
+   because no browser fires `dblclick` for touch, and it is the only way in and out a mouse
+   has at all.
+6. **The zoom belongs to the photo, not to the viewer**, so moving on puts it back to rest —
+   arriving at the next picture already magnified and off-centre is arriving somewhere you did
+   not go, with the counter the only thing saying you had moved. It is reset **during render**
+   off a changed id rather than in an effect: this is React's own "a prop changed, reset the
+   state derived from it" case, and the effect version is the synchronous `setState` in an
+   effect the compiler's lint correctly refuses (§9).
+
+**Driving it turned up a bug that reading it would not have**, and it is the one the hunt
+board's card drag records almost word for word. A pinch is two pointers, so the viewer keeps a
+map of the ones that are down — and a pointer whose release is never delivered (a mouse let go
+outside the window; the harness's own dropped event, which is how this was found) stays in
+that map for good. The next single press then makes the map hold two, and a **pinch begins
+with one hand**: the photo stops responding to anything, and every click after it is swallowed
+as "that was a gesture". The fix is to sweep the map whenever a **primary** pointer goes down —
+the browser is already telling us nothing else is held — plus a `blur` that tears the whole
+gesture down, which is what the board settled on for the identical failure.
+
+**Clips are deliberately left out.** A `<video>` carries its own controls, and a horizontal
+drag on them is a scrub the swipe already stands aside for; a zoom would be a third meaning
+for one gesture on the one element with no room for it.
+
 ### Ten photos an entry — decided 2026-08-06
 
 `MAX_MEDIA_PER_ENTRY = 10`, checked in the composer *and* in the action.
@@ -3964,4 +4039,4 @@ constants need a person and an afternoon. See "Known gaps" in §5.
 > recorded in §6 or a gap already listed in §5. Git history has them. **Record decisions in
 > §6 and gaps in §5; do not start a changelog at the bottom again.**
 
-_Last updated: 2026-08-28_
+_Last updated: 2026-08-29_

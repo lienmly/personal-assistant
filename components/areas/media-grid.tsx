@@ -269,6 +269,15 @@ function now(): number {
  * ±100% to 0 by itself. There is no separate "animate the slide" path to keep
  * in step with the arrows, which take exactly the same route.
  *
+ * **And a photo pinches.** A stored photo is 1600px on the long edge and a
+ * phone shows it at about 390 — so most of what was captured is not on screen,
+ * and on the one surface where the subject is a four-month-old that is exactly
+ * the detail worth having. Two fingers scale it, a double tap goes to 2.5× and
+ * back, and while it is zoomed a one-finger drag pans the picture rather than
+ * changing it. The swipe is not lost, it is *stacked*: a photo at rest swipes,
+ * a photo that has been opened up moves inside its own frame, and there is
+ * never a moment where a drag could mean either.
+ *
  * Only three slides are rendered rather than all ten, so opening a viewer
  * fetches one photo and pre-warms the two you might go to next.
  */
@@ -444,6 +453,25 @@ function Viewer({
     };
   }, []);
 
+  // **A gesture that never hears its own `pointerup` must not outlive itself.**
+  // A finger is captured implicitly and always delivers one; a *mouse* dragged
+  // out of the window and released there does not, and the pointer it left
+  // behind would make the next press look like a second finger — a pinch begun
+  // with one hand. Same failure the hunt board's drag records, and the same
+  // answer: tear down unconditionally on blur.
+  useEffect(() => {
+    function onBlur() {
+      pointers.current.clear();
+      pinch.current = null;
+      gesture.current = null;
+      setDragging(false);
+      setDrag(0);
+      setZooming(false);
+    }
+    window.addEventListener("blur", onBlur);
+    return () => window.removeEventListener("blur", onBlur);
+  }, []);
+
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       if (event.key === "Escape") setClosing(true);
@@ -529,6 +557,13 @@ function Viewer({
       }}
       onPointerDown={(event) => {
         if (event.button !== 0) return;
+        // **A primary pointer is the first one down, so nothing else can still
+        // be held.** Anything left in the map at that moment is a pointer whose
+        // release was never delivered — a mouse let go outside the window, a
+        // touch lost to the OS — and keeping it would make this press look like
+        // a second finger and start a pinch with one hand. Sweeping on the fact
+        // the browser is telling us costs a line and covers every pointer type.
+        if (event.isPrimary) pointers.current.clear();
         pointers.current.set(event.pointerId, {
           x: event.clientX,
           y: event.clientY,
