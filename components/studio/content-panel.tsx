@@ -380,7 +380,13 @@ export function ContentPanel({
           )}
 
           {item && <RepurposeRow item={item} brands={brands} />}
+        </div>
 
+        <div className="flex items-center justify-end gap-2 bg-shell px-5 py-3">
+          {/* `mr-auto` rather than `justify-between` on the row: on a *new*
+              item there is nothing to delete, and a two-child
+              `justify-between` would push Cancel to the far left the moment
+              this one is absent. */}
           {item && (
             <button
               type="button"
@@ -391,15 +397,15 @@ export function ContentPanel({
                   dismiss();
                 })
               }
-              className="mt-6 flex items-center gap-2 text-[13px] text-muted hover:text-accent"
+              className="group mr-auto flex items-center gap-2 rounded-chip px-2 py-2 text-[13px] text-muted transition-colors duration-(--duration-quick) hover:text-accent"
             >
-              <Trash2 className="size-3.5" strokeWidth={1.8} />
+              <Trash2
+                className="size-3.5 transition-transform duration-(--duration-base) ease-soft group-hover:-rotate-12"
+                strokeWidth={1.8}
+              />
               Delete this item
             </button>
           )}
-        </div>
-
-        <div className="flex items-center justify-end gap-2 bg-shell px-5 py-3">
           <button
             type="button"
             onClick={dismiss}
