@@ -40,7 +40,8 @@ up here *and* under Coding Mom's brand filter in Social Media.
 Since 28 August it is **the same stage board Social Media shows** — Idea → Script →
 Produce → Scheduled → Published — and a card **opens the same panel**, so you can write the
 script, move the stage or add a destination without going to the other screen and hunting
-for the row. "New item" here starts one already filed under this project.
+for the row. Cards drag between columns here exactly as they do there (hold before dragging
+on a phone). "New item" starts one already filed under this project.
 
 Two chips above it split the same rows the two ways worth splitting them: **Posted as
 &lt;brand&gt;** is what this project's own accounts publish, and **Covered elsewhere** is

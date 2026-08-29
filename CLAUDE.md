@@ -226,6 +226,7 @@ Ordered so each phase builds on the last. We ship and use each layer before movi
 | 5.6 | 2026-08-11 | A task keeps a log — `TaskComment` |
 | 6 | 2026-08-12/14 | **The Ledger**, in eight layers: accounts and net worth → transactions, holdings, liabilities → property → statements → tax rule sets and Schedule E → the estimate pipeline → strategies and rule updates → Montblanc's Ledger tools and `docs/ledger.md` |
 | 6.1 | 2026-08-28 | **The content idea came forward and the channel went back.** Hunt Board hidden (not retired); a project's Social media tab became the same stage board Studio shows, clickable into the same panel; channel handles demoted to platform labels inside an item |
+| 6.2 | 2026-08-28 | **Content cards drag between stages**, on a finger as well as a mouse — pointer events rather than HTML5 DnD, which is what made the long-standing refusal stop applying |
 
 Two things about Phase 6 worth carrying forward. **A whole life area cost one entry in
 `lib/nav.ts`**, which is the test §6 says the IA was built to pass. And it ships **nine check
@@ -291,8 +292,6 @@ repeated: *this has never been used on a real phone.*
       the sprint's failure: a thing that speaks unbidden about what you have not done.
 - [ ] **`prefers-color-scheme` is ignored.** Following the sun and following the OS are
       different answers, and wiring both needs a fourth mode. §11.
-- [ ] **No drag-and-drop between kanban columns.** HTML5 DnD does not work on touch, so it
-      would be a desktop-only half of a feature beside arrows that already work everywhere.
 - [ ] **No pinch to zoom** in the photo viewer, and **no face/AR filters** in the camera —
       the latter needs a face-landmark model of several megabytes tracked per frame.
 - [ ] **No recurring posting task for Coding Mom.** A daily row nagging about an account that
@@ -748,6 +747,63 @@ five empty columns to scroll past before reaching the ones with anything in them
 the stat tile above it already gives; it now reads "Sleepy Cat posts to @sleepycatgame, …",
 or says plainly that the project runs no account of its own — which for Forge is the whole
 answer and was already the empty state's job.
+
+### A card is dragged, and the refusal that stopped it was about HTML5 — 2026-08-28
+
+§5 refused drag-and-drop between kanban columns from the day the board was built, and the
+reason it gave was exact: _"HTML5 DnD does not work on touch, so it would be a desktop-only
+half of a feature beside arrows that already work everywhere."_ **That is an argument about
+`dragstart`, not about dragging.** Pointer events work identically under a mouse and a
+finger, and this app had already written two gestures on them — the photo viewer's swipe and
+the camera's tap-or-hold shutter. So the objection stopped applying, and the feature is one
+this board genuinely wanted: five columns whose whole point is that things move along them.
+
+**The arrows stay**, and that is not hedging. They are one press for the commonest move, they
+are the only route that works from a keyboard, and they are already the thing a phone sees
+(`max-md:opacity-100`). Dragging is what you reach for when the card is going *two* columns,
+or going back.
+
+Six decisions, each chosen over an obvious alternative that fails:
+
+1. **A finger holds; a mouse just moves.** A press-and-drag on touch is overwhelmingly a
+   *scroll* — the board scrolls sideways and the page scrolls down — so a card that lifted on
+   movement would make the board almost impossible to read on the device it is read on. 220ms
+   of stillness is the whole disambiguator, and it is the gesture every phone already uses to
+   reorder a home screen. A mouse has no such conflict, so it drags at 4px and waiting would
+   just feel broken.
+2. **`touchmove` is refused rather than `touch-action` set.** `touch-action` is fixed by the
+   browser when the finger lands and cannot be changed mid-gesture, so the only way to stop
+   the page sliding out from under a card already in the air is a non-passive `touchmove`
+   listener that calls `preventDefault`. It is safe to refuse *because* a finger only reaches
+   that state by holding still: no scroll has begun, so nothing is being interrupted. Setting
+   `touch-action: none` on the cards up front — the reflex fix — would instead kill vertical
+   scrolling across most of the board's surface.
+3. **The card being carried is portalled to `<body>`.** `animate-rise` ends on
+   `translateY(0)` under `fill-mode: both`, so every column permanently carries a transform,
+   and a transformed ancestor is the containing block for `position: fixed` — the card would
+   have been pinned inside the column it came from, and clipped by the board's own
+   `overflow-x-auto` on top of that. That is the fourth surface to hit this exact mechanism,
+   after the media viewer, the journal's dropdown and the camera sheet.
+4. **It lands before the server hears about it.** `useOptimistic` moves the card on release;
+   React reverts it by itself if the action throws. Without it the card sits where it was for
+   the length of a round trip, under a finger that has already let go — which reads as a drop
+   that did not take, and invites a second drag.
+5. **The drop target is read with `elementFromPoint`, not from cached rectangles.** The board
+   scrolls horizontally *during* the drag (there is edge auto-scroll, because five 248px
+   columns do not fit on a phone and without it you could only ever drop one column over), so
+   any geometry measured at pick-up is wrong a moment later.
+6. **The card face is one component, rendered twice.** The thing in your hand and the thing
+   you picked up have to be the same card; two renderings of it is how they drift.
+
+**Two bugs came out of driving it rather than reading it**, which is the note §9 keeps making.
+The click-suppression was a sticky flag cleared by the next click on a card — and a drop
+usually lands on a *different* column, so no click ever arrived to clear it and the flag sat
+armed until it ate a real click, later, on something unrelated. It is now a one-shot capture
+listener that swallows exactly the click the drag itself produces and stands down on a
+timeout when none comes. And a gesture that never received its `pointerup` — the window
+loses focus mid-drag — left its listeners attached, so the next press ran two of everything
+with the stale copy holding the *previous* card; the teardown is unconditional now, and a
+`blur` cancels the drag outright.
 
 ### A phone's chrome is mostly ornament — decided 2026-08-08
 

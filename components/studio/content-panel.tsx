@@ -1,11 +1,15 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import type { Platform } from "@prisma/client";
 import { Check, ExternalLink, Trash2, X } from "lucide-react";
 
 import type { BrandView, ContentView, ProjectView } from "@/components/studio/types";
-import { FORMATS, PLATFORMS, STAGES } from "@/lib/platforms";
+import {
+  destinationLabel,
+  FORMATS,
+  PLATFORMS,
+  STAGES,
+} from "@/lib/platforms";
 import {
   deleteContentItem,
   deriveContentItem,
@@ -18,29 +22,6 @@ const field =
   "w-full rounded-chip bg-inset px-3 py-2 text-[13px] text-ink outline-none placeholder:text-faint focus:ring-2 focus:ring-accent/25";
 const labelCls =
   "mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.08em] text-faint";
-
-/**
- * What a destination is *called* in this panel.
- *
- * A channel is a real account and its identity is a handle, but a handle is the
- * thing that made this whole surface unreadable — "@utaitai_jp" says nothing to
- * anyone who did not create it, and eleven of them across a board says less
- * still. So a destination reads as its platform, disambiguated only when the
- * platform alone would be ambiguous: by the channel's own label where it has
- * one ("Japanese"), and by the handle where it does not and the brand posts to
- * that platform twice. The handle is still on the element's `title`, so the
- * account behind a row is one hover away and nothing was actually hidden.
- */
-function destinationLabel(
-  channel: { platform: Platform; handle: string; label: string | null },
-  all: { platform: Platform }[],
-): string {
-  const base = PLATFORMS[channel.platform].label;
-  if (channel.label) return `${base} · ${channel.label}`;
-  const twice =
-    all.filter((row) => row.platform === channel.platform).length > 1;
-  return twice ? `${base} · @${channel.handle}` : base;
-}
 
 /** <input type="datetime-local"> wants local wall-clock, not an ISO string. */
 function toLocalInput(value: string | null): string {

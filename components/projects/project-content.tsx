@@ -13,6 +13,7 @@ import type {
   ProjectView,
 } from "@/components/studio/types";
 import { Card } from "@/components/ui/card";
+import { destinationLabel } from "@/lib/platforms";
 
 /**
  * A project's social media content, as the same pipeline Studio shows.
@@ -113,7 +114,10 @@ export function ProjectContent({
 
       {/* The accounts, as a sentence rather than a row of lettermarks. The stat
           tile above already counts them; a grid of coloured badges repeating
-          that count is exactly the noise this pass took off the Studio board. */}
+          that count is exactly the noise this pass took off the Studio board.
+          Named by `destinationLabel` and not by handle, for the reason that
+          function exists: Coding Mom's six accounts are all called @codingmom,
+          so a list of handles names none of them. */}
       {ownBrands.length > 0 ? (
         <p className="text-[12.5px] leading-relaxed text-muted">
           {ownBrands.map((brand, index) => (
@@ -124,11 +128,7 @@ export function ProjectContent({
                 <>
                   {" posts to "}
                   {brand.channels
-                    .map((channel) =>
-                      channel.label
-                        ? `@${channel.handle} (${channel.label})`
-                        : `@${channel.handle}`,
-                    )
+                    .map((channel) => destinationLabel(channel, brand.channels))
                     .join(", ")}
                   .
                 </>

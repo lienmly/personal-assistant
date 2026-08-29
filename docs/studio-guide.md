@@ -121,6 +121,13 @@ one column, so you get one board instead of a board per format.
   inside the item.
 - **The `→ <next stage>` button** at the bottom of a card — appears on hover (always
   visible on phone). One click advances the stage without opening anything.
+- **Drag a card to any column** (added 28 August). On a mouse, just pick it up and move it.
+  **On a phone, hold it still for a moment first** — a finger that moves straight away is
+  scrolling the board, which is what you want nine times out of ten, so the card only lifts
+  once you have held it. Drag toward either edge and the board scrolls along with you.
+  Escape, or letting go outside the columns, calls it off. The arrow button is still there
+  and still the quickest way to move one column along; dragging is for going further, or for
+  going back.
 
 The columns hold **one-off content items only**. Series slots live in the queue strip above — see
 below.

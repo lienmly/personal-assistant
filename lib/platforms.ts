@@ -73,6 +73,32 @@ export const PLATFORMS: Record<
   },
 };
 
+/**
+ * What a destination is *called* on screen.
+ *
+ * A channel is a real account and its identity is a handle, but a handle is the
+ * thing that made Studio unreadable — "@utaitai_jp" says nothing to anyone who
+ * did not create it, and eleven of them across a board says less still. Worse,
+ * a brand's handles are often *identical*: Coding Mom posts to six channels all
+ * called @codingmom, so a list of handles distinguishes none of them.
+ *
+ * So a destination reads as its platform, disambiguated only where the platform
+ * alone would be ambiguous: by the channel's own label where it has one
+ * ("Japanese", "Essays"), and by the handle where it does not and the brand
+ * posts to that platform twice. Every caller puts the handle on a `title`, so
+ * the account is one hover away — it was demoted, not hidden.
+ */
+export function destinationLabel(
+  channel: { platform: Platform; handle: string; label: string | null },
+  all: { platform: Platform }[],
+): string {
+  const base = PLATFORMS[channel.platform].label;
+  if (channel.label) return `${base} · ${channel.label}`;
+  const twice =
+    all.filter((row) => row.platform === channel.platform).length > 1;
+  return twice ? `${base} · @${channel.handle}` : base;
+}
+
 export const FORMATS: Record<ContentFormat, { label: string; verb: string }> = {
   short_video: { label: "Short video", verb: "Film & edit" },
   article: { label: "Article", verb: "Write" },
