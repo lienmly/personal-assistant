@@ -113,8 +113,12 @@ one column, so you get one board instead of a board per format.
 - **"N going out today"** — a crimson pill, only appears when there are unpublished content items
   with today's publish date.
 - **"New content item"** (top right) — for anything outside a series.
-- **Content item cards** — brand dot + name, title, format · project · publish date, and a row of
-  channel badges. A `↳` means the content item was derived from another one.
+- **Content item cards** — brand dot + name, title, and then format · project · publish
+  date. A `↳` means the content item was derived from another one.
+  **Cards stopped carrying channel badges on 2026-08-28.** They said where a thing goes
+  before they said what it is, and where it goes is the decision you make last. All a card
+  keeps of the fan-out is `2/3 posted` while it is partway through. Which accounts is
+  inside the item.
 - **The `→ <next stage>` button** at the bottom of a card — appears on hover (always
   visible on phone). One click advances the stage without opening anything.
 
@@ -126,11 +130,14 @@ below.
 Click any card to open the panel from the right. Everything about the content item is editable
 there. Two sections are worth calling out:
 
-**Goes out on** — checkboxes for every channel belonging to the selected brand. Tick more
-to fan the same asset out to more places.
+**Where it goes** — at the **bottom** of the panel, under the script and the notes,
+because it is the least important thing about a piece of content and the thing most likely
+to change on the day. One tickable pill per account on the selected brand. A pill reads as
+its platform — "TikTok", or "TikTok · Japanese" where the account has a label — and the
+handle is on its tooltip. Tick more to fan the same asset out to more places.
 
-**Posted where** — the per-channel publish checklist, one row per attached channel:
-- a check button to task that channel posted
+**Record where it went** — the per-channel publish checklist, one row per attached channel:
+- a check button to mark that channel posted
 - a field for the live URL
 - an open-link icon once the URL is in
 
@@ -145,7 +152,10 @@ Posting daily on two accounts is about 730 content items a year. Two things make
 
 ### The queue strip
 
-Above the columns sits **Daily queue** — one lane per series, one small square per day:
+Above the columns sits **Daily queue** — one lane per series, one small square per day.
+A lane is labelled with the **series** name ("Daily short — Japanese"), which is the
+commitment you are behind on; it used to be labelled with the account it posts to, which
+is only where the thing lands:
 
 | Square | Means |
 |---|---|
@@ -211,8 +221,8 @@ own publish date, because it has to be rewritten, not re-uploaded. The child car
 1. **Open Studio.** The queue strip rings today and the crimson pill says
    "2 going out today".
 2. **Click today's square** for the Japanese account. The panel opens on that content item.
-3. **Post it on TikTok for real**, then tick the channel under "Posted where" and paste
-   the URL.
+3. **Post it on TikTok for real**, then tick the channel under "Record where it went" and
+   paste the URL.
 4. The square turns green. That publish **bumps the Utaitai project's `lastTouchedAt`**,
    which is what feeds momentum and drift warnings on the Projects surface. Posting is how
    a project proves it's alive.

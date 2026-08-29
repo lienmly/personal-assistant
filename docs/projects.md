@@ -29,13 +29,23 @@ three jobs moved onto those cards rather than going with it:
 what content is queued, and any standing series or calendar blocks. Four stat tiles across
 the top: open work, content, docs, days since it was last touched.
 
-**Tasks** — every task on the project, grouped by track, tickable in place. Not the Hunt
-Board with a filter on it: the board carries scope pills and a capture box,
-and none of those mean anything once you've already decided which project you're in.
+**Tasks** — every task on the project, grouped by track, tickable in place. **Since the
+Hunt Board was hidden on 28 August this is where you go for a project's full list**, and
+Today's cards are where you go for the few rows that matter now.
 
-**Content** — everything carrying this project, whichever brand publishes it. That's the
-two-axis model paying off: a Sleepy Cat devlog posted from Coding Mom's TikTok shows up
-here *and* under Coding Mom's brand filter in the Content Studio.
+**Social media** — everything carrying this project, whichever brand publishes it. That's
+the two-axis model paying off: a Sleepy Cat devlog posted from Coding Mom's TikTok shows
+up here *and* under Coding Mom's brand filter in Social Media.
+
+Since 28 August it is **the same stage board Social Media shows** — Idea → Script →
+Produce → Scheduled → Published — and a card **opens the same panel**, so you can write the
+script, move the stage or add a destination without going to the other screen and hunting
+for the row. "New item" here starts one already filed under this project.
+
+Two chips above it split the same rows the two ways worth splitting them: **Posted as
+&lt;brand&gt;** is what this project's own accounts publish, and **Covered elsewhere** is
+what other people's accounts say about it. Forge is all of the second and none of the
+first; Coding Mom is almost all of the first.
 
 **Journal** — the devlog, added 9 August. Same thing the Baby area has: entries land on
 today, grouped into one thread per day, with photos and the in-app camera. It points

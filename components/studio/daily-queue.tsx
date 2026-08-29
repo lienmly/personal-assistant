@@ -4,7 +4,6 @@ import { useMemo } from "react";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
-import { ChannelBadge } from "@/components/studio/channel-badge";
 import type { ContentView } from "@/components/studio/types";
 import { cn } from "@/lib/utils";
 
@@ -56,7 +55,6 @@ export function DailyQueue({
           id: sorted[0].series!.id,
           name: sorted[0].series!.name,
           brandColor: sorted[0].brand.color,
-          channels: sorted[0].channels.map((row) => row.channel),
           slots: sorted,
           filled,
           total: upcoming.length,
@@ -109,22 +107,18 @@ export function DailyQueue({
             key={lane.id}
             className="flex flex-col gap-2 sm:flex-row sm:items-center"
           >
+            {/* The lane is named by its **series**, not by the account it
+                posts to. It used to lead with a row of platform lettermarks
+                and `@handle`, which named the destination and never the
+                commitment — "Daily short — Japanese" is the thing you are
+                behind on; which account it lands on is inside the slot. */}
             <div className="flex shrink-0 items-center gap-2 sm:w-[210px]">
               <span
                 className="size-1.5 shrink-0 rounded-full"
                 style={{ background: lane.brandColor }}
               />
-              {lane.channels.map((channel) => (
-                <ChannelBadge
-                  key={channel.id}
-                  platform={channel.platform}
-                  handle={channel.handle}
-                  label={channel.label}
-                  done
-                />
-              ))}
               <span className="truncate text-[12px] text-muted">
-                {lane.channels[0] ? `@${lane.channels[0].handle}` : lane.name}
+                {lane.name}
               </span>
             </div>
 

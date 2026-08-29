@@ -5,7 +5,6 @@ import {
   Clapperboard,
   Landmark,
   Sunrise,
-  Swords,
 } from "lucide-react";
 
 /**
@@ -50,12 +49,21 @@ export const SURFACES: Surface[] = [
     icon: Sunrise,
     tagline: "What needs you right now",
   },
-  {
-    href: "/board",
-    label: "Hunt Board",
-    icon: Swords,
-    tagline: "Every open task, by project",
-  },
+  // **Hunt Board is hidden as of 2026-08-28**, and this is a *hiding*, not a
+  // retirement — the surface is untouched and `/board` still resolves, so
+  // anything already linking there (the calendar's task chips, Montblanc's
+  // receipts, `revalidatePath`) keeps working. It came off the rail because it
+  // was not being opened: Today's project cards and a project page's Tasks tab
+  // answer "what is left" from inside the project, which is the context you
+  // wanted anyway, and the board's own job — every open task at once — is the
+  // one nobody was asking for. Put the entry back and it returns to the rail,
+  // the tab bar and the manifest's shortcuts with nothing else to change.
+  // {
+  //   href: "/board",
+  //   label: "Hunt Board",
+  //   icon: Swords,
+  //   tagline: "Every open task, by project",
+  // },
   {
     href: "/calendar",
     label: "Calendar",

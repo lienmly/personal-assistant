@@ -1,12 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, CalendarDays, Radio, Repeat } from "lucide-react";
+import { ArrowLeft, CalendarDays, Repeat } from "lucide-react";
 
 import { Journal } from "@/components/areas/journal";
 import type { AreaView, BoardProjectView, TaskView } from "@/components/board/types";
 import { DocsTab, type DocView } from "@/components/docs/docs-tab";
 import { NextUp } from "@/components/projects/next-up";
-import { ChannelBadge } from "@/components/studio/channel-badge";
+import { ProjectContent } from "@/components/projects/project-content";
+import type {
+  BrandView,
+  ContentView,
+  ProjectView,
+} from "@/components/studio/types";
 import { TaskList } from "@/components/tasks/task-list";
 import { Card, CardHeader, StatTile } from "@/components/ui/card";
 import { Markdown } from "@/components/ui/markdown";
@@ -43,56 +48,6 @@ const TAB_LABELS: Record<Tab, string> = {
   docs: "Docs",
 };
 
-type ContentRow = Awaited<
-  ReturnType<typeof getProjectDetail>
-> extends infer D
-  ? D extends { items: (infer I)[] }
-    ? I
-    : never
-  : never;
-
-/** One line of the Social media tab, shared by both sections so they cannot
- *  drift apart in shape. `showBrand` names the publisher, which only the
- *  "covered elsewhere" list needs — in "Posted as X" the card heading has
- *  already said it. */
-function ItemRow({
-  item,
-  index,
-  showBrand = false,
-}: {
-  item: ContentRow;
-  index: number;
-  showBrand?: boolean;
-}) {
-  return (
-    <li
-      className="flex animate-rise items-center gap-3 rounded-tile bg-inset px-3.5 py-2.5"
-      style={{ animationDelay: `${Math.min(index, 12) * 35}ms` }}
-    >
-      <span
-        className="size-2 shrink-0 rounded-full"
-        style={{ background: item.brand.color }}
-      />
-      <span className="min-w-0 flex-1 truncate text-[13px] text-ink">
-        {item.title || item.series?.name || "Empty slot"}
-      </span>
-      {showBrand && (
-        <span className="hidden shrink-0 text-[11.5px] text-muted sm:block">
-          {item.brand.name}
-        </span>
-      )}
-      <span className="shrink-0 rounded-full bg-card px-2 py-0.5 text-[11px] text-muted">
-        {item.stage}
-      </span>
-      {item.publishAt && (
-        <span className="hidden shrink-0 text-[11.5px] text-faint sm:block">
-          {stampFormat.format(item.publishAt)}
-        </span>
-      )}
-    </li>
-  );
-}
-
 export async function generateMetadata({
   params,
 }: {
@@ -115,7 +70,7 @@ export default async function ProjectPage({
 }) {
   const [{ slug }, query] = await Promise.all([params, searchParams]);
 
-  const [detail, projects, areas] = await Promise.all([
+  const [detail, projects, areas, allBrands] = await Promise.all([
     getProjectDetail(slug),
     db.project.findMany({
       where: { status: { in: ["active", "simmering"] } },
@@ -134,12 +89,34 @@ export default async function ProjectPage({
       orderBy: { sortOrder: "asc" },
       select: { id: true, name: true, color: true },
     }),
+    // Every brand, not just this project's — the content panel can re-file an
+    // item onto any of them, and a picker missing the brand an item already
+    // carries would silently move it on the first save.
+    db.brand.findMany({
+      orderBy: { sortOrder: "asc" },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        color: true,
+        projectId: true,
+        channels: {
+          orderBy: { sortOrder: "asc" },
+          select: {
+            id: true,
+            platform: true,
+            handle: true,
+            label: true,
+            state: true,
+          },
+        },
+      },
+    }),
   ]);
 
   if (!detail) notFound();
 
-  const { project, tasks, items, own, elsewhere, docs, series, events, stats } =
-    detail;
+  const { project, tasks, items, docs, series, events, stats } = detail;
   const tab: Tab = TABS.includes(query.tab as Tab) ? (query.tab as Tab) : "overview";
   const today = todayKey();
 
@@ -178,6 +155,42 @@ export default async function ProjectPage({
   const panelProjects = projects.some((row) => row.id === project.id)
     ? projects
     : [self, ...projects];
+
+  const brandViews: BrandView[] = allBrands.map((brand) => ({
+    id: brand.id,
+    name: brand.name,
+    slug: brand.slug,
+    color: brand.color,
+    projectId: brand.projectId,
+    channels: brand.channels,
+  }));
+  const ownBrandIds = new Set(project.brands.map((brand) => brand.id));
+  const ownBrandViews = brandViews.filter((brand) => ownBrandIds.has(brand.id));
+
+  // The Social media tab hands whole items to the same panel Studio opens, so
+  // the mapping is the same one `app/(app)/studio/page.tsx` does — dates
+  // formatted here rather than in the client, because Node's ICU and the
+  // browser's disagree on separators and a date formatted on both sides is a
+  // hydration mismatch (CLAUDE.md, `ContentView.publishLabel`).
+  const todayLabel = new Date().toDateString();
+  const contentViews: ContentView[] = items.map((item) => ({
+    id: item.id,
+    title: item.title,
+    notes: item.notes,
+    body: item.body,
+    refUrl: item.refUrl,
+    format: item.format,
+    stage: item.stage,
+    publishAt: item.publishAt?.toISOString() ?? null,
+    slotDate: item.slotDate?.toISOString().slice(0, 10) ?? null,
+    publishLabel: item.publishAt ? stampFormat.format(item.publishAt) : null,
+    isToday: item.publishAt?.toDateString() === todayLabel,
+    brand: item.brand,
+    project: item.project,
+    series: item.series,
+    sourceItemId: item.sourceItemId,
+    channels: item.channels,
+  }));
 
   const nextTasks = taskViews
     .filter((task) => task.status !== "done")
@@ -450,113 +463,19 @@ export default async function ProjectPage({
         </Card>
       )}
 
-      {/* Two questions, deliberately kept apart. "Posted as" is what this
-          project's own accounts publish — for Coding Mom that is its entire
-          job, most of which is about no project at all. "Covered elsewhere" is
-          what other people's accounts say about it — for Forge, which runs no
-          account, that is all it has. Asking `projectId` alone answered
-          neither properly. */}
+      {/* Two questions, deliberately kept apart — and now two chips over one
+          board rather than two stacks of cards. "Posted as" is what this
+          project's own accounts publish; "covered elsewhere" is what other
+          people's accounts say about it. They still partition the rows exactly,
+          so nothing is listed twice. See `ProjectContent`. */}
       {tab === "content" && (
-        <div className="space-y-5">
-          {project.brands.length > 0 ? (
-            project.brands.map((brand) => {
-              const posts = own.filter((item) => item.brandId === brand.id);
-              return (
-                <Card key={brand.id}>
-                  <CardHeader
-                    title={`Posted as ${brand.name}`}
-                    count={`${posts.length} ${posts.length === 1 ? "item" : "items"}`}
-                  />
-                  <div className="mb-4 flex flex-wrap items-center gap-1.5">
-                    {brand.channels.map((channel) => (
-                      <span
-                        key={channel.id}
-                        className="flex items-center gap-1.5 rounded-chip bg-inset py-1 pl-1 pr-2.5"
-                      >
-                        <ChannelBadge
-                          platform={channel.platform}
-                          handle={channel.handle}
-                          label={channel.label}
-                          done={channel.state === "live"}
-                        />
-                        <span className="text-[12px] text-muted">
-                          @{channel.handle}
-                        </span>
-                        {channel.state !== "live" && (
-                          <span className="text-[11px] text-faint">
-                            {channel.state}
-                          </span>
-                        )}
-                      </span>
-                    ))}
-                    {brand.channels.length === 0 && (
-                      <span className="text-[12.5px] text-faint">
-                        No accounts on this brand yet.
-                      </span>
-                    )}
-                  </div>
-                  {posts.length > 0 ? (
-                    <ul className="flex flex-col gap-1.5">
-                      {posts.map((item, index) => (
-                        <ItemRow key={item.id} item={item} index={index} />
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="rounded-tile bg-inset px-3.5 py-3 text-[13px] text-muted">
-                      Nothing queued on this account yet.
-                    </p>
-                  )}
-                </Card>
-              );
-            })
-          ) : (
-            <Card>
-              <CardHeader title="Accounts" count="none" />
-              <div className="flex flex-col items-center justify-center rounded-tile bg-inset px-6 py-8 text-center">
-                <span className="mb-3 grid size-10 place-items-center rounded-full bg-card text-faint shadow-card">
-                  <Radio className="size-4.5" strokeWidth={1.8} />
-                </span>
-                <p className="text-sm font-medium text-ink">
-                  {project.name} runs no account of its own
-                </p>
-                <p className="mt-1 max-w-sm text-[13px] leading-relaxed text-muted">
-                  Its posts go out from another brand&rsquo;s audience. Give it
-                  one on Studio &rarr; Channels if that changes.
-                </p>
-              </div>
-            </Card>
-          )}
-
-          {elsewhere.length > 0 && (
-            <Card>
-              <CardHeader
-                title="Covered elsewhere"
-                count={`${elsewhere.length} ${elsewhere.length === 1 ? "item" : "items"}`}
-              />
-              <p className="mb-3 text-[12.5px] leading-relaxed text-muted">
-                About this project, published from someone else&rsquo;s account.
-              </p>
-              <ul className="flex flex-col gap-1.5">
-                {elsewhere.map((item, index) => (
-                  <ItemRow key={item.id} item={item} index={index} showBrand />
-                ))}
-              </ul>
-            </Card>
-          )}
-
-          {items.length === 0 && project.brands.length > 0 && (
-            <p className="text-[12.5px] text-faint">
-              Nothing published or queued about {project.name} yet.
-            </p>
-          )}
-
-          <Link
-            href="/studio"
-            className="inline-block text-[12.5px] text-muted hover:text-accent"
-          >
-            Open Social Media →
-          </Link>
-        </div>
+        <ProjectContent
+          project={{ id: project.id, name: project.name }}
+          ownBrands={ownBrandViews}
+          items={contentViews}
+          brands={brandViews}
+          projects={panelProjects as ProjectView[]}
+        />
       )}
 
       {/* The devlog. Same component as the Baby area's journal, and the same

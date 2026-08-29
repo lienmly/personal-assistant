@@ -28,8 +28,9 @@ ask you to sign in with Google again. That's the last time.
 2. Chrome usually offers **Install app** in a banner at the bottom. Tap it.
 3. If it doesn't: menu (⋮) → **Add to Home screen** → **Install**.
 
-**Long-press the icon** and you get shortcuts straight to the Hunt Board, the Calendar and
-Social Media.
+**Long-press the icon** and you get shortcuts straight to the Calendar and Social Media.
+(The Hunt Board's shortcut came off with its nav entry on 28 August — a shortcut to a
+screen with no way back to it is a dead end on a phone.)
 
 ## Desktop (Mac / Windows)
 

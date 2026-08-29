@@ -60,15 +60,11 @@ export default function manifest(): MetadataRoute.Manifest {
         purpose: "maskable",
       },
     ],
-    // Long-press the home-screen icon and jump straight to a surface. The four
-    // in the tab bar minus Today, which is where the icon already goes.
+    // Long-press the home-screen icon and jump straight to a surface. The ones
+    // in the tab bar minus Today, which is where the icon already goes. The
+    // Hunt Board's shortcut came off with its nav entry on 2026-08-28 — a
+    // shortcut to a surface with no way back to it is a dead end on a phone.
     shortcuts: [
-      {
-        name: "Hunt Board",
-        short_name: "Board",
-        url: "/board",
-        icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }],
-      },
       {
         name: "Calendar",
         short_name: "Calendar",

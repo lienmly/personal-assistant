@@ -122,12 +122,14 @@ dashboard/UI ecosystem, easy Google auth, and a clean path to embedding an AI as
                      row (writes into a textarea, never owns its value — §6)
 /components/brand  → the moogle task
 /lib               → auth config, nav config, server actions, utils
-/components/studio → the content item board, daily queue, batch composer, content item panel, channel manager
+/components/studio → the stage columns (shared with a project page), the brand/scope
+                     filter chip, daily queue, batch composer, content item panel,
+                     channel manager
 /components/board  → the hunt board, task panel, experiment capture
 /components/today  → the projects card (list + create + archived), project cards,
                      the contribution map, going-out, agenda
 /components/calendar → month grid, week/day time grid, item chips, the event panel
-/components/projects → the project panel
+/components/projects → the project panel, and the Social media tab's board
 /components/areas  → the area page's journal, the media grid and its viewer, the
                      media picker and the camera sheet
 /components/docs   → the Docs tab, shared by a project page and an area page
@@ -223,6 +225,7 @@ Ordered so each phase builds on the last. We ship and use each layer before movi
 | 5.5 | 2026-08-10 | Montblanc's replies render as Markdown, and it **remembers** (distilled notes, never the transcript) |
 | 5.6 | 2026-08-11 | A task keeps a log — `TaskComment` |
 | 6 | 2026-08-12/14 | **The Ledger**, in eight layers: accounts and net worth → transactions, holdings, liabilities → property → statements → tax rule sets and Schedule E → the estimate pipeline → strategies and rule updates → Montblanc's Ledger tools and `docs/ledger.md` |
+| 6.1 | 2026-08-28 | **The content idea came forward and the channel went back.** Hunt Board hidden (not retired); a project's Social media tab became the same stage board Studio shows, clickable into the same panel; channel handles demoted to platform labels inside an item |
 
 Two things about Phase 6 worth carrying forward. **A whole life area cost one entry in
 `lib/nav.ts`**, which is the test §6 says the IA was built to pass. And it ships **nine check
@@ -650,7 +653,7 @@ row. Left icon rail on desktop, bottom tab bar on mobile — same IA, no redesig
 | Surface | Purpose |
 |---|---|
 | **Today** | The one screen opened 20×/day. "What have I got on." One card per project. |
-| **Hunt Board** | Every open Task, grouped by Project and track. The complete list, in full. |
+| ~~**Hunt Board**~~ | _Hidden 2026-08-28 — `/board` still resolves, it is off the rail. See below._ |
 | **Calendar** | Time. Events only by default; Task due dates and content are layers. |
 | **Journal** | Every area's and project's journal on one thread, by day. Area is a filter. |
 | **Social Media** | Cross-project content pipeline. Kanban by stage. (Route is still `/studio`.) |
@@ -662,6 +665,89 @@ row. Left icon rail on desktop, bottom tab bar on mobile — same IA, no redesig
 **Ledger** (bank + property audit, §5 Phase 6) slotted in as one more surface without
 disturbing anything — one entry in `lib/nav.ts`. That was the test the IA was built to
 pass, and it passed it.
+
+### The Hunt Board is hidden, not retired — decided 2026-08-28
+
+It came off the icon rail, the mobile tab bar and the manifest's shortcuts. **The surface
+itself is untouched and `/board` still resolves**, which is the whole shape of the decision:
+one commented-out entry in `lib/nav.ts` puts it back, and everything already pointing there —
+the calendar's task chips, Montblanc's receipts, `revalidatePath("/board")` — keeps working
+in the meantime. Nothing had to be deleted to stop looking at it.
+
+The reason is that it was not being opened, and the reason for *that* is the same fold the
+Projects roster went through on 2026-08-05. **Today's project cards and a project page's
+Tasks tab answer "what is left" from inside the project**, which is the context you wanted
+anyway; the board's own contribution — every open task at once, across everything — is the
+one nobody asks for at 7am. Sixty rows is the right contents for a complete list and the
+wrong thing to be greeted by, which is the sentence the sprint died of two surfaces ago.
+
+**It is a hiding rather than a fold, and the distinction matters.** The roster was folded
+because everything it uniquely owned had somewhere better to be. This is a bet that the
+board is not being missed, and the honest way to test that bet is to stop showing it and
+see. Deleting it would make the test one-way.
+
+### The destination is not the idea — decided 2026-08-28
+
+Studio was read as a wall of `@handles`. Every card carried a row of platform lettermarks,
+the daily queue named each lane by the account it posts to, and the item panel put the
+channel checklist above the words. So the board said **where things go** before it said
+**what they are**, and the complaint was exact: channels are not the priority, the content
+idea is.
+
+That was the two axes (§6, "Brand and Project are two axes") quietly acquiring a third that
+does not deserve equal billing. Brand is *who is saying it* and Project is *what it is
+about* — both are decisions about the piece. A channel is a **delivery detail**, and it is
+the one decision that can be made last, changed on the day, and repeated across a dozen
+items without ever being the reason one of them exists.
+
+So the fan-out moved rather than went:
+
+1. **A card carries no channels at all**, only how much of it has gone out — "2/3 posted",
+   and only while that is a partial. *Which* accounts is a question you ask inside the item,
+   on the day you post it, and it was answering it ninety cards at a time.
+2. **A destination reads as its platform**, not as a handle: "TikTok", or "TikTok · Japanese"
+   where the channel has a label, or "TikTok · @handle" only where one brand posts to that
+   platform twice and there is genuinely nothing else to tell them apart. The handle is on
+   the element's `title`, so the account is one hover away — **nothing was hidden, it was
+   demoted**, which is the distinction this whole change turns on.
+3. **"Where it goes" sits at the bottom of the item panel**, under the script and the notes.
+   It used to sit above them, which put the least important decision in front of the only
+   one that matters.
+4. **A queue lane is named by its series**, not by its account. "Daily short — Japanese" is
+   the commitment you are behind on; `@utaitai_jp` is where it lands.
+
+**The channel model is untouched**, and that is deliberate: `Channel` and `ContentItemChannel`
+are what record that a thing actually went out, and Today's "going out today" ticks them one
+by one — which is the one screen where the account genuinely *is* the task, so it keeps its
+badges. This was a presentation decision, not a schema one, which is why it cost no migration
+and can be walked back by whoever wants the lettermarks again.
+
+### A project's content is the same board, not a list of it — decided 2026-08-28
+
+A project page's Social media tab was a list of unclickable lines, which meant **the one
+screen that knows what a piece of content is *about* was the one screen you could not open it
+from.** You read the title there and went to Studio to find the same row among ninety. It
+opens the same `ContentPanel` now, for the reason a task opens where you read it: a detour
+through a surface you did not want is the complaint the Projects roster died of.
+
+`ContentColumns` is extracted out of `StudioBoard` rather than copied, because two kanbans is
+how the two come to disagree about what a stage is called and which way the arrow moves —
+the argument `groupByTrack` is already shared for on the Tasks tab. `getProjectDetail` now
+selects the whole item rather than a summary of one: a panel handed a thin row would open
+with an empty script and no destinations, which is a form that silently loses what it was not
+told about. Those columns ride along on a query that was already running, exactly as a Today
+project card's `edit: TaskView` does.
+
+**The two questions survive as chips over one board rather than two stacks of cards.** They
+still partition the rows exactly — "posted as X" is `brandId ∈ my brands`, "covered
+elsewhere" is everything else — and that is the only arrangement that works for both Coding
+Mom (47 · 1) and Forge (0 · 5): stacked, whichever section is empty for a given project is
+five empty columns to scroll past before reaching the ones with anything in them.
+
+**The accounts row became a sentence.** It was a grid of coloured badges repeating a count
+the stat tile above it already gives; it now reads "Sleepy Cat posts to @sleepycatgame, …",
+or says plainly that the project runs no account of its own — which for Forge is the whole
+answer and was already the empty state's job.
 
 ### A phone's chrome is mostly ornament — decided 2026-08-08
 
@@ -3796,8 +3882,10 @@ Three rules inside it:
 
 ## Status
 
-**Phase 6 is done — the Ledger.** Six surfaces are live: Today, Hunt Board, Calendar,
-Social Media, Ledger, and Montblanc in a drawer on all of them. Areas and projects have
+**Phase 6 is done — the Ledger.** Five surfaces are on the rail — Today, Calendar,
+Journal, Social Media and Ledger — with Montblanc in a drawer on all of them. **The Hunt
+Board is hidden as of 2026-08-28**, off the rail but still live at `/board`; §6 says why,
+and putting it back is one commented-out entry in `lib/nav.ts`. Areas and projects have
 pages; a task has a checklist and a comment log; the journal has a camera; the app
 installs to a home screen and follows the sun into a dark theme.
 

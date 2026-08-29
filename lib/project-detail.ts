@@ -73,16 +73,44 @@ export async function getProjectDetail(slug: string) {
         OR: [{ projectId: project.id }, ...(brandIds.length > 0 ? [{ brandId: { in: brandIds } }] : [])],
       },
       orderBy: [{ publishAt: "asc" }, { createdAt: "desc" }],
+      // The full item, not a summary of one. A project page's Social media tab
+      // opens the same `ContentPanel` Studio does as of 2026-08-28, and a panel
+      // handed a thin row would open with an empty script and no destinations —
+      // a form that quietly loses what it did not know about. Same shape as a
+      // Today project card carrying `edit: TaskView`: the columns ride along on
+      // a query that was already running.
       select: {
         id: true,
         title: true,
+        notes: true,
+        body: true,
+        refUrl: true,
         stage: true,
         format: true,
         publishAt: true,
+        slotDate: true,
+        sourceItemId: true,
         brandId: true,
         projectId: true,
-        series: { select: { name: true } },
-        brand: { select: { name: true, color: true } },
+        series: { select: { id: true, name: true } },
+        brand: { select: { id: true, name: true, slug: true, color: true } },
+        project: { select: { id: true, name: true, slug: true } },
+        channels: {
+          orderBy: { channel: { sortOrder: "asc" } },
+          select: {
+            id: true,
+            state: true,
+            publishedUrl: true,
+            channel: {
+              select: {
+                id: true,
+                platform: true,
+                handle: true,
+                label: true,
+              },
+            },
+          },
+        },
       },
     }),
     db.doc.findMany({
@@ -104,19 +132,17 @@ export async function getProjectDetail(slug: string) {
   const open = tasks.filter((task) => task.status !== "done");
   const idle = daysSince(project.lastTouchedAt);
 
-  // The two sections partition `items` exactly — every row matched one arm of
-  // the OR above, and a row that matched both (this project, posted from its
-  // own account) belongs to `own`, so nothing is listed twice.
-  const owned = new Set(brandIds);
-  const own = items.filter((item) => owned.has(item.brandId));
-  const elsewhere = items.filter((item) => !owned.has(item.brandId));
+  // **The own/elsewhere split is no longer computed here.** It used to be two
+  // arrays feeding two stacks of cards; since 2026-08-28 the tab is one board
+  // with the split as a filter chip, so `ProjectContent` partitions `items` by
+  // `project.brands` itself. The rule is unchanged and still exact — a row that
+  // matched both arms of the OR above (this project, posted from its own
+  // account) is "posted as", so nothing is listed twice.
 
   return {
     project,
     tasks,
     items,
-    own,
-    elsewhere,
     docs,
     series,
     events,

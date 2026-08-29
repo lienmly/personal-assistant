@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import type { Platform } from "@prisma/client";
 import { Check, ExternalLink, Trash2, X } from "lucide-react";
 
-import { ChannelBadge } from "@/components/studio/channel-badge";
 import type { BrandView, ContentView, ProjectView } from "@/components/studio/types";
 import { FORMATS, PLATFORMS, STAGES } from "@/lib/platforms";
 import {
@@ -18,6 +18,29 @@ const field =
   "w-full rounded-chip bg-inset px-3 py-2 text-[13px] text-ink outline-none placeholder:text-faint focus:ring-2 focus:ring-accent/25";
 const labelCls =
   "mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.08em] text-faint";
+
+/**
+ * What a destination is *called* in this panel.
+ *
+ * A channel is a real account and its identity is a handle, but a handle is the
+ * thing that made this whole surface unreadable — "@utaitai_jp" says nothing to
+ * anyone who did not create it, and eleven of them across a board says less
+ * still. So a destination reads as its platform, disambiguated only when the
+ * platform alone would be ambiguous: by the channel's own label where it has
+ * one ("Japanese"), and by the handle where it does not and the brand posts to
+ * that platform twice. The handle is still on the element's `title`, so the
+ * account behind a row is one hover away and nothing was actually hidden.
+ */
+function destinationLabel(
+  channel: { platform: Platform; handle: string; label: string | null },
+  all: { platform: Platform }[],
+): string {
+  const base = PLATFORMS[channel.platform].label;
+  if (channel.label) return `${base} · ${channel.label}`;
+  const twice =
+    all.filter((row) => row.platform === channel.platform).length > 1;
+  return twice ? `${base} · @${channel.handle}` : base;
+}
 
 /** <input type="datetime-local"> wants local wall-clock, not an ISO string. */
 function toLocalInput(value: string | null): string {
@@ -34,12 +57,17 @@ export function ContentPanel({
   brands,
   projects,
   defaultBrandId,
+  defaultProjectId,
   onClose,
 }: {
   item: ContentView | null;
   brands: BrandView[];
   projects: ProjectView[];
   defaultBrandId?: string;
+  /** Set where the surface itself is a project — opening the composer from a
+   *  project page means "about this one", and that is a decision the page has
+   *  already made rather than a default the brand gets to overrule. */
+  defaultProjectId?: string;
   onClose: () => void;
 }) {
   const [pending, startTransition] = useTransition();
@@ -58,9 +86,13 @@ export function ContentPanel({
   const [projectId, setProjectId] = useState(
     item
       ? (item.project?.id ?? "")
-      : (brands.find((b) => b.id === initialBrandId)?.projectId ?? ""),
+      : (defaultProjectId ??
+        brands.find((b) => b.id === initialBrandId)?.projectId ??
+        ""),
   );
-  const [projectPinned, setProjectPinned] = useState(item != null);
+  const [projectPinned, setProjectPinned] = useState(
+    item != null || defaultProjectId != null,
+  );
 
   function pickBrand(nextBrandId: string) {
     setBrandId(nextBrandId);
@@ -256,52 +288,6 @@ export function ContentPanel({
             </div>
 
             <div>
-              <span className={labelCls}>Goes out on</span>
-              <div className="space-y-1.5 rounded-tile bg-card p-3 shadow-card">
-                {brand?.channels.length ? (
-                  brand.channels.map((channel) => (
-                    <label
-                      key={channel.id}
-                      className="flex cursor-pointer items-center gap-2.5 text-[13px] text-ink"
-                    >
-                      <input
-                        type="checkbox"
-                        name="channelIds"
-                        value={channel.id}
-                        defaultChecked={attached.has(channel.id)}
-                        className="size-3.5 accent-accent"
-                      />
-                      <ChannelBadge
-                        platform={channel.platform}
-                        handle={channel.handle}
-                        label={channel.label}
-                        done
-                      />
-                      <span className="truncate">
-                        @{channel.handle}
-                        {channel.label && (
-                          <span className="ml-1.5 text-faint">{channel.label}</span>
-                        )}
-                      </span>
-                      {channel.state === "planned" && (
-                        <span className="ml-auto shrink-0 rounded-full bg-warn-soft px-2 py-0.5 text-[10px] font-medium text-warn">
-                          planned
-                        </span>
-                      )}
-                    </label>
-                  ))
-                ) : (
-                  <p className="text-[13px] text-muted">
-                    This brand has no channels yet.
-                  </p>
-                )}
-              </div>
-              <p className="mt-1.5 text-[12px] leading-relaxed text-faint">
-                Same asset, more places — ticking extra boxes costs nothing.
-              </p>
-            </div>
-
-            <div>
               <label className={labelCls} htmlFor="item-body">
                 Script / caption
               </label>
@@ -357,6 +343,48 @@ export function ContentPanel({
                 defaultValue={item?.notes ?? ""}
                 className={cn(field, "resize-y")}
               />
+            </div>
+
+            {/* **Where it goes sits at the bottom of the panel, on purpose.**
+                It used to sit above the writing, which put the least important
+                decision about a piece of content in front of the only one that
+                matters — and it is the decision most likely to change on the
+                day. The idea first; the destination when there is something to
+                send. */}
+            <div>
+              <span className={labelCls}>Where it goes</span>
+              <div className="flex flex-wrap gap-1.5">
+                {brand?.channels.length ? (
+                  brand.channels.map((channel) => (
+                    <label
+                      key={channel.id}
+                      title={`@${channel.handle}`}
+                      className="flex cursor-pointer items-center gap-2 rounded-chip bg-inset px-3 py-1.5 text-[13px] text-ink transition-colors duration-(--duration-quick) hover:bg-line"
+                    >
+                      <input
+                        type="checkbox"
+                        name="channelIds"
+                        value={channel.id}
+                        defaultChecked={attached.has(channel.id)}
+                        className="size-3.5 accent-accent"
+                      />
+                      {destinationLabel(channel, brand.channels)}
+                      {channel.state === "planned" && (
+                        <span className="shrink-0 text-[11px] text-warn">
+                          planned
+                        </span>
+                      )}
+                    </label>
+                  ))
+                ) : (
+                  <p className="text-[13px] text-muted">
+                    This brand has no accounts yet.
+                  </p>
+                )}
+              </div>
+              <p className="mt-1.5 text-[12px] leading-relaxed text-faint">
+                Same asset, more places — ticking extra boxes costs nothing.
+              </p>
             </div>
 
             {error && (
@@ -430,7 +458,7 @@ function PublishChecklist({ item }: { item: ContentView }) {
 
   return (
     <div className="mt-7">
-      <h3 className={labelCls}>Posted where</h3>
+      <h3 className={labelCls}>Record where it went</h3>
       <div className="space-y-2 rounded-tile bg-card p-3 shadow-card">
         {item.channels.map((row) => {
           const done = row.state === "published";
@@ -463,13 +491,19 @@ function PublishChecklist({ item }: { item: ContentView }) {
                 />
               </button>
 
-              <ChannelBadge
-                platform={row.channel.platform}
-                handle={row.channel.handle}
-                label={row.channel.label}
-                done={done}
-                skipped={row.state === "skipped"}
-              />
+              <span
+                title={`@${row.channel.handle}`}
+                className={cn(
+                  "w-[104px] shrink-0 truncate text-[12.5px]",
+                  done ? "text-ink" : "text-muted",
+                  row.state === "skipped" && "text-faint line-through",
+                )}
+              >
+                {destinationLabel(
+                  row.channel,
+                  item.channels.map((each) => each.channel),
+                )}
+              </span>
 
               <input
                 defaultValue={row.publishedUrl ?? ""}
@@ -577,6 +611,7 @@ function RepurposeRow({
         {brand?.channels.map((channel) => (
           <label
             key={channel.id}
+            title={`@${channel.handle}`}
             className="flex items-center gap-1.5 rounded-chip bg-inset px-2 py-1 text-[12px] text-ink"
           >
             <input
@@ -585,7 +620,7 @@ function RepurposeRow({
               value={channel.id}
               className="size-3 accent-accent"
             />
-            @{channel.handle}
+            {destinationLabel(channel, brand.channels)}
           </label>
         ))}
       </div>

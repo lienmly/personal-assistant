@@ -133,9 +133,11 @@ Today's calendar events. Empty unless you've put something in the calendar — s
 
 ## Where the other screens fit
 
-- **Hunt Board** — every task, grouped by project and track, with the paste-a-link capture
-  box. This is the full list; Today is the readable slice of it. Nothing is held back from
-  it any more now that there is no committed subset.
+- **The Hunt Board is hidden** (28 August). It was every task at once, grouped by project
+  and track — the full list, of which Today is the readable slice — and it stopped being
+  opened once Today became project-first and a project page grew a Tasks tab. It is not
+  deleted: `/board` still works if you type it, and it comes back the day it is missed.
+  A project's full list lives on its own page now.
 - **A project's page** — Overview, Tasks, Social media, Docs. Where you add and edit tasks
   for one project, and where its docs live. Reached from a card here, or from the sidebar.
 - **There is no Projects tab any more** (gone 5 August). It was a second list of the same
